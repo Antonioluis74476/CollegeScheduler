@@ -1,0 +1,132 @@
+﻿@rendermode InteractiveServer
+@inject IJSRuntime JS
+@using System.Linq
+
+@page "/admin/buildings"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@inject CollegeScheduler.Services.AdminBuildingsApi Api
+
+<h3>Admin - Buildings</h3>
+
+
+<a class="btn btn-primary mb-3" href="/admin/buildings/create">+ Create Building</a>
+
+
+@if (!string.IsNullOrWhiteSpace(_lastDelete)) // show last delete result (if any)
+{
+<div class="alert alert-info">@_lastDelete</div>
+}
+
+@if (_loading) // show loading state
+{
+    <p>Loading buildings...</p>
+}
+else if (!string.IsNullOrWhiteSpace(_error)) // show error state
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else // show results
+{
+    if (_result.Items.Count == 0) // show empty state
+    {
+        <p>No buildings found.</p>
+    }
+    else // show table
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                    <th>Code</th>
+                    <th></th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @foreach (var b in _result.Items.Where(x => x.IsActive)) // only show active buildings
+                {
+                    <tr>
+                        <td>@b.Id</td>
+                        <td>@b.Name</td>
+                        <td>@b.Code</td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary" href="/admin/buildings/edit/@b.Id">Edit</a>
+                        </td>
+
+                        <button class="btn btn-sm btn-outline-danger"
+                                @onclick="() => Delete(b.Id, b.Name)">
+                            Delete
+                        </button>
+
+                    </tr>
+                }
+            </tbody>
+
+        </table>
+
+        <p class="text-muted">
+            Page @_result.Page (PageSize @_result.PageSize) — Total @_result.TotalCount
+        </p>
+    }
+}
+
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private string? _lastDelete;
+
+    private CollegeScheduler.Services.PagedResult<CollegeScheduler.Services.BuildingDto> _result
+        = new();
+
+    protected override async Task OnInitializedAsync() // load data on init
+    {
+        try
+        {
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    // TEMP: campusId = 1 (same as create/edit)
+    private async Task LoadAsync()
+    {
+        _result = await Api.GetBuildingsAsync(campusId: 1);
+    }
+
+
+    // TEMP: confirm delete (no undo)
+
+    private async Task Delete(int id, string name) // confirm and delete
+    {
+        _error = null;
+        _lastDelete = null;
+
+        var ok = await JS.InvokeAsync<bool>("confirm", $"Delete building '{name}'?");
+        if (!ok) return;
+
+        try // call delete API
+        {
+            var result = await Api.DeleteBuildingDebugAsync(id);
+            _lastDelete = $"DELETE id={id} -> ok={result.ok}, status={result.statusCode}, body='{result.body}'";
+
+            await LoadAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex) // show error if delete fails
+        {
+            _error = ex.Message;
+        }
+    }
+
+
+
+}

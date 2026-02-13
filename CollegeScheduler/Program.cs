@@ -7,6 +7,16 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// API clients // FrontEnd - FirstPart
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+builder.Services.AddHttpClient<CollegeScheduler.Services.AdminBuildingsApi>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
 // UI (Blazor)
 builder.Services.AddRazorComponents()
 	.AddInteractiveServerComponents();

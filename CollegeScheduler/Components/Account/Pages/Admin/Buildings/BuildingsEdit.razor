@@ -1,0 +1,100 @@
+﻿@rendermode InteractiveServer
+
+
+@page "/admin/buildings/edit/{id:int}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@inject CollegeScheduler.Services.AdminBuildingsApi Api
+@inject NavigationManager Nav
+
+<h3>Edit Building</h3>
+
+@if (_loading)
+{
+    <p>Loading...</p>
+}
+else if (!string.IsNullOrWhiteSpace(_error))
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else
+{
+    <EditForm Model="_model" OnValidSubmit="Save">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <InputText class="form-control" @bind-Value="_model.Name" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Code</label>
+            <InputText class="form-control" @bind-Value="_model.Code" />
+        </div>
+
+        <button class="btn btn-primary" type="submit" disabled="_saving">
+            Save
+        </button>
+
+        <button class="btn btn-secondary ms-2" type="button" @onclick="Back">
+            Cancel
+        </button>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool _loading = true;
+    private bool _saving;
+    private string? _error;
+
+    private CollegeScheduler.Services.BuildingUpdateDto _model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var building = await Api.GetBuildingByIdAsync(Id);
+
+            if (building is null)
+            {
+                _error = "Building not found.";
+                return;
+            }
+
+            _model.Name = building.Name;
+            _model.Code = building.Code;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        _error = null;
+
+        try
+        {
+            await Api.UpdateBuildingAsync(Id, _model);
+            Nav.NavigateTo("/admin/buildings");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Back() => Nav.NavigateTo("/admin/buildings");
+}
