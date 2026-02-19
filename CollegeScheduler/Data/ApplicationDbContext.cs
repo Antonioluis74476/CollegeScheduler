@@ -1,5 +1,6 @@
 using CollegeScheduler.Data.Entities.Common;
 using CollegeScheduler.Data.Entities.Facilities;
+using CollegeScheduler.Data.Entities.Profiles;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +11,7 @@ namespace CollegeScheduler.Data
 		public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
 			: base(options) { }
 
+		// Facilities
 		public DbSet<Campus> Campuses => Set<Campus>();
 		public DbSet<Building> Buildings => Set<Building>();
 		public DbSet<RoomType> RoomTypes => Set<RoomType>();
@@ -19,14 +21,18 @@ namespace CollegeScheduler.Data
 		public DbSet<UnavailabilityReasonType> UnavailabilityReasonTypes => Set<UnavailabilityReasonType>();
 		public DbSet<RoomUnavailability> RoomUnavailabilities => Set<RoomUnavailability>();
 
+		// Profiles
+		public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
+		public DbSet<LecturerProfile> LecturerProfiles => Set<LecturerProfile>();
+
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
 			base.OnModelCreating(builder);
 
-			// This will automatically apply all IEntityTypeConfiguration<T>
-			// classes you create (CampusConfiguration, RoomConfiguration, etc.)
+			// Automatically applies all IEntityTypeConfiguration<T> from this assembly
 			builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
 		}
+
 		public override int SaveChanges()
 		{
 			ApplyAuditInfo();
@@ -47,10 +53,7 @@ namespace CollegeScheduler.Data
 			{
 				if (entry.State == EntityState.Added)
 				{
-					// If you always want DB-context to control this, overwrite it:
 					entry.Entity.CreatedAtUtc = now;
-
-					// New rows have not been updated yet
 					entry.Entity.UpdatedAtUtc = null;
 				}
 				else if (entry.State == EntityState.Modified)
@@ -58,7 +61,11 @@ namespace CollegeScheduler.Data
 					// Don’t allow CreatedAt to be changed by accident
 					entry.Property(x => x.CreatedAtUtc).IsModified = false;
 
-					entry.Entity.UpdatedAtUtc = now;
+					// Optional: only stamp UpdatedAt if something actually changed
+					if (entry.Properties.Any(p => p.IsModified))
+					{
+						entry.Entity.UpdatedAtUtc = now;
+					}
 				}
 			}
 		}

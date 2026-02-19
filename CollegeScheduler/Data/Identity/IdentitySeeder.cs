@@ -11,9 +11,9 @@ public static class IdentitySeeder
         using var scope = services.CreateScope();
 
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        Console.WriteLine("✅ IdentitySeeder started");
-        Console.WriteLine($"✅ Using DB: {db.Database.GetDbConnection().Database}");
-        Console.WriteLine($"✅ Connection: {db.Database.GetDbConnection().ConnectionString}");
+        Console.WriteLine(" IdentitySeeder started");
+        Console.WriteLine($" Using DB: {db.Database.GetDbConnection().Database}");
+        Console.WriteLine($"Connection: {db.Database.GetDbConnection().ConnectionString}");
 
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -27,14 +27,14 @@ public static class IdentitySeeder
                 if (!createRoleResult.Succeeded)
                 {
                     var errors = string.Join(", ", createRoleResult.Errors.Select(e => e.Description));
-                    throw new Exception($"❌ Failed to create role '{role}': {errors}");
+                    throw new Exception($" Failed to create role '{role}': {errors}");
                 }
 
-                Console.WriteLine($"✅ Created role: {role}");
+                Console.WriteLine($" Created role: {role}");
             }
             else
             {
-                Console.WriteLine($"ℹ️ Role already exists: {role}");
+                Console.WriteLine($" Role already exists: {role}");
             }
         }
 
@@ -56,14 +56,14 @@ public static class IdentitySeeder
             if (!userResult.Succeeded)
             {
                 var errors = string.Join(", ", userResult.Errors.Select(e => e.Description));
-                throw new Exception($"❌ Failed to create seed admin: {errors}");
+                throw new Exception($" Failed to create seed admin: {errors}");
             }
 
-            Console.WriteLine($"✅ Created seed admin: {adminEmail}");
+            Console.WriteLine($" Created seed admin: {adminEmail}");
         }
         else
         {
-            Console.WriteLine($"ℹ️ Seed admin already exists: {adminEmail}");
+            Console.WriteLine($" Seed admin already exists: {adminEmail}");
         }
 
         if (!await userManager.IsInRoleAsync(admin, RoleNames.Admin))
@@ -72,16 +72,16 @@ public static class IdentitySeeder
             if (!addRoleResult.Succeeded)
             {
                 var errors = string.Join(", ", addRoleResult.Errors.Select(e => e.Description));
-                throw new Exception($"❌ Failed to assign Admin role: {errors}");
+                throw new Exception($" Failed to assign Admin role: {errors}");
             }
 
-            Console.WriteLine($"✅ Assigned Admin role to: {adminEmail}");
+            Console.WriteLine($" Assigned Admin role to: {adminEmail}");
         }
         else
         {
-            Console.WriteLine($"ℹ️ Admin role already assigned to: {adminEmail}");
+            Console.WriteLine($" Admin role already assigned to: {adminEmail}");
         }
 
-        Console.WriteLine("✅ IdentitySeeder finished");
+        Console.WriteLine(" IdentitySeeder finished");
     }
 }
