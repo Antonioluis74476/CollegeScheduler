@@ -4,6 +4,7 @@ using CollegeScheduler.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CollegeScheduler.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260219183736_AddCohorts")]
+    partial class AddCohorts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -234,51 +237,6 @@ namespace CollegeScheduler.Migrations
                     b.ToTable("Cohorts", (string)null);
                 });
 
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.CohortModule", b =>
-                {
-                    b.Property<int>("CohortModuleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CohortModuleId"));
-
-                    b.Property<int>("CohortId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsRequired")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<int>("ModuleId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TermId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("CohortModuleId");
-
-                    b.HasIndex("CohortId", "IsActive");
-
-                    b.HasIndex("ModuleId", "IsActive");
-
-                    b.HasIndex("TermId", "IsActive");
-
-                    b.HasIndex("CohortId", "ModuleId", "TermId")
-                        .IsUnique();
-
-                    b.ToTable("CohortModules", (string)null);
-                });
-
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Department", b =>
                 {
                     b.Property<int>("DepartmentId")
@@ -313,57 +271,6 @@ namespace CollegeScheduler.Migrations
                     b.HasKey("DepartmentId");
 
                     b.ToTable("Department");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Module", b =>
-                {
-                    b.Property<int>("ModuleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ModuleId"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Credits")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("DepartmentId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("HoursPerWeek")
-                        .HasColumnType("decimal(4,2)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("MinRoomCapacity")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("ModuleId");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("DepartmentId", "IsActive");
-
-                    b.ToTable("Modules", (string)null);
                 });
 
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Term", b =>
@@ -964,43 +871,6 @@ namespace CollegeScheduler.Migrations
                     b.Navigation("AcademicYear");
 
                     b.Navigation("Program");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.CohortModule", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Cohort", "Cohort")
-                        .WithMany()
-                        .HasForeignKey("CohortId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Module", "Module")
-                        .WithMany()
-                        .HasForeignKey("ModuleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Term", "Term")
-                        .WithMany()
-                        .HasForeignKey("TermId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Cohort");
-
-                    b.Navigation("Module");
-
-                    b.Navigation("Term");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Module", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Department", "Department")
-                        .WithMany()
-                        .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Department");
                 });
 
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Term", b =>
