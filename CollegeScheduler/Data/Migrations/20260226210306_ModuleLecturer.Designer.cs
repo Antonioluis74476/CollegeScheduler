@@ -4,6 +4,7 @@ using CollegeScheduler.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CollegeScheduler.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260226210306_ModuleLecturer")]
+    partial class ModuleLecturer
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -935,216 +938,6 @@ namespace CollegeScheduler.Migrations
                     b.ToTable("StudentProfiles", (string)null);
                 });
 
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventCohort", b =>
-                {
-                    b.Property<long>("TimetableEventId")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("CohortId")
-                        .HasColumnType("int");
-
-                    b.HasKey("TimetableEventId", "CohortId");
-
-                    b.HasIndex("CohortId");
-
-                    b.ToTable("EventCohorts", (string)null);
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventLecturer", b =>
-                {
-                    b.Property<long>("TimetableEventId")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("LecturerId")
-                        .HasColumnType("int");
-
-                    b.HasKey("TimetableEventId", "LecturerId");
-
-                    b.HasIndex("LecturerId");
-
-                    b.ToTable("EventLecturers", (string)null);
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventStatus", b =>
-                {
-                    b.Property<int>("EventStatusId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EventStatusId"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("EventStatusId");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("EventStatuses", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            EventStatusId = 1,
-                            Name = "Scheduled"
-                        },
-                        new
-                        {
-                            EventStatusId = 2,
-                            Name = "Cancelled"
-                        },
-                        new
-                        {
-                            EventStatusId = 3,
-                            Name = "Moved"
-                        },
-                        new
-                        {
-                            EventStatusId = 4,
-                            Name = "Completed"
-                        });
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", b =>
-                {
-                    b.Property<long>("TimetableEventId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("TimetableEventId"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedByUserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime>("EndUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("EventStatusId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ModuleId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid?>("RecurrenceGroupId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("RoomId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SessionType")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("Lecture");
-
-                    b.Property<DateTime>("StartUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("TermId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("TimetableEventId");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("EventStatusId");
-
-                    b.HasIndex("ModuleId");
-
-                    b.HasIndex("RecurrenceGroupId");
-
-                    b.HasIndex("TermId", "StartUtc");
-
-                    b.HasIndex("RoomId", "StartUtc", "EndUtc");
-
-                    b.ToTable("TimetableEvents", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_TimetableEvents_EndAfterStart", "[EndUtc] > [StartUtc]");
-                        });
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.TimetableEventChange", b =>
-                {
-                    b.Property<long>("TimetableEventChangeId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("TimetableEventChangeId"));
-
-                    b.Property<string>("ChangeType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTime>("ChangedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ChangedByUserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("NewEndUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("NewRoomId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("NewStartUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("NotificationSent")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<DateTime?>("OldEndUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("OldRoomId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("OldStartUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<long>("TimetableEventId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("TimetableEventChangeId");
-
-                    b.HasIndex("ChangedByUserId");
-
-                    b.HasIndex("NewRoomId");
-
-                    b.HasIndex("NotificationSent");
-
-                    b.HasIndex("OldRoomId");
-
-                    b.HasIndex("TimetableEventId", "ChangedAtUtc");
-
-                    b.ToTable("TimetableEventChanges", (string)null);
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -1540,120 +1333,6 @@ namespace CollegeScheduler.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventCohort", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Cohort", "Cohort")
-                        .WithMany()
-                        .HasForeignKey("CohortId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", "TimetableEvent")
-                        .WithMany("EventCohorts")
-                        .HasForeignKey("TimetableEventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Cohort");
-
-                    b.Navigation("TimetableEvent");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventLecturer", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.Entities.Profiles.LecturerProfile", "Lecturer")
-                        .WithMany()
-                        .HasForeignKey("LecturerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", "TimetableEvent")
-                        .WithMany("EventLecturers")
-                        .HasForeignKey("TimetableEventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Lecturer");
-
-                    b.Navigation("TimetableEvent");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.EventStatus", "EventStatus")
-                        .WithMany()
-                        .HasForeignKey("EventStatusId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Module", "Module")
-                        .WithMany()
-                        .HasForeignKey("ModuleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Facilities.Room", "Room")
-                        .WithMany()
-                        .HasForeignKey("RoomId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Term", "Term")
-                        .WithMany()
-                        .HasForeignKey("TermId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("CreatedByUser");
-
-                    b.Navigation("EventStatus");
-
-                    b.Navigation("Module");
-
-                    b.Navigation("Room");
-
-                    b.Navigation("Term");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.TimetableEventChange", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "ChangedByUser")
-                        .WithMany()
-                        .HasForeignKey("ChangedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Facilities.Room", "NewRoom")
-                        .WithMany()
-                        .HasForeignKey("NewRoomId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Facilities.Room", "OldRoom")
-                        .WithMany()
-                        .HasForeignKey("OldRoomId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", "TimetableEvent")
-                        .WithMany("Changes")
-                        .HasForeignKey("TimetableEventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ChangedByUser");
-
-                    b.Navigation("NewRoom");
-
-                    b.Navigation("OldRoom");
-
-                    b.Navigation("TimetableEvent");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -1742,15 +1421,6 @@ namespace CollegeScheduler.Migrations
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Facilities.UnavailabilityReasonType", b =>
                 {
                     b.Navigation("RoomUnavailabilities");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", b =>
-                {
-                    b.Navigation("Changes");
-
-                    b.Navigation("EventCohorts");
-
-                    b.Navigation("EventLecturers");
                 });
 #pragma warning restore 612, 618
         }
