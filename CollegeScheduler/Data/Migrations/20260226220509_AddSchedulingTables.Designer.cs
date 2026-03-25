@@ -4,6 +4,7 @@ using CollegeScheduler.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CollegeScheduler.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260226220509_AddSchedulingTables")]
+    partial class AddSchedulingTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -452,67 +455,6 @@ namespace CollegeScheduler.Migrations
                         });
                 });
 
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Audit.AuditLog", b =>
-                {
-                    b.Property<long>("AuditLogId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("AuditLogId"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("EntityId")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("EntityType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("IpAddress")
-                        .HasMaxLength(45)
-                        .HasColumnType("nvarchar(45)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("NewValuesJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OldValuesJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("PerformedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("UserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("AuditLogId");
-
-                    b.HasIndex("UserId", "PerformedAtUtc");
-
-                    b.HasIndex("EntityType", "EntityId", "PerformedAtUtc");
-
-                    b.ToTable("AuditLogs", (string)null);
-                });
-
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Facilities.Building", b =>
                 {
                     b.Property<int>("BuildingId")
@@ -872,120 +814,6 @@ namespace CollegeScheduler.Migrations
                     b.ToTable("StudentModuleEnrollments", (string)null);
                 });
 
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.Notification", b =>
-                {
-                    b.Property<long>("NotificationId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("NotificationId"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("NotificationTypeId")
-                        .HasColumnType("int");
-
-                    b.Property<long?>("RelatedRequestId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("RelatedTimetableEventId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("NotificationId");
-
-                    b.HasIndex("RelatedRequestId");
-
-                    b.HasIndex("RelatedTimetableEventId");
-
-                    b.HasIndex("NotificationTypeId", "CreatedAtUtc");
-
-                    b.ToTable("Notifications", (string)null);
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.NotificationRecipient", b =>
-                {
-                    b.Property<long>("NotificationId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("UserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DeliveryStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("Pending");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("ReadAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("SentAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("NotificationId", "UserId");
-
-                    b.HasIndex("UserId", "DeliveryStatus");
-
-                    b.ToTable("NotificationRecipients", (string)null);
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.NotificationType", b =>
-                {
-                    b.Property<int>("NotificationTypeId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("NotificationTypeId"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("NotificationTypeId");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("NotificationTypes", (string)null);
-                });
-
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Profiles.LecturerProfile", b =>
                 {
                     b.Property<int>("LecturerId")
@@ -1108,244 +936,6 @@ namespace CollegeScheduler.Migrations
                         .HasFilter("[UserId] IS NOT NULL");
 
                     b.ToTable("StudentProfiles", (string)null);
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.Request", b =>
-                {
-                    b.Property<long>("RequestId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RequestId"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("RequestStatusId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("RequestTypeId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RequestedByUserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Title")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("RequestId");
-
-                    b.HasIndex("RequestTypeId");
-
-                    b.HasIndex("RequestStatusId", "CreatedAtUtc");
-
-                    b.HasIndex("RequestedByUserId", "RequestStatusId");
-
-                    b.ToTable("Requests", (string)null);
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestDecision", b =>
-                {
-                    b.Property<long>("RequestDecisionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RequestDecisionId"));
-
-                    b.Property<string>("Comment")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("DecidedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DecidedByUserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Decision")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<long>("RequestId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("RequestDecisionId");
-
-                    b.HasIndex("DecidedByUserId");
-
-                    b.HasIndex("RequestId", "DecidedAtUtc");
-
-                    b.ToTable("RequestDecisions", (string)null);
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestRoomBooking", b =>
-                {
-                    b.Property<long>("RequestId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("EndUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("ExpectedAttendees")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Purpose")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<int>("RoomId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("StartUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("RequestId");
-
-                    b.HasIndex("RoomId", "StartUtc", "EndUtc");
-
-                    b.ToTable("RequestRoomBookings", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_RequestRoomBooking_EndUtc_StartUtc", "[EndUtc] > [StartUtc]");
-                        });
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestScheduleChange", b =>
-                {
-                    b.Property<long>("RequestId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("ProposedEndUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ProposedRoomId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("ProposedStartUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(800)
-                        .HasColumnType("nvarchar(800)");
-
-                    b.Property<long>("TimetableEventId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("RequestId");
-
-                    b.HasIndex("ProposedRoomId");
-
-                    b.HasIndex("TimetableEventId");
-
-                    b.ToTable("RequestScheduleChanges", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_RequestScheduleChange_ProposedEndUtc_ProposedStartUtc", "[ProposedEndUtc] IS NULL OR [ProposedStartUtc] IS NULL OR [ProposedEndUtc] > [ProposedStartUtc]");
-                        });
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestStatus", b =>
-                {
-                    b.Property<int>("RequestStatusId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RequestStatusId"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("RequestStatusId");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("RequestStatuses", (string)null);
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestType", b =>
-                {
-                    b.Property<int>("RequestTypeId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RequestTypeId"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("RequestTypeId");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("RequestTypes", (string)null);
                 });
 
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventCohort", b =>
@@ -1796,16 +1386,6 @@ namespace CollegeScheduler.Migrations
                     b.Navigation("AcademicYear");
                 });
 
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Audit.AuditLog", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Facilities.Building", b =>
                 {
                     b.HasOne("CollegeScheduler.Data.Entities.Facilities.Campus", "Campus")
@@ -1943,50 +1523,6 @@ namespace CollegeScheduler.Migrations
                     b.Navigation("Term");
                 });
 
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.Notification", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.Entities.Notifications.NotificationType", "NotificationType")
-                        .WithMany()
-                        .HasForeignKey("NotificationTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Requests.Request", "RelatedRequest")
-                        .WithMany()
-                        .HasForeignKey("RelatedRequestId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", "RelatedTimetableEvent")
-                        .WithMany()
-                        .HasForeignKey("RelatedTimetableEventId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("NotificationType");
-
-                    b.Navigation("RelatedRequest");
-
-                    b.Navigation("RelatedTimetableEvent");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.NotificationRecipient", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.Entities.Notifications.Notification", "Notification")
-                        .WithMany("Recipients")
-                        .HasForeignKey("NotificationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Notification");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Profiles.LecturerProfile", b =>
                 {
                     b.HasOne("CollegeScheduler.Data.ApplicationUser", "User")
@@ -2005,97 +1541,6 @@ namespace CollegeScheduler.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.Request", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.Entities.Requests.RequestStatus", "RequestStatus")
-                        .WithMany()
-                        .HasForeignKey("RequestStatusId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Requests.RequestType", "RequestType")
-                        .WithMany()
-                        .HasForeignKey("RequestTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "RequestedByUser")
-                        .WithMany()
-                        .HasForeignKey("RequestedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("RequestStatus");
-
-                    b.Navigation("RequestType");
-
-                    b.Navigation("RequestedByUser");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestDecision", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "DecidedByUser")
-                        .WithMany()
-                        .HasForeignKey("DecidedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Requests.Request", "Request")
-                        .WithMany("Decisions")
-                        .HasForeignKey("RequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("DecidedByUser");
-
-                    b.Navigation("Request");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestRoomBooking", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.Entities.Requests.Request", "Request")
-                        .WithOne("RoomBookingDetail")
-                        .HasForeignKey("CollegeScheduler.Data.Entities.Requests.RequestRoomBooking", "RequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Facilities.Room", "Room")
-                        .WithMany()
-                        .HasForeignKey("RoomId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Request");
-
-                    b.Navigation("Room");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestScheduleChange", b =>
-                {
-                    b.HasOne("CollegeScheduler.Data.Entities.Facilities.Room", "ProposedRoom")
-                        .WithMany()
-                        .HasForeignKey("ProposedRoomId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Requests.Request", "Request")
-                        .WithOne("ScheduleChangeDetail")
-                        .HasForeignKey("CollegeScheduler.Data.Entities.Requests.RequestScheduleChange", "RequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", "TimetableEvent")
-                        .WithMany()
-                        .HasForeignKey("TimetableEventId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ProposedRoom");
-
-                    b.Navigation("Request");
-
-                    b.Navigation("TimetableEvent");
                 });
 
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventCohort", b =>
@@ -2300,20 +1745,6 @@ namespace CollegeScheduler.Migrations
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Facilities.UnavailabilityReasonType", b =>
                 {
                     b.Navigation("RoomUnavailabilities");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.Notification", b =>
-                {
-                    b.Navigation("Recipients");
-                });
-
-            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.Request", b =>
-                {
-                    b.Navigation("Decisions");
-
-                    b.Navigation("RoomBookingDetail");
-
-                    b.Navigation("ScheduleChangeDetail");
                 });
 
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", b =>
