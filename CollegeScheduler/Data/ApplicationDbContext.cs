@@ -6,6 +6,9 @@ using CollegeScheduler.Data.Entities.Membership;
 using CollegeScheduler.Data.Entities.Scheduling;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using CollegeScheduler.Data.Entities.Requests;
+using CollegeScheduler.Data.Entities.Notifications;
+using CollegeScheduler.Data.Entities.Audit;
 
 namespace CollegeScheduler.Data
 {
@@ -49,6 +52,21 @@ namespace CollegeScheduler.Data
 		public DbSet<EventLecturer> EventLecturers => Set<EventLecturer>();
 		public DbSet<TimetableEventChange> TimetableEventChanges => Set<TimetableEventChange>();
 
+		//Requests
+		public DbSet<RequestType> RequestTypes => Set<RequestType>();
+		public DbSet<RequestStatus> RequestStatuses => Set<RequestStatus>();
+		public DbSet<Request> Requests => Set<Request>();
+		public DbSet<RequestRoomBooking> RequestRoomBookings => Set<RequestRoomBooking>();
+		public DbSet<RequestScheduleChange> RequestScheduleChanges => Set<RequestScheduleChange>();
+		public DbSet<RequestDecision> RequestDecisions => Set<RequestDecision>();
+
+		// Notifications
+		public DbSet<NotificationType> NotificationTypes => Set<NotificationType>();
+		public DbSet<Notification> Notifications => Set<Notification>();
+		public DbSet<NotificationRecipient> NotificationRecipients => Set<NotificationRecipient>();
+
+		// Audit
+		public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
 			base.OnModelCreating(builder);
