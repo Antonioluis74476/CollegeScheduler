@@ -4,6 +4,8 @@ using CollegeScheduler.Data;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using CollegeScheduler.Services;
+using CollegeScheduler.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,6 +47,9 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 // Controllers (API)
 builder.Services.AddControllers();
 
+//Services
+builder.Services.AddScoped<ISchedulingService, SchedulingService>();
+
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -57,6 +62,7 @@ if (app.Environment.IsDevelopment())
 
 	await CollegeScheduler.Data.Identity.IdentitySeeder.SeedAsync(app.Services, app.Configuration);
 	await CollegeScheduler.Data.Seed.FacilitiesSeeder.SeedAsync(app.Services);
+	await CollegeScheduler.Data.Seed.SchedulingLookupSeeder.SeedAsync(app.Services);
 
 
 	app.UseSwagger();
