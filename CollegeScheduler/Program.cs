@@ -49,6 +49,8 @@ builder.Services.AddControllers();
 
 //Services
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IRequestService, RequestService>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
