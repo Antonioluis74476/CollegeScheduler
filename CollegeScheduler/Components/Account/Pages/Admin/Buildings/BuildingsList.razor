@@ -1,10 +1,15 @@
 ﻿@rendermode InteractiveServer
 @inject IJSRuntime JS
+
+
+
 @using System.Linq
 
 @page "/admin/buildings"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 @inject CollegeScheduler.Services.AdminBuildingsApi Api
+
+@inject CollegeScheduler.Services.AdminCampusState CampusState // Branch 2
 
 <h3>Admin - Buildings</h3>
 
@@ -33,6 +38,15 @@ else // show results
     }
     else // show table
     {
+        <div class="mb-3">
+            <label class="form-label">Campus</label>
+            <select class="form-select" value="@CampusState.SelectedCampusId" @onchange="OnCampusChanged">
+                <option value="1">Campus 1</option>
+                <option value="2">Campus 2</option>
+            </select>
+        </div>
+
+
         <table class="table table-striped">
             <thead>
                 <tr>
@@ -99,7 +113,7 @@ else // show results
     // TEMP: campusId = 1 (same as create/edit)
     private async Task LoadAsync()
     {
-        _result = await Api.GetBuildingsAsync(campusId: 1);
+        _result = await Api.GetBuildingsAsync(campusId: CampusState.SelectedCampusId);
     }
 
 
@@ -127,6 +141,19 @@ else // show results
         }
     }
 
+    private async Task OnCampusChanged(ChangeEventArgs e)
+    {
+        if (e.Value is null) return;
 
+        if (int.TryParse(e.Value.ToString(), out var campusId))
+        {
+            CampusState.SelectedCampusId = campusId;
+
+            // Reset paging if you have it
+            //_page = 1; // only if you have _page
+
+            await LoadAsync();
+        }
+    }
 
 }

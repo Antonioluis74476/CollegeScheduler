@@ -1,10 +1,14 @@
-﻿@rendermode InteractiveServer
+﻿@inject NavigationManager Nav
+
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.Forms
 
 @page "/admin/buildings/create"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 @inject CollegeScheduler.Services.AdminBuildingsApi Api
-@inject NavigationManager Nav
+
+
+@inject CollegeScheduler.Services.AdminCampusState CampusState // Branch 2
 
 <h3>Create Building</h3>
 
@@ -13,7 +17,12 @@
     <div class="alert alert-danger">@_error</div>
 }
 
+<div class="alert alert-info">
+    Creating building for Campus @CampusState.SelectedCampusId
+</div>
+
 <EditForm Model="_model" OnValidSubmit="Create">
+
     <DataAnnotationsValidator />
     <ValidationSummary />
 
@@ -31,9 +40,11 @@
         Create
     </button>
 
-    <button class="btn btn-secondary ms-2" type="button" @onclick="Back" disabled="_saving">
+    <button class="btn btn-secondary ms-2" type="button" @onclick="Back" disabled="@_saving">
         Cancel
     </button>
+
+
 </EditForm>
 
 @code {
@@ -50,7 +61,7 @@
         try
         {
             // TEMP: campusId = 1 (same as list)
-            await Api.CreateBuildingAsync(1, _model);
+            await Api.CreateBuildingAsync(CampusState.SelectedCampusId, _model);
 
             // back to list
             Nav.NavigateTo("/admin/buildings");
@@ -69,7 +80,7 @@
     {
         try
         {
-            await Api.CreateBuildingAsync(1, _model);
+            await Api.CreateBuildingAsync(CampusState.SelectedCampusId, _model);
             Nav.NavigateTo("/admin/buildings");
         }
         catch (Exception ex)

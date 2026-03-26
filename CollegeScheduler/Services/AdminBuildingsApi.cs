@@ -1,6 +1,8 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using static System.Net.WebRequestMethods;
+using CollegeScheduler.DTOs.Facilities;
+
 
 namespace CollegeScheduler.Services;
 
@@ -29,7 +31,12 @@ public sealed class AdminBuildingsApi
     {
         var url = $"api/v1/admin/campuses/{campusId}/buildings";
         var res = await _http.PostAsJsonAsync(url, dto);
-        res.EnsureSuccessStatusCode();
+
+        if (!res.IsSuccessStatusCode)
+        {
+            var body = await res.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"Create failed ({(int)res.StatusCode}): {body}");
+        }
     }
 
 
@@ -45,7 +52,12 @@ public sealed class AdminBuildingsApi
     {
         var url = $"api/v1/admin/buildings/{id}";
         var res = await _http.PutAsJsonAsync(url, dto);
-        res.EnsureSuccessStatusCode();
+
+        if (!res.IsSuccessStatusCode)
+        {
+            var body = await res.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"Update failed ({(int)res.StatusCode}): {body}");
+        }
     }
 
     // This method deletes a building by its ID.
@@ -93,5 +105,8 @@ public sealed class BuildingUpdateDto
 {
     public string Name { get; set; } = "";
     public string? Code { get; set; }
-    }
+
+    // IMPORTANT: prevents soft-delete on edit (IsActive default bool = false)
+    public bool IsActive { get; set; } = true;
+}
 
