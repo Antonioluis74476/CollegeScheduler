@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Identity;
+using CollegeScheduler.Data.Entities.Profiles;
 
 namespace CollegeScheduler.Data
 {
-    // Add profile data for application users by adding properties to the ApplicationUser class
-    public class ApplicationUser : IdentityUser
-    {
-    }
-
+	public class ApplicationUser : IdentityUser
+	{
+		// Optional 1–1 links to domain profiles
+		public StudentProfile? StudentProfile { get; set; }
+		public LecturerProfile? LecturerProfile { get; set; }
+	}
 }

@@ -87,6 +87,432 @@ namespace CollegeScheduler.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.AcademicProgram", b =>
+                {
+                    b.Property<int>("ProgramId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProgramId"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DurationYears")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(4);
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ProgramId");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("DepartmentId", "IsActive");
+
+                    b.ToTable("Programs", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.AcademicYear", b =>
+                {
+                    b.Property<int>("AcademicYearId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AcademicYearId"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("AcademicYearId");
+
+                    b.HasIndex("Label")
+                        .IsUnique();
+
+                    b.HasIndex("IsCurrent", "IsActive");
+
+                    b.ToTable("AcademicYears", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AcademicYears_EndDateAfterStartDate", "[EndDate] > [StartDate]");
+                        });
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Cohort", b =>
+                {
+                    b.Property<int>("CohortId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CohortId"));
+
+                    b.Property<int>("AcademicYearId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ExpectedSize")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ProgramId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("YearOfStudy")
+                        .HasColumnType("int");
+
+                    b.HasKey("CohortId");
+
+                    b.HasIndex("AcademicYearId", "IsActive");
+
+                    b.HasIndex("ProgramId", "IsActive");
+
+                    b.HasIndex("ProgramId", "AcademicYearId", "YearOfStudy", "Code")
+                        .IsUnique();
+
+                    b.ToTable("Cohorts", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.CohortModule", b =>
+                {
+                    b.Property<int>("CohortModuleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CohortModuleId"));
+
+                    b.Property<int>("CohortId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRequired")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("ModuleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TermId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("CohortModuleId");
+
+                    b.HasIndex("CohortId", "IsActive");
+
+                    b.HasIndex("ModuleId", "IsActive");
+
+                    b.HasIndex("TermId", "IsActive");
+
+                    b.HasIndex("CohortId", "ModuleId", "TermId")
+                        .IsUnique();
+
+                    b.ToTable("CohortModules", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Department", b =>
+                {
+                    b.Property<int>("DepartmentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("DepartmentId"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("DepartmentId");
+
+                    b.ToTable("Departments");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Module", b =>
+                {
+                    b.Property<int>("ModuleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ModuleId"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Credits")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("HoursPerWeek")
+                        .HasColumnType("decimal(4,2)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MinRoomCapacity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ModuleId");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("DepartmentId", "IsActive");
+
+                    b.ToTable("Modules", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.ModuleLecturer", b =>
+                {
+                    b.Property<int>("ModuleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LecturerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TermId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("AssignedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Lead");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ModuleId", "LecturerId", "TermId");
+
+                    b.HasIndex("LecturerId");
+
+                    b.HasIndex("TermId");
+
+                    b.ToTable("ModuleLecturers", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Term", b =>
+                {
+                    b.Property<int>("TermId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TermId"));
+
+                    b.Property<int>("AcademicYearId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("TermNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("TermId");
+
+                    b.HasIndex("AcademicYearId", "IsActive");
+
+                    b.HasIndex("AcademicYearId", "TermNumber")
+                        .IsUnique();
+
+                    b.ToTable("Terms", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Terms_EndDateAfterStartDate", "[EndDate] > [StartDate]");
+                        });
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Audit.AuditLog", b =>
+                {
+                    b.Property<long>("AuditLogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("AuditLogId"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("NewValuesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OldValuesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("PerformedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("AuditLogId");
+
+                    b.HasIndex("UserId", "PerformedAtUtc");
+
+                    b.HasIndex("EntityType", "EntityId", "PerformedAtUtc");
+
+                    b.ToTable("AuditLogs", (string)null);
+                });
+
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Facilities.Building", b =>
                 {
                     b.Property<int>("BuildingId")
@@ -353,6 +779,785 @@ namespace CollegeScheduler.Migrations
                     b.ToTable("UnavailabilityReasonTypes");
                 });
 
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Membership.StudentCohortMembership", b =>
+                {
+                    b.Property<int>("StudentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CohortId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AcademicYearId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MembershipType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("StudentId", "CohortId", "AcademicYearId");
+
+                    b.HasIndex("AcademicYearId");
+
+                    b.HasIndex("CohortId");
+
+                    b.HasIndex("MembershipType");
+
+                    b.ToTable("StudentCohortMemberships", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Membership.StudentModuleEnrollment", b =>
+                {
+                    b.Property<int>("StudentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ModuleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TermId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("AttendWithCohortId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EnrolledAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EnrollmentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Enrolled");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("StudentId", "ModuleId", "TermId");
+
+                    b.HasIndex("AttendWithCohortId");
+
+                    b.HasIndex("ModuleId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("TermId");
+
+                    b.ToTable("StudentModuleEnrollments", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.Notification", b =>
+                {
+                    b.Property<long>("NotificationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("NotificationId"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("NotificationTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("RelatedRequestId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("RelatedTimetableEventId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("NotificationId");
+
+                    b.HasIndex("RelatedRequestId");
+
+                    b.HasIndex("RelatedTimetableEventId");
+
+                    b.HasIndex("NotificationTypeId", "CreatedAtUtc");
+
+                    b.ToTable("Notifications", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.NotificationRecipient", b =>
+                {
+                    b.Property<long>("NotificationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeliveryStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Pending");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("NotificationId", "UserId");
+
+                    b.HasIndex("UserId", "DeliveryStatus");
+
+                    b.ToTable("NotificationRecipients", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.NotificationType", b =>
+                {
+                    b.Property<int>("NotificationTypeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("NotificationTypeId"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("NotificationTypeId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("NotificationTypes", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Profiles.LecturerProfile", b =>
+                {
+                    b.Property<int>("LecturerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LecturerId"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("EmploymentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("MaxWeeklyHours")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("StaffNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("LecturerId");
+
+                    b.HasIndex("StaffNumber")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("[UserId] IS NOT NULL");
+
+                    b.HasIndex("DepartmentId", "IsActive");
+
+                    b.ToTable("LecturerProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Profiles.StudentProfile", b =>
+                {
+                    b.Property<int>("StudentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StudentId"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("StudentNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("StudentId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("StudentNumber")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("[UserId] IS NOT NULL");
+
+                    b.ToTable("StudentProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.Request", b =>
+                {
+                    b.Property<long>("RequestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RequestId"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RequestStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RequestTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RequestedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("RequestId");
+
+                    b.HasIndex("RequestTypeId");
+
+                    b.HasIndex("RequestStatusId", "CreatedAtUtc");
+
+                    b.HasIndex("RequestedByUserId", "RequestStatusId");
+
+                    b.ToTable("Requests", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestDecision", b =>
+                {
+                    b.Property<long>("RequestDecisionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RequestDecisionId"));
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DecidedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DecidedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<long>("RequestId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("RequestDecisionId");
+
+                    b.HasIndex("DecidedByUserId");
+
+                    b.HasIndex("RequestId", "DecidedAtUtc");
+
+                    b.ToTable("RequestDecisions", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestRoomBooking", b =>
+                {
+                    b.Property<long>("RequestId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ExpectedAttendees")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int>("RoomId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("RequestId");
+
+                    b.HasIndex("RoomId", "StartUtc", "EndUtc");
+
+                    b.ToTable("RequestRoomBookings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RequestRoomBooking_EndUtc_StartUtc", "[EndUtc] > [StartUtc]");
+                        });
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestScheduleChange", b =>
+                {
+                    b.Property<long>("RequestId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ProposedEndUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ProposedRoomId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ProposedStartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(800)
+                        .HasColumnType("nvarchar(800)");
+
+                    b.Property<long>("TimetableEventId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("RequestId");
+
+                    b.HasIndex("ProposedRoomId");
+
+                    b.HasIndex("TimetableEventId");
+
+                    b.ToTable("RequestScheduleChanges", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RequestScheduleChange_ProposedEndUtc_ProposedStartUtc", "[ProposedEndUtc] IS NULL OR [ProposedStartUtc] IS NULL OR [ProposedEndUtc] > [ProposedStartUtc]");
+                        });
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestStatus", b =>
+                {
+                    b.Property<int>("RequestStatusId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RequestStatusId"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("RequestStatusId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("RequestStatuses", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestType", b =>
+                {
+                    b.Property<int>("RequestTypeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RequestTypeId"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("RequestTypeId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("RequestTypes", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventCohort", b =>
+                {
+                    b.Property<long>("TimetableEventId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CohortId")
+                        .HasColumnType("int");
+
+                    b.HasKey("TimetableEventId", "CohortId");
+
+                    b.HasIndex("CohortId");
+
+                    b.ToTable("EventCohorts", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventLecturer", b =>
+                {
+                    b.Property<long>("TimetableEventId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("LecturerId")
+                        .HasColumnType("int");
+
+                    b.HasKey("TimetableEventId", "LecturerId");
+
+                    b.HasIndex("LecturerId");
+
+                    b.ToTable("EventLecturers", (string)null);
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventStatus", b =>
+                {
+                    b.Property<int>("EventStatusId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EventStatusId"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("EventStatusId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("EventStatuses", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            EventStatusId = 1,
+                            Name = "Scheduled"
+                        },
+                        new
+                        {
+                            EventStatusId = 2,
+                            Name = "Cancelled"
+                        },
+                        new
+                        {
+                            EventStatusId = 3,
+                            Name = "Moved"
+                        },
+                        new
+                        {
+                            EventStatusId = 4,
+                            Name = "Completed"
+                        });
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", b =>
+                {
+                    b.Property<long>("TimetableEventId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("TimetableEventId"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EventStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ModuleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("RecurrenceGroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("RoomId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SessionType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Lecture");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TermId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("TimetableEventId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("EventStatusId");
+
+                    b.HasIndex("ModuleId");
+
+                    b.HasIndex("RecurrenceGroupId");
+
+                    b.HasIndex("TermId", "StartUtc");
+
+                    b.HasIndex("RoomId", "StartUtc", "EndUtc");
+
+                    b.ToTable("TimetableEvents", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TimetableEvents_EndAfterStart", "[EndUtc] > [StartUtc]");
+                        });
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.TimetableEventChange", b =>
+                {
+                    b.Property<long>("TimetableEventChangeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("TimetableEventChangeId"));
+
+                    b.Property<string>("ChangeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("NewEndUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("NewRoomId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("NewStartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("NotificationSent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("OldEndUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("OldRoomId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("OldStartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long>("TimetableEventId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TimetableEventChangeId");
+
+                    b.HasIndex("ChangedByUserId");
+
+                    b.HasIndex("NewRoomId");
+
+                    b.HasIndex("NotificationSent");
+
+                    b.HasIndex("OldRoomId");
+
+                    b.HasIndex("TimetableEventId", "ChangedAtUtc");
+
+                    b.ToTable("TimetableEventChanges", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -486,6 +1691,121 @@ namespace CollegeScheduler.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.AcademicProgram", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Cohort", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.AcademicYear", "AcademicYear")
+                        .WithMany()
+                        .HasForeignKey("AcademicYearId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.AcademicProgram", "Program")
+                        .WithMany()
+                        .HasForeignKey("ProgramId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AcademicYear");
+
+                    b.Navigation("Program");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.CohortModule", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Cohort", "Cohort")
+                        .WithMany()
+                        .HasForeignKey("CohortId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Module", "Module")
+                        .WithMany()
+                        .HasForeignKey("ModuleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Term", "Term")
+                        .WithMany()
+                        .HasForeignKey("TermId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Cohort");
+
+                    b.Navigation("Module");
+
+                    b.Navigation("Term");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Module", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.ModuleLecturer", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Profiles.LecturerProfile", "Lecturer")
+                        .WithMany()
+                        .HasForeignKey("LecturerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Module", "Module")
+                        .WithMany()
+                        .HasForeignKey("ModuleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Term", "Term")
+                        .WithMany()
+                        .HasForeignKey("TermId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Lecturer");
+
+                    b.Navigation("Module");
+
+                    b.Navigation("Term");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Academic.Term", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.AcademicYear", "AcademicYear")
+                        .WithMany()
+                        .HasForeignKey("AcademicYearId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AcademicYear");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Audit.AuditLog", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Facilities.Building", b =>
                 {
                     b.HasOne("CollegeScheduler.Data.Entities.Facilities.Campus", "Campus")
@@ -562,6 +1882,336 @@ namespace CollegeScheduler.Migrations
                     b.Navigation("UnavailabilityReasonType");
                 });
 
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Membership.StudentCohortMembership", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.AcademicYear", "AcademicYear")
+                        .WithMany()
+                        .HasForeignKey("AcademicYearId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Cohort", "Cohort")
+                        .WithMany()
+                        .HasForeignKey("CohortId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Profiles.StudentProfile", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AcademicYear");
+
+                    b.Navigation("Cohort");
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Membership.StudentModuleEnrollment", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Cohort", "AttendWithCohort")
+                        .WithMany()
+                        .HasForeignKey("AttendWithCohortId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Module", "Module")
+                        .WithMany()
+                        .HasForeignKey("ModuleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Profiles.StudentProfile", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Term", "Term")
+                        .WithMany()
+                        .HasForeignKey("TermId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AttendWithCohort");
+
+                    b.Navigation("Module");
+
+                    b.Navigation("Student");
+
+                    b.Navigation("Term");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.Notification", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Notifications.NotificationType", "NotificationType")
+                        .WithMany()
+                        .HasForeignKey("NotificationTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Requests.Request", "RelatedRequest")
+                        .WithMany()
+                        .HasForeignKey("RelatedRequestId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", "RelatedTimetableEvent")
+                        .WithMany()
+                        .HasForeignKey("RelatedTimetableEventId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("NotificationType");
+
+                    b.Navigation("RelatedRequest");
+
+                    b.Navigation("RelatedTimetableEvent");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.NotificationRecipient", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Notifications.Notification", "Notification")
+                        .WithMany("Recipients")
+                        .HasForeignKey("NotificationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Notification");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Profiles.LecturerProfile", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "User")
+                        .WithOne("LecturerProfile")
+                        .HasForeignKey("CollegeScheduler.Data.Entities.Profiles.LecturerProfile", "UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Profiles.StudentProfile", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "User")
+                        .WithOne("StudentProfile")
+                        .HasForeignKey("CollegeScheduler.Data.Entities.Profiles.StudentProfile", "UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.Request", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Requests.RequestStatus", "RequestStatus")
+                        .WithMany()
+                        .HasForeignKey("RequestStatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Requests.RequestType", "RequestType")
+                        .WithMany()
+                        .HasForeignKey("RequestTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "RequestedByUser")
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RequestStatus");
+
+                    b.Navigation("RequestType");
+
+                    b.Navigation("RequestedByUser");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestDecision", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "DecidedByUser")
+                        .WithMany()
+                        .HasForeignKey("DecidedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Requests.Request", "Request")
+                        .WithMany("Decisions")
+                        .HasForeignKey("RequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DecidedByUser");
+
+                    b.Navigation("Request");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestRoomBooking", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Requests.Request", "Request")
+                        .WithOne("RoomBookingDetail")
+                        .HasForeignKey("CollegeScheduler.Data.Entities.Requests.RequestRoomBooking", "RequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Facilities.Room", "Room")
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Request");
+
+                    b.Navigation("Room");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.RequestScheduleChange", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Facilities.Room", "ProposedRoom")
+                        .WithMany()
+                        .HasForeignKey("ProposedRoomId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Requests.Request", "Request")
+                        .WithOne("ScheduleChangeDetail")
+                        .HasForeignKey("CollegeScheduler.Data.Entities.Requests.RequestScheduleChange", "RequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", "TimetableEvent")
+                        .WithMany()
+                        .HasForeignKey("TimetableEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ProposedRoom");
+
+                    b.Navigation("Request");
+
+                    b.Navigation("TimetableEvent");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventCohort", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Cohort", "Cohort")
+                        .WithMany()
+                        .HasForeignKey("CohortId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", "TimetableEvent")
+                        .WithMany("EventCohorts")
+                        .HasForeignKey("TimetableEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cohort");
+
+                    b.Navigation("TimetableEvent");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.EventLecturer", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.Entities.Profiles.LecturerProfile", "Lecturer")
+                        .WithMany()
+                        .HasForeignKey("LecturerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", "TimetableEvent")
+                        .WithMany("EventLecturers")
+                        .HasForeignKey("TimetableEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lecturer");
+
+                    b.Navigation("TimetableEvent");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.EventStatus", "EventStatus")
+                        .WithMany()
+                        .HasForeignKey("EventStatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Module", "Module")
+                        .WithMany()
+                        .HasForeignKey("ModuleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Facilities.Room", "Room")
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Academic.Term", "Term")
+                        .WithMany()
+                        .HasForeignKey("TermId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("EventStatus");
+
+                    b.Navigation("Module");
+
+                    b.Navigation("Room");
+
+                    b.Navigation("Term");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.TimetableEventChange", b =>
+                {
+                    b.HasOne("CollegeScheduler.Data.ApplicationUser", "ChangedByUser")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Facilities.Room", "NewRoom")
+                        .WithMany()
+                        .HasForeignKey("NewRoomId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Facilities.Room", "OldRoom")
+                        .WithMany()
+                        .HasForeignKey("OldRoomId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", "TimetableEvent")
+                        .WithMany("Changes")
+                        .HasForeignKey("TimetableEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChangedByUser");
+
+                    b.Navigation("NewRoom");
+
+                    b.Navigation("OldRoom");
+
+                    b.Navigation("TimetableEvent");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -613,6 +2263,13 @@ namespace CollegeScheduler.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("CollegeScheduler.Data.ApplicationUser", b =>
+                {
+                    b.Navigation("LecturerProfile");
+
+                    b.Navigation("StudentProfile");
+                });
+
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Facilities.Building", b =>
                 {
                     b.Navigation("Rooms");
@@ -643,6 +2300,29 @@ namespace CollegeScheduler.Migrations
             modelBuilder.Entity("CollegeScheduler.Data.Entities.Facilities.UnavailabilityReasonType", b =>
                 {
                     b.Navigation("RoomUnavailabilities");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Notifications.Notification", b =>
+                {
+                    b.Navigation("Recipients");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Requests.Request", b =>
+                {
+                    b.Navigation("Decisions");
+
+                    b.Navigation("RoomBookingDetail");
+
+                    b.Navigation("ScheduleChangeDetail");
+                });
+
+            modelBuilder.Entity("CollegeScheduler.Data.Entities.Scheduling.TimetableEvent", b =>
+                {
+                    b.Navigation("Changes");
+
+                    b.Navigation("EventCohorts");
+
+                    b.Navigation("EventLecturers");
                 });
 #pragma warning restore 612, 618
         }

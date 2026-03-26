@@ -32,7 +32,7 @@ public sealed class RoomUnavailabilitiesController : ControllerBase
 			.Include(x => x.UnavailabilityReasonType)
 			.Where(x => x.RoomId == roomId);
 
-		// Filters
+		// Filterss
 		if (q.FromUtc.HasValue)
 			query = query.Where(x => x.EndUtc > q.FromUtc.Value);
 
