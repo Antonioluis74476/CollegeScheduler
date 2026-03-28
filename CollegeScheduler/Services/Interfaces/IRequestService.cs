@@ -1,4 +1,6 @@
-﻿namespace CollegeScheduler.Services.Interfaces;
+﻿using CollegeScheduler.DTOs.Requests;
+
+namespace CollegeScheduler.Services.Interfaces;
 
 public interface IRequestService
 {
@@ -17,4 +19,10 @@ public interface IRequestService
 		DateTime endUtc,
 		string purpose,
 		int expectedAttendees);
+
+	Task<DecisionResultDto> DecideAsync(
+		long requestId,
+		string decidedByUserId,
+		string decision,
+		string? comment);
 }

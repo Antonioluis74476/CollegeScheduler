@@ -1,5 +1,7 @@
 ﻿using CollegeScheduler.Data;
 using CollegeScheduler.Data.Entities.Requests;
+using CollegeScheduler.Data.Entities.Scheduling;
+using CollegeScheduler.DTOs.Requests;
 using CollegeScheduler.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,13 +10,19 @@ namespace CollegeScheduler.Services;
 public sealed class RequestService : IRequestService
 {
 	private readonly ApplicationDbContext _db;
+	private readonly ISchedulingService _schedulingService;
+	private readonly INotificationService _notificationService;
 	private readonly ILogger<RequestService> _logger;
 
 	public RequestService(
 		ApplicationDbContext db,
+		ISchedulingService schedulingService,
+		INotificationService notificationService,
 		ILogger<RequestService> logger)
 	{
 		_db = db;
+		_schedulingService = schedulingService;
+		_notificationService = notificationService;
 		_logger = logger;
 	}
 
@@ -178,5 +186,203 @@ public sealed class RequestService : IRequestService
 			requestedByUserId);
 
 		return request.RequestId;
+	}
+
+	public async Task<DecisionResultDto> DecideAsync(
+		long requestId,
+		string decidedByUserId,
+		string decision,
+		string? comment)
+	{
+		if (decision is not ("Approved" or "Rejected"))
+			throw new ArgumentException("Decision must be 'Approved' or 'Rejected'.");
+
+		var request = await _db.Requests
+			.Include(r => r.RequestType)
+			.Include(r => r.RequestStatus)
+			.FirstOrDefaultAsync(r => r.RequestId == requestId);
+
+		if (request is null)
+			throw new ArgumentException($"Request {requestId} not found.");
+
+		if (request.RequestStatus.Name is "Approved" or "Rejected")
+		{
+			return new DecisionResultDto
+			{
+				IsSuccess = false,
+				Message = $"Request has already been {request.RequestStatus.Name.ToLower()}."
+			};
+		}
+
+		var targetStatusId = await _db.RequestStatuses
+			.Where(x => x.Name == decision)
+			.Select(x => x.RequestStatusId)
+			.FirstOrDefaultAsync();
+
+		if (targetStatusId == 0)
+			throw new InvalidOperationException($"RequestStatus '{decision}' not found.");
+
+		_db.RequestDecisions.Add(new RequestDecision
+		{
+			RequestId = requestId,
+			DecidedByUserId = decidedByUserId,
+			Decision = decision,
+			Comment = comment
+		});
+
+		request.RequestStatusId = targetStatusId;
+		await _db.SaveChangesAsync();
+
+		if (decision == "Approved")
+		{
+			if (request.RequestType.Name == "Reschedule")
+			{
+				await ApplyApprovedScheduleChangeAsync(requestId, decidedByUserId);
+			}
+			else if (request.RequestType.Name == "RoomBooking")
+			{
+				await ApplyApprovedRoomBookingAsync(requestId);
+			}
+		}
+
+		await _notificationService.CreateAsync(
+			notificationTypeName: decision == "Approved" ? "RequestApproved" : "RequestRejected",
+			title: $"Request {decision}",
+			message: string.IsNullOrWhiteSpace(comment)
+				? $"Your request #{requestId} was {decision.ToLower()}."
+				: $"Your request #{requestId} was {decision.ToLower()}. Comment: {comment}",
+			recipientUserIds: new[] { request.RequestedByUserId },
+			relatedRequestId: requestId);
+
+		_logger.LogInformation(
+			"Request decided. RequestId={RequestId}, Decision={Decision}, DecidedBy={DecidedBy}",
+			requestId,
+			decision,
+			decidedByUserId);
+
+		return new DecisionResultDto
+		{
+			IsSuccess = true,
+			Message = $"Request {decision.ToLower()} successfully."
+		};
+	}
+
+	private async Task ApplyApprovedScheduleChangeAsync(long requestId, string changedByUserId)
+	{
+		var detail = await _db.RequestScheduleChanges
+			.Include(x => x.TimetableEvent)
+				.ThenInclude(te => te.EventCohorts)
+			.Include(x => x.TimetableEvent)
+				.ThenInclude(te => te.EventLecturers)
+			.FirstOrDefaultAsync(x => x.RequestId == requestId);
+
+		if (detail is null)
+			throw new InvalidOperationException($"RequestScheduleChange for request {requestId} not found.");
+
+		var timetableEvent = detail.TimetableEvent;
+		if (timetableEvent is null)
+			throw new InvalidOperationException("TimetableEvent not found for approved schedule change.");
+
+		var newRoomId = detail.ProposedRoomId ?? timetableEvent.RoomId;
+		var newStartUtc = detail.ProposedStartUtc ?? timetableEvent.StartUtc;
+		var newEndUtc = detail.ProposedEndUtc ?? timetableEvent.EndUtc;
+
+		var cohortIds = timetableEvent.EventCohorts.Select(ec => ec.CohortId).ToList();
+		var lecturerIds = timetableEvent.EventLecturers.Select(el => el.LecturerId).ToList();
+
+		var clashResult = await _schedulingService.CheckClashesAsync(
+			excludeEventId: timetableEvent.TimetableEventId,
+			roomId: newRoomId,
+			startUtc: newStartUtc,
+			endUtc: newEndUtc,
+			cohortIds: cohortIds,
+			lecturerIds: lecturerIds);
+
+		if (clashResult.HasClash)
+		{
+			throw new InvalidOperationException("Approved schedule change cannot be applied because it creates a clash.");
+		}
+
+		var oldRoomId = timetableEvent.RoomId;
+		var oldStartUtc = timetableEvent.StartUtc;
+		var oldEndUtc = timetableEvent.EndUtc;
+
+		timetableEvent.RoomId = newRoomId;
+		timetableEvent.StartUtc = newStartUtc;
+		timetableEvent.EndUtc = newEndUtc;
+
+		_db.TimetableEventChanges.Add(new TimetableEventChange
+		{
+			TimetableEventId = timetableEvent.TimetableEventId,
+			ChangeType = "Reschedule",
+			OldRoomId = oldRoomId,
+			NewRoomId = newRoomId,
+			OldStartUtc = oldStartUtc,
+			NewStartUtc = newStartUtc,
+			OldEndUtc = oldEndUtc,
+			NewEndUtc = newEndUtc,
+			Reason = detail.Reason,
+			ChangedByUserId = changedByUserId,
+			NotificationSent = false
+		});
+
+		await _db.SaveChangesAsync();
+
+		var recipientUserIds = new List<string>();
+
+		var studentUserIds = await (
+		from scm in _db.StudentCohortMemberships
+		join sp in _db.StudentProfiles on scm.StudentId equals sp.StudentId
+		where cohortIds.Contains(scm.CohortId) && sp.UserId != null
+		select sp.UserId!
+		)
+		.Distinct()
+		.ToListAsync();
+
+		recipientUserIds.AddRange(studentUserIds);
+
+		var lecturerUserIds = await _db.LecturerProfiles
+			.Where(lp => lecturerIds.Contains(lp.LecturerId) && lp.UserId != null)
+			.Select(lp => lp.UserId!)
+			.Distinct()
+			.ToListAsync();
+
+		recipientUserIds.AddRange(lecturerUserIds);
+
+		if (recipientUserIds.Count > 0)
+		{
+			await _notificationService.CreateAsync(
+				notificationTypeName: "EventChanged",
+				title: "Class schedule changed",
+				message: $"Timetable event #{timetableEvent.TimetableEventId} has been rescheduled.",
+				recipientUserIds: recipientUserIds.Distinct(),
+				relatedTimetableEventId: timetableEvent.TimetableEventId,
+				relatedRequestId: requestId);
+		}
+
+		var lastChange = await _db.TimetableEventChanges
+			.Where(x => x.TimetableEventId == timetableEvent.TimetableEventId)
+			.OrderByDescending(x => x.ChangedAtUtc)
+			.FirstOrDefaultAsync();
+
+		if (lastChange is not null)
+		{
+			lastChange.NotificationSent = true;
+			await _db.SaveChangesAsync();
+		}
+	}
+
+	private async Task ApplyApprovedRoomBookingAsync(long requestId)
+	{
+		var detail = await _db.RequestRoomBookings
+			.FirstOrDefaultAsync(x => x.RequestId == requestId);
+
+		if (detail is null)
+			throw new InvalidOperationException($"RequestRoomBooking for request {requestId} not found.");
+
+		// For MVP:
+		// approved room booking remains as approved request row
+		// and availability checks can later exclude approved bookings if needed
+		await Task.CompletedTask;
 	}
 }

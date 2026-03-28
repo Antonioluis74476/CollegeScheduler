@@ -1,6 +1,7 @@
 ﻿using CollegeScheduler.Data;
 using CollegeScheduler.Data.Entities.Scheduling;
 using CollegeScheduler.Data.Identity;
+using CollegeScheduler.DTOs.Requests;
 using CollegeScheduler.DTOs.Scheduling;
 using CollegeScheduler.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -17,13 +18,16 @@ public sealed class AdminSchedulingController : ControllerBase
 {
 	private readonly ApplicationDbContext _db;
 	private readonly ISchedulingService _schedulingService;
+	private readonly IRequestService _requestService;
 
 	public AdminSchedulingController(
 		ApplicationDbContext db,
-		ISchedulingService schedulingService)
+		ISchedulingService schedulingService,
+		IRequestService requestService)
 	{
 		_db = db;
 		_schedulingService = schedulingService;
+		_requestService = requestService;
 	}
 
 	private string CurrentUserId =>
@@ -163,10 +167,57 @@ public sealed class AdminSchedulingController : ControllerBase
 				RequestType = r.RequestType.Name,
 				RequestStatus = r.RequestStatus.Name,
 				r.RequestedByUserId,
-				r.CreatedAtUtc
+				r.CreatedAtUtc,
+
+				ScheduleChangeDetail = _db.RequestScheduleChanges
+					.Where(sc => sc.RequestId == r.RequestId)
+					.Select(sc => new
+					{
+						sc.TimetableEventId,
+						sc.ProposedRoomId,
+						sc.ProposedStartUtc,
+						sc.ProposedEndUtc,
+						sc.Reason
+					})
+					.FirstOrDefault(),
+
+				RoomBookingDetail = _db.RequestRoomBookings
+					.Where(rb => rb.RequestId == r.RequestId)
+					.Select(rb => new
+					{
+						rb.RoomId,
+						rb.StartUtc,
+						rb.EndUtc,
+						rb.Purpose,
+						rb.ExpectedAttendees
+					})
+					.FirstOrDefault()
 			})
 			.ToListAsync();
 
 		return Ok(pendingRequests);
+	}
+
+	[HttpPost("requests/{id:long}/decide")]
+	public async Task<IActionResult> DecideRequest(long id, [FromBody] DecideRequestDto dto)
+	{
+		try
+		{
+			var result = await _requestService.DecideAsync(
+				requestId: id,
+				decidedByUserId: CurrentUserId,
+				decision: dto.Decision,
+				comment: dto.Comment);
+
+			return result.IsSuccess ? Ok(result) : Conflict(result);
+		}
+		catch (ArgumentException ex)
+		{
+			return BadRequest(ex.Message);
+		}
+		catch (InvalidOperationException ex)
+		{
+			return Conflict(ex.Message);
+		}
 	}
 }
