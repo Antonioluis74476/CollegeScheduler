@@ -1,0 +1,151 @@
+﻿
+@page "/admin/scheduling/available-rooms"
+@rendermode InteractiveServer
+@using CollegeScheduler.DTOs.Scheduling
+@inject CollegeScheduler.Services.Interfaces.IAdminSchedulingService SchedulingService
+@inject CollegeScheduler.Services.Interfaces.ICampusService CampusService
+@inject CollegeScheduler.Services.Interfaces.IBuildingService BuildingService
+
+
+<h3>Available Room Finder</h3>
+
+<div class="mb-3">
+    <label>Start Time:</label>
+    <input type="datetime-local" @bind="startLocal" class="form-control" />
+</div>
+
+<div class="mb-3">
+    <label>End Time:</label>
+    <input type="datetime-local" @bind="endLocal" class="form-control" />
+</div>
+
+<div class="mb-3">
+    <label>Minimum Capacity:</label>
+    <input type="number" @bind="minCapacity" class="form-control" />
+</div>
+
+<div class="mb-3">
+    <label>Campus:</label>
+    <select class="form-control" value="@selectedCampusId" @onchange="OnCampusChanged">
+        <option value="">-- Select Campus --</option>
+        @foreach (var campus in campuses)
+        {
+            <option value="@campus.CampusId">@campus.Name</option>
+        }
+    </select>
+</div>
+
+<div class="mb-3">
+    <label>Building:</label>
+    <select class="form-control" @bind="selectedBuildingId">
+        <option value="">-- Select Building --</option>
+        @foreach (var building in buildings)
+        {
+            <option value="@building.BuildingId">@building.Name</option>
+        }
+    </select>
+</div>
+
+<button class="btn btn-primary" @onclick="Search">Search Rooms</button>
+
+
+@if (rooms is not null)
+{
+    <h4 class="mt-4">Results</h4>
+
+    @if (!rooms.Any())
+    {
+        <p>No rooms available.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Capacity</th>
+                    <th>Building</th>
+                    <th>Campus</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var room in rooms)
+                {
+                    <tr>
+                        <td>@room.Code</td>
+                        <td>@room.Name</td>
+                        <td>@room.Capacity</td>
+                        <td>@room.BuildingName</td>
+                        <td>@room.CampusName</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+
+
+@code {
+    private DateTime? startLocal;
+    private DateTime? endLocal;
+    private int? minCapacity;
+
+    private int? selectedCampusId;
+    private int? selectedBuildingId;
+
+    private List<AvailableRoomDto>? rooms;
+    private List<CollegeScheduler.DTOs.Facilities.CampusDto> campuses = new();
+    private List<CollegeScheduler.DTOs.Facilities.BuildingDto> buildings = new();
+
+    private async Task Search()
+    {
+        if (!startLocal.HasValue || !endLocal.HasValue)
+            return;
+
+        var query = new RoomSearchQuery
+        {
+            StartUtc = DateTime.SpecifyKind(startLocal.Value, DateTimeKind.Utc),
+            EndUtc = DateTime.SpecifyKind(endLocal.Value, DateTimeKind.Utc),
+            MinCapacity = minCapacity,
+            CampusId = selectedCampusId,
+            BuildingId = selectedBuildingId
+        };
+
+        rooms = await SchedulingService.GetAvailableRoomsAsync(query);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await CampusService.GetAllAsync();
+
+        if (result?.Items != null)
+        {
+            campuses = result.Items.ToList();
+        }
+    }
+
+    private async Task OnCampusChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var campusId))
+        {
+            selectedCampusId = campusId;
+
+            var result = await BuildingService.GetByCampusAsync(campusId);
+
+            if (result?.Items != null)
+            {
+                buildings = result.Items.ToList();
+            }
+        }
+        else
+        {
+            selectedCampusId = null;
+            buildings.Clear();
+        }
+
+        selectedBuildingId = null;
+    }
+
+}

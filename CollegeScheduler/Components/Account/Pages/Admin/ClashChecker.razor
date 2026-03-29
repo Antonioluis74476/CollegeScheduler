@@ -1,0 +1,114 @@
+﻿@page "/admin/scheduling/clash-checker"
+@rendermode InteractiveServer
+@using CollegeScheduler.DTOs.Scheduling
+@inject CollegeScheduler.Services.Interfaces.IAdminSchedulingService SchedulingService
+
+<h3>Clash Checker</h3>
+
+<div class="mb-3">
+    <label>Room Id:</label>
+    <input type="number" class="form-control" @bind="roomId" />
+</div>
+
+<div class="mb-3">
+    <label>Start Time:</label>
+    <input type="datetime-local" class="form-control" @bind="startLocal" />
+</div>
+
+<div class="mb-3">
+    <label>End Time:</label>
+    <input type="datetime-local" class="form-control" @bind="endLocal" />
+</div>
+
+<div class="mb-3">
+    <label>Cohort Ids (comma separated):</label>
+    <input type="text" class="form-control" @bind="cohortIdsText" />
+</div>
+
+<div class="mb-3">
+    <label>Lecturer Ids (comma separated):</label>
+    <input type="text" class="form-control" @bind="lecturerIdsText" />
+</div>
+
+<button class="btn btn-primary" @onclick="CheckClashes">Check Clashes</button>
+
+@if (result is not null)
+{
+    <div class="mt-4">
+        @if (!result.HasClash)
+        {
+            <div class="alert alert-success">No clash detected.</div>
+        }
+        else
+        {
+            <div class="alert alert-danger">Clashes found.</div>
+
+            @if (result.RoomClash is not null)
+            {
+                <p><strong>Room Clash:</strong> @result.RoomClash.Message</p>
+            }
+
+            @if (result.CohortClashes.Any())
+            {
+                <h5>Cohort Clashes</h5>
+                <ul>
+                    @foreach (var clash in result.CohortClashes)
+                    {
+                        <li>@clash.Message</li>
+                    }
+                </ul>
+            }
+
+            @if (result.LecturerClashes.Any())
+            {
+                <h5>Lecturer Clashes</h5>
+                <ul>
+                    @foreach (var clash in result.LecturerClashes)
+                    {
+                        <li>@clash.Message</li>
+                    }
+                </ul>
+            }
+        }
+    </div>
+}
+
+@code {
+    private int roomId;
+    private DateTime? startLocal;
+    private DateTime? endLocal;
+    private string? cohortIdsText;
+    private string? lecturerIdsText;
+
+    private ClashResult? result;
+
+    private async Task CheckClashes()
+    {
+        if (!startLocal.HasValue || !endLocal.HasValue || roomId <= 0)
+            return;
+
+        var request = new ClashCheckRequest
+        {
+            RoomId = roomId,
+            StartUtc = DateTime.SpecifyKind(startLocal.Value, DateTimeKind.Utc),
+            EndUtc = DateTime.SpecifyKind(endLocal.Value, DateTimeKind.Utc),
+            CohortIds = ParseIds(cohortIdsText),
+            LecturerIds = ParseIds(lecturerIdsText)
+        };
+
+        result = await SchedulingService.CheckClashesAsync(request);
+    }
+
+    private List<int> ParseIds(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return new List<int>();
+
+        return input
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Where(x => int.TryParse(x, out _))
+            .Select(int.Parse)
+            .ToList();
+    }
+}

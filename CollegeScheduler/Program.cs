@@ -5,6 +5,10 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using CollegeScheduler.Services;
+
+
+// usings for API clients
+using CollegeScheduler.Services.Implementations;
 using CollegeScheduler.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +28,32 @@ builder.Services.AddHttpClient<CollegeScheduler.Services.AdminBuildingsApi>(clie
 
 // SecondPart Branch
 builder.Services.AddScoped<CollegeScheduler.Services.AdminCampusState>();
+
+
+// API clients
+builder.Services.AddHttpClient<ICampusService, CampusService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+builder.Services.AddHttpClient<IBuildingService, BuildingService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+builder.Services.AddHttpClient<IRoomService, RoomService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+builder.Services.AddHttpClient<IAdminSchedulingService, AdminSchedulingService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
 
 
@@ -71,6 +101,7 @@ builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
 
 var app = builder.Build();
 

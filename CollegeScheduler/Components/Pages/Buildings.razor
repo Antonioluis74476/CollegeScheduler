@@ -1,8 +1,132 @@
-﻿@page "/buildings"
+﻿@rendermode InteractiveServer
+@page "/admin/buildings"
 
-<h1>Buildings</h1>
-<p class="muted">Frontend placeholder — API hookup later.</p>
+@using CollegeScheduler.DTOs.Facilities
+@inject CollegeScheduler.Services.Interfaces.ICampusService CampusService
+@inject CollegeScheduler.Services.Interfaces.IBuildingService BuildingService
 
-<div class="card">
-    <p>Buildings list will appear here.</p>
+<h3>Buildings</h3>
+
+<div class="mb-3">
+    <label for="campusSelect" class="form-label">Select Campus</label>
+    <select id="campusSelect" class="form-select" @bind="selectedCampusValue" @bind:after="LoadBuildingsAsync">
+        <option value="">-- Select a campus --</option>
+        @foreach (var campus in campuses)
+        {
+            <option value="@campus.CampusId.ToString()">@campus.Name</option>
+        }
+    </select>
 </div>
+
+@if (isLoadingCampuses)
+{
+    <p>Loading campuses...</p>
+}
+else if (campuses.Count == 0)
+{
+    <p>No campuses found.</p>
+}
+else if (string.IsNullOrWhiteSpace(selectedCampusValue))
+{
+    <p>Please select a campus to view its buildings.</p>
+}
+else if (isLoadingBuildings)
+{
+    <p>Loading buildings...</p>
+}
+else if (buildings.Count == 0)
+{
+    <p>No buildings found for this campus.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Code</th>
+                <th>Faculty</th>
+                <th>Active</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var building in buildings)
+            {
+                <tr>
+                    <td>@building.BuildingId</td>
+                    <td>@building.Name</td>
+                    <td>@building.Code</td>
+                    <td>@building.Faculty</td>
+                    <td>@(building.IsActive ? "Yes" : "No")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<CollegeScheduler.DTOs.Facilities.CampusDto> campuses = new();
+    private List<CollegeScheduler.DTOs.Facilities.BuildingDto> buildings = new();
+
+    private bool isLoadingCampuses = true;
+    private bool isLoadingBuildings = false;
+
+    private string selectedCampusValue = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var campusResult = await CampusService.GetAllAsync();
+
+            if (campusResult is not null)
+            {
+                campuses = campusResult.Items.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading campuses: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingCampuses = false;
+        }
+    }
+
+
+
+    private async Task LoadBuildingsAsync()
+    {
+        Console.WriteLine("LoadBuildingsAsync TRIGGERED");
+
+        buildings.Clear();
+
+        if (string.IsNullOrWhiteSpace(selectedCampusValue))
+            return;
+
+        if (!int.TryParse(selectedCampusValue, out var campusId))
+            return;
+
+        isLoadingBuildings = true;
+
+        try
+        {
+            var buildingResult = await BuildingService.GetByCampusAsync(campusId);
+
+            if (buildingResult is not null)
+            {
+                buildings = buildingResult.Items.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading buildings: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingBuildings = false;
+        }
+    }
+}

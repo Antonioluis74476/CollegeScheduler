@@ -1,8 +1,190 @@
-﻿@page "/rooms"
+﻿@rendermode InteractiveServer
+@page "/admin/rooms"
 
-<h1>Rooms</h1>
-<p class="muted">Frontend placeholder — API hookup later.</p>
+@using CollegeScheduler.DTOs.Facilities
+@inject CollegeScheduler.Services.Interfaces.ICampusService CampusService
+@inject CollegeScheduler.Services.Interfaces.IBuildingService BuildingService
+@inject CollegeScheduler.Services.Interfaces.IRoomService RoomService
 
-<div class="card">
-    <p>Rooms list will appear here.</p>
+<h3>Rooms</h3>
+
+<div class="mb-3">
+    <label for="campusSelect" class="form-label">Select Campus</label>
+    <select id="campusSelect" class="form-select" @bind="selectedCampusValue" @bind:after="OnCampusSelectedAsync">
+        <option value="">-- Select a campus --</option>
+        @foreach (var campus in campuses)
+        {
+            <option value="@campus.CampusId.ToString()">@campus.Name</option>
+        }
+    </select>
 </div>
+
+<div class="mb-3">
+    <label for="buildingSelect" class="form-label">Select Building</label>
+    <select id="buildingSelect" class="form-select" @bind="selectedBuildingValue" @bind:after="OnBuildingSelectedAsync">
+        <option value="">-- Select a building --</option>
+        @foreach (var building in buildings)
+        {
+            <option value="@building.BuildingId.ToString()">@building.Name</option>
+        }
+    </select>
+</div>
+
+@if (isLoadingCampuses)
+{
+    <p>Loading campuses...</p>
+}
+else if (campuses.Count == 0)
+{
+    <p>No campuses found.</p>
+}
+else if (!string.IsNullOrWhiteSpace(selectedCampusValue) && isLoadingBuildings)
+{
+    <p>Loading buildings...</p>
+}
+else if (!string.IsNullOrWhiteSpace(selectedCampusValue) && buildings.Count == 0)
+{
+    <p>No buildings found for this campus.</p>
+}
+else if (string.IsNullOrWhiteSpace(selectedBuildingValue))
+{
+    <p>Please select a building to view its rooms.</p>
+}
+else if (isLoadingRooms)
+{
+    <p>Loading rooms...</p>
+}
+else if (rooms.Count == 0)
+{
+    <p>No rooms found for this building.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Floor</th>
+                <th>Capacity</th>
+                <th>Bookable By Students</th>
+                <th>Requires Approval</th>
+                <th>Active</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var room in rooms)
+            {
+                <tr>
+                    <td>@room.RoomId</td>
+                    <td>@room.Code</td>
+                    <td>@room.Name</td>
+                    <td>@room.Floor</td>
+                    <td>@room.Capacity</td>
+                    <td>@(room.IsBookableByStudents ? "Yes" : "No")</td>
+                    <td>@(room.RequiresApproval ? "Yes" : "No")</td>
+                    <td>@(room.IsActive ? "Yes" : "No")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<CampusDto> campuses = new();
+    private List<BuildingDto> buildings = new();
+    private List<RoomDto> rooms = new();
+
+    private bool isLoadingCampuses = true;
+    private bool isLoadingBuildings = false;
+    private bool isLoadingRooms = false;
+
+    private string selectedCampusValue = "";
+    private string selectedBuildingValue = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var campusResult = await CampusService.GetAllAsync();
+
+            if (campusResult is not null)
+            {
+                campuses = campusResult.Items.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading campuses: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingCampuses = false;
+        }
+    }
+
+    private async Task OnCampusSelectedAsync()
+    {
+        buildings.Clear();
+        rooms.Clear();
+        selectedBuildingValue = "";
+        isLoadingBuildings = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(selectedCampusValue))
+                return;
+
+            if (!int.TryParse(selectedCampusValue, out var campusId))
+                return;
+
+            var result = await BuildingService.GetByCampusAsync(campusId);
+
+            if (result is not null)
+            {
+                buildings = result.Items.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading buildings in Rooms page: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingBuildings = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task OnBuildingSelectedAsync()
+    {
+        rooms.Clear();
+        isLoadingRooms = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(selectedBuildingValue))
+                return;
+
+            if (!int.TryParse(selectedBuildingValue, out var buildingId))
+                return;
+
+            var result = await RoomService.GetByBuildingAsync(buildingId);
+
+            if (result is not null)
+            {
+                rooms = result.Items.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading rooms: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingRooms = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+}

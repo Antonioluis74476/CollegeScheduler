@@ -1,0 +1,67 @@
+﻿@page "/admin/campuses"
+
+@using CollegeScheduler.DTOs.Facilities
+@inject CollegeScheduler.Services.Interfaces.ICampusService CampusService
+
+<h3>Campuses</h3>
+
+@if (isLoading)
+{
+    <p>Loading campuses...</p>
+}
+else if (campuses == null || campuses.Count == 0)
+{
+    <p>No campuses found.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Code</th>
+                <th>City</th>
+                <th>Active</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var campus in campuses)
+            {
+                <tr>
+                    <td>@campus.CampusId</td>
+                    <td>@campus.Name</td>
+                    <td>@campus.Code</td>
+                    <td>@campus.City</td>
+                    <td>@(campus.IsActive ? "Yes" : "No")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<CampusDto> campuses = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await CampusService.GetAllAsync();
+
+            if (result != null)
+            {
+                campuses = result.Items.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading campuses: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
