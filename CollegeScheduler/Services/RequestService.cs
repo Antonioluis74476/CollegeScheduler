@@ -4,6 +4,7 @@ using CollegeScheduler.Data.Entities.Scheduling;
 using CollegeScheduler.DTOs.Requests;
 using CollegeScheduler.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using CollegeScheduler.Hubs;
 
 namespace CollegeScheduler.Services;
 
@@ -12,17 +13,20 @@ public sealed class RequestService : IRequestService
 	private readonly ApplicationDbContext _db;
 	private readonly ISchedulingService _schedulingService;
 	private readonly INotificationService _notificationService;
+	private readonly TimetableHubNotifier _hubNotifier;
 	private readonly ILogger<RequestService> _logger;
 
 	public RequestService(
 		ApplicationDbContext db,
 		ISchedulingService schedulingService,
 		INotificationService notificationService,
+		TimetableHubNotifier hubNotifier,
 		ILogger<RequestService> logger)
 	{
 		_db = db;
 		_schedulingService = schedulingService;
 		_notificationService = notificationService;
+		_hubNotifier = hubNotifier;
 		_logger = logger;
 	}
 
@@ -227,7 +231,8 @@ public sealed class RequestService : IRequestService
 			RequestId = requestId,
 			DecidedByUserId = decidedByUserId,
 			Decision = decision,
-			Comment = comment
+			Comment = comment,
+			DecidedAtUtc = DateTime.UtcNow
 		});
 
 		request.RequestStatusId = targetStatusId;
@@ -253,6 +258,12 @@ public sealed class RequestService : IRequestService
 				: $"Your request #{requestId} was {decision.ToLower()}. Comment: {comment}",
 			recipientUserIds: new[] { request.RequestedByUserId },
 			relatedRequestId: requestId);
+
+		await _hubNotifier.PushRequestDecisionAsync(
+			requesterUserId: request.RequestedByUserId,
+			requestId: requestId,
+			decision: decision,
+			comment: comment);
 
 		_logger.LogInformation(
 			"Request decided. RequestId={RequestId}, Decision={Decision}, DecidedBy={DecidedBy}",
@@ -323,6 +334,7 @@ public sealed class RequestService : IRequestService
 			NewEndUtc = newEndUtc,
 			Reason = detail.Reason,
 			ChangedByUserId = changedByUserId,
+			ChangedAtUtc = DateTime.UtcNow,
 			NotificationSent = false
 		});
 
@@ -331,10 +343,10 @@ public sealed class RequestService : IRequestService
 		var recipientUserIds = new List<string>();
 
 		var studentUserIds = await (
-		from scm in _db.StudentCohortMemberships
-		join sp in _db.StudentProfiles on scm.StudentId equals sp.StudentId
-		where cohortIds.Contains(scm.CohortId) && sp.UserId != null
-		select sp.UserId!
+			from scm in _db.StudentCohortMemberships
+			join sp in _db.StudentProfiles on scm.StudentId equals sp.StudentId
+			where cohortIds.Contains(scm.CohortId) && sp.UserId != null
+			select sp.UserId!
 		)
 		.Distinct()
 		.ToListAsync();
@@ -359,6 +371,13 @@ public sealed class RequestService : IRequestService
 				relatedTimetableEventId: timetableEvent.TimetableEventId,
 				relatedRequestId: requestId);
 		}
+
+		await _hubNotifier.PushEventChangedAsync(
+			timetableEventId: timetableEvent.TimetableEventId,
+			cohortIds: cohortIds,
+			lecturerUserIds: lecturerUserIds,
+			oldStartUtc: oldStartUtc,
+			newStartUtc: newStartUtc);
 
 		var lastChange = await _db.TimetableEventChanges
 			.Where(x => x.TimetableEventId == timetableEvent.TimetableEventId)

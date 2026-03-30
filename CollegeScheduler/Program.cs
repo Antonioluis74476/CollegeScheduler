@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using CollegeScheduler.Services;
 using CollegeScheduler.Services.Interfaces;
+using CollegeScheduler.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +57,10 @@ builder.Services.AddScoped<IRequestService, RequestService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+//SignalR
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<TimetableHubNotifier>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -86,11 +91,14 @@ app.UseAuthorization();
 
 // API endpoints
 app.MapControllers();
+app.MapHub<TimetableHub>("/hubs/timetable");
 
 // Blazor endpoints
 app.MapRazorComponents<App>()
 	.AddInteractiveServerRenderMode();
 
 app.MapAdditionalIdentityEndpoints();
+
+
 
 app.Run();
