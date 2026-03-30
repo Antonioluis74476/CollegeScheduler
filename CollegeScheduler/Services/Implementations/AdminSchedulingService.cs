@@ -1,6 +1,8 @@
-﻿using System.Net.Http.Json;
+﻿using CollegeScheduler.DTOs.Academic;
+using CollegeScheduler.DTOs.Facilities;
 using CollegeScheduler.DTOs.Scheduling;
 using CollegeScheduler.Services.Interfaces;
+using System.Net.Http.Json;
 
 namespace CollegeScheduler.Services.Implementations
 {
@@ -57,6 +59,50 @@ namespace CollegeScheduler.Services.Implementations
                 return null;
 
             return await response.Content.ReadFromJsonAsync<ClashResult>();
+        }
+
+        public async Task<RecurringEventCreateResultDto?> CreateRecurringEventsAsync(RecurringEventCreateDto request)
+        {
+            var response = await _httpClient.PostAsJsonAsync(
+                "api/v1/admin/scheduling/recurring-events",
+                request
+            );
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                throw new Exception(error);
+            }
+
+            return await response.Content.ReadFromJsonAsync<RecurringEventCreateResultDto>();
+        }
+
+        public async Task<EventStatusDtoPagedResult?> GetEventStatusesAsync()
+        {
+            return await _httpClient.GetFromJsonAsync<EventStatusDtoPagedResult>(
+                "api/v1/admin/event-statuses"
+            );
+        }
+
+        public async Task<RoomDtoPagedResult?> GetRoomsByBuildingAsync(int buildingId)
+        {
+            return await _httpClient.GetFromJsonAsync<RoomDtoPagedResult>(
+                $"api/v1/admin/buildings/{buildingId}/rooms"
+            );
+        }
+
+        public async Task<ModuleDtoPagedResult?> GetModulesAsync()
+        {
+            return await _httpClient.GetFromJsonAsync<ModuleDtoPagedResult>(
+                "api/v1/admin/modules"
+            );
+        }
+
+        public async Task<TermDtoPagedResult?> GetTermsByAcademicYearAsync(int academicYearId)
+        {
+            return await _httpClient.GetFromJsonAsync<TermDtoPagedResult>(
+                $"api/v1/admin/academic-years/{academicYearId}/terms"
+            );
         }
     }
 }

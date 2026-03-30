@@ -3,7 +3,17 @@
 @using CollegeScheduler.DTOs.Scheduling
 @inject CollegeScheduler.Services.Interfaces.IAdminSchedulingService SchedulingService
 
-<h3>Clash Checker</h3>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <small class="text-muted">Scheduling /</small>
+        <h3 class="mb-0">Clash Checker</h3>
+    </div>
+
+    <a href="/admin/scheduling" class="btn btn-outline-secondary">
+        ← Back
+    </a>
+</div>
 
 <div class="mb-3">
     <label>Room Id:</label>

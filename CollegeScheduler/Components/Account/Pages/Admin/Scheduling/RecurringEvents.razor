@@ -1,0 +1,235 @@
+﻿@page "/admin/scheduling/recurring-events"
+@rendermode InteractiveServer
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.DTOs.Facilities
+@using CollegeScheduler.DTOs.Academic
+
+@inject CollegeScheduler.Services.Interfaces.IAdminSchedulingService SchedulingService
+
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <small class="text-muted">Scheduling /</small>
+        <h3 class="mb-0">Recurring Events Creator</h3>
+    </div>
+
+    <a href="/admin/scheduling" class="btn btn-outline-secondary">
+        ← Back
+    </a>
+</div>
+
+<div class="mb-3">
+    <label>Term:</label>
+    <select class="form-control" @bind="termId">
+        <option value="">-- Select Term --</option>
+
+        @if (termsResult?.Items != null)
+        {
+            @foreach (var term in termsResult.Items)
+            {
+                <option value="@term.TermId">@term.Name</option>
+            }
+        }
+    </select>
+</div>
+
+<div class="mb-3">
+    <label>Module:</label>
+    <select class="form-control" @bind="moduleId">
+        <option value="">-- Select Module --</option>
+
+        @if (modulesResult?.Items != null)
+        {
+            @foreach (var module in modulesResult.Items)
+            {
+                <option value="@module.ModuleId">@module.Title (@module.Code)</option>
+            }
+        }
+    </select>
+</div>
+
+<div class="mb-3">
+    <label>Room Id:</label>
+    <div class="mb-3">
+        <label>Room:</label>
+        <select class="form-control" @bind="roomId">
+            <option value="">-- Select Room --</option>
+
+            @if (roomsResult?.Items != null)
+            {
+                @foreach (var room in roomsResult.Items)
+                {
+                    <option value="@room.RoomId">
+                        @room.Name (@room.Code)
+                    </option>
+                }
+            }
+        </select>
+    </div>
+</div>
+
+<div class="mb-3">
+    <label>First Start Time:</label>
+    <input type="datetime-local" class="form-control" @bind="startLocal" />
+</div>
+
+<div class="mb-3">
+    <label>First End Time:</label>
+    <input type="datetime-local" class="form-control" @bind="endLocal" />
+</div>
+
+<div class="mb-3">
+    <label>Event Status:</label>
+    <select class="form-control" @bind="eventStatusId">
+        <option value="">-- Select Event Status --</option>
+
+        @if (eventStatusesResult?.Items != null)
+        {
+            @foreach (var status in eventStatusesResult.Items)
+            {
+                <option value="@status.EventStatusId">@status.Name</option>
+            }
+        }
+    </select>
+</div>
+
+<div class="mb-3">
+    <label>Session Type:</label>
+    <input type="text" class="form-control" @bind="sessionType" />
+</div>
+
+<div class="mb-3">
+    <label>Notes:</label>
+    <input type="text" class="form-control" @bind="notes" />
+</div>
+
+<div class="mb-3">
+    <label>Cohort Ids (comma separated):</label>
+    <input type="text" class="form-control" @bind="cohortIdsText" />
+</div>
+
+<div class="mb-3">
+    <label>Lecturer Ids (comma separated):</label>
+    <input type="text" class="form-control" @bind="lecturerIdsText" />
+</div>
+
+<button class="btn btn-success" @onclick="CreateRecurringEvents">
+    Create Recurring Events
+</button>
+
+@if (result != null)
+{
+    <div class="alert alert-success mt-3">
+        <p><strong>Created:</strong> @result.CreatedCount events</p>
+        <p><strong>Group ID:</strong> @result.RecurrenceGroupId</p>
+    </div>
+}
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger mt-3">
+        @errorMessage
+    </div>
+}
+
+<div class="mb-3">
+    <label>Event Status Id:</label>
+    <input type="number" class="form-control" @bind="eventStatusId" />
+</div>
+
+@code {
+    private int termId;
+    private int moduleId;
+    private int roomId;
+    private int eventStatusId;
+
+    private EventStatusDtoPagedResult? eventStatusesResult;
+
+    private RoomDtoPagedResult? roomsResult;
+    private int buildingId = 15; //
+
+    private ModuleDtoPagedResult? modulesResult;
+
+    private TermDtoPagedResult? termsResult;
+    private int academicYearId = 1;
+
+    private string sessionType = "Lecture";
+    private string? notes;
+
+    private string cohortIdsText = "";
+    private string lecturerIdsText = "";
+
+    private DateTime startLocal;
+    private DateTime endLocal;
+
+    private RecurringEventCreateResultDto? result;
+    private string? errorMessage;
+
+    private async Task CreateRecurringEvents()
+    {
+        try
+        {
+            var dto = new RecurringEventCreateDto
+            {
+                TermId = termId,
+                ModuleId = moduleId,
+                RoomId = roomId,
+                FirstOccurrenceStartUtc = new DateTime(
+                    startLocal.Year,
+                    startLocal.Month,
+                    startLocal.Day,
+                    startLocal.Hour,
+                    startLocal.Minute,
+                    0,
+                    DateTimeKind.Utc),
+
+                FirstOccurrenceEndUtc = new DateTime(
+                    endLocal.Year,
+                    endLocal.Month,
+                    endLocal.Day,
+                    endLocal.Hour,
+                    endLocal.Minute,
+                    0,
+                    DateTimeKind.Utc),
+                EventStatusId = eventStatusId,
+                SessionType = sessionType,
+                Notes = notes,
+                CohortIds = ParseIds(cohortIdsText),
+                LecturerIds = ParseIds(lecturerIdsText)
+            };
+
+            result = await SchedulingService.CreateRecurringEventsAsync(dto);
+
+            if (result is null)
+            {
+                errorMessage = "The API rejected the request. Check the IDs and required values.";
+            }
+            else
+            {
+                errorMessage = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            result = null;
+        }
+    }
+
+    private List<int> ParseIds(string input)
+    {
+        return input
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => int.Parse(x.Trim()))
+            .ToList();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        eventStatusesResult = await SchedulingService.GetEventStatusesAsync();
+        roomsResult = await SchedulingService.GetRoomsByBuildingAsync(buildingId);
+        modulesResult = await SchedulingService.GetModulesAsync();
+        termsResult = await SchedulingService.GetTermsByAcademicYearAsync(academicYearId);
+    }
+
+}

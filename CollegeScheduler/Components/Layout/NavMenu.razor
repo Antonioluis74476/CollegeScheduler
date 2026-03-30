@@ -1,4 +1,6 @@
-﻿@implements IDisposable
+﻿@using Microsoft.AspNetCore.Components.Authorization
+
+@implements IDisposable
 
 @inject NavigationManager NavigationManager
 
@@ -30,17 +32,27 @@
             </NavLink>
         </div>
 
-        <li class="nav-item px-3">
-            <NavLink class="nav-link" href="admin/campuses">
-                <span class="oi oi-list-rich" aria-hidden="true"></span> Campuses
-            </NavLink>
-        </li>
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/campuses">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Campuses
+                    </NavLink>
+                </li>
 
-        <li class="nav-item px-3">
-            <NavLink class="nav-link" href="admin/buildings">
-                <span class="oi oi-home" aria-hidden="true"></span> Buildings
-            </NavLink>
-        </li>
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/buildings">
+                        <span class="oi oi-home" aria-hidden="true"></span> Buildings
+                    </NavLink>
+                </li>
+
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/scheduling">
+                        <span class="oi oi-calendar" aria-hidden="true"></span> Scheduling
+                    </NavLink>
+                </li>
+            </Authorized>
+        </AuthorizeView>
 
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="auth">
@@ -55,15 +67,13 @@
                         <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
                     </NavLink>
                 </div>
-                <div class="nav-item px-3">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
-                        </button>
-                    </form>
-                </div>
+
+                <li class="nav-item px-3">
+                    <a class="nav-link" href="/logout" data-enhance-nav="false">
+                        <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
+                    </a>
+                </li>
+
             </Authorized>
             <NotAuthorized>
                 <div class="nav-item px-3">

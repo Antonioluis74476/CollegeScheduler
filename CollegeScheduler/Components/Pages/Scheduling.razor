@@ -1,0 +1,126 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@page "/admin/scheduling"
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Scheduling</PageTitle>
+
+<div class="scheduling-page">
+    <div class="scheduling-header">
+        <div>
+            <h1>Scheduling</h1>
+            <p>Choose an admin scheduling tool to continue.</p>
+        </div>
+    </div>
+
+    <div class="scheduling-grid">
+        <div class="scheduling-card">
+            <h3>Available Room Finder</h3>
+            <p>
+                Search for available rooms by time slot, campus, building, and capacity.
+            </p>
+            <a class="card-button" href="/admin/scheduling/available-rooms">Open Tool</a>
+        </div>
+
+        <div class="scheduling-card">
+            <h3>Clash Checker</h3>
+            <p>
+                Check for lecturer, cohort, or room conflicts before creating a timetable event.
+            </p>
+            <a class="card-button" href="/admin/scheduling/clash-checker">Open Tool</a>
+        </div>
+
+        <div class="scheduling-card">
+            <h3>Recurring Events Creator</h3>
+            <p>
+                Generate recurring timetable events for a term from one scheduling form.
+            </p>
+            <a class="card-button" href="/admin/scheduling/recurring-events">Open Tool</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .scheduling-page {
+        padding: 0.5rem 0;
+    }
+
+    .scheduling-header {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border: 1px solid #dee2e6;
+    }
+
+        .scheduling-header h1 {
+            margin: 0 0 0.5rem 0;
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .scheduling-header p {
+            margin: 0;
+            font-size: 1.05rem;
+            color: #6b7280;
+        }
+
+    .scheduling-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .scheduling-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 1.5rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+        display: flex;
+        flex-direction: column;
+        min-height: 260px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .scheduling-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.10);
+        }
+
+    .card-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .scheduling-card h3 {
+        margin-bottom: 0.75rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .scheduling-card p {
+        color: #6b7280;
+        line-height: 1.5;
+        margin-bottom: 1.5rem;
+        flex-grow: 1;
+    }
+
+    .card-button {
+        display: inline-block;
+        text-align: center;
+        text-decoration: none;
+        background: #0d6efd;
+        color: white;
+        font-weight: 600;
+        padding: 0.8rem 1rem;
+        border-radius: 10px;
+        transition: background 0.2s ease;
+    }
+
+        .card-button:hover {
+            background: #0b5ed7;
+            color: white;
+        }
+</style>
