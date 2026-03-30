@@ -1,6 +1,8 @@
 ﻿using CollegeScheduler.Data;
 using CollegeScheduler.Data.Entities.Notifications;
+using CollegeScheduler.Messaging;
 using CollegeScheduler.Services.Interfaces;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
 namespace CollegeScheduler.Services;
@@ -8,13 +10,16 @@ namespace CollegeScheduler.Services;
 public sealed class NotificationService : INotificationService
 {
 	private readonly ApplicationDbContext _db;
+	private readonly IPublishEndpoint _publishEndpoint;
 	private readonly ILogger<NotificationService> _logger;
 
 	public NotificationService(
 		ApplicationDbContext db,
+		IPublishEndpoint publishEndpoint,
 		ILogger<NotificationService> logger)
 	{
 		_db = db;
+		_publishEndpoint = publishEndpoint;
 		_logger = logger;
 	}
 
@@ -66,11 +71,27 @@ public sealed class NotificationService : INotificationService
 
 		await _db.SaveChangesAsync();
 
+		// Get email addresses for recipients
+		var userEmails = await _db.Users
+			.Where(u => recipients.Contains(u.Id) && u.Email != null)
+			.Select(u => new { u.Id, u.Email })
+			.ToListAsync();
+
+		// Publish an email job to RabbitMQ for each user email
+		foreach (var user in userEmails)
+		{
+			await _publishEndpoint.Publish(new SendEmailMessage(
+				To: user.Email!,
+				Subject: title,
+				Body: message));
+		}
+
 		_logger.LogInformation(
-			"Notification created. NotificationId={NotificationId}, Type={Type}, Recipients={RecipientCount}",
+			"Notification created. NotificationId={NotificationId}, Type={Type}, Recipients={RecipientCount}, EmailsQueued={EmailCount}",
 			notification.NotificationId,
 			notificationTypeName,
-			recipients.Count);
+			recipients.Count,
+			userEmails.Count);
 
 		return notification.NotificationId;
 	}

@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using CollegeScheduler.Services;
 using CollegeScheduler.Services.Interfaces;
 using CollegeScheduler.Hubs;
+using CollegeScheduler.Messaging;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +54,23 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRequestService, RequestService>();
+
+// RabbitMQ (MassTransit)
+builder.Services.AddMassTransit(x =>
+{
+	x.AddConsumer<SendEmailConsumer>();
+
+	x.UsingRabbitMq((context, cfg) =>
+	{
+		cfg.Host("localhost", "/", h =>
+		{
+			h.Username("guest");
+			h.Password("guest");
+		});
+
+		cfg.ConfigureEndpoints(context);
+	});
+});
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();

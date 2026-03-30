@@ -103,6 +103,73 @@ public sealed class RequestService : IRequestService
 		return request.RequestId;
 	}
 
+	public async Task<long> CreateCancelClassRequestAsync(
+		string requestedByUserId,
+		long timetableEventId,
+		string reason)
+	{
+		if (string.IsNullOrWhiteSpace(requestedByUserId))
+			throw new ArgumentException("RequestedByUserId is required.");
+
+		if (string.IsNullOrWhiteSpace(reason))
+			throw new ArgumentException("Reason is required.");
+
+		var eventExists = await _db.TimetableEvents
+			.AnyAsync(x => x.TimetableEventId == timetableEventId);
+
+		if (!eventExists)
+			throw new ArgumentException($"TimetableEvent {timetableEventId} not found.");
+
+		var requestTypeId = await _db.RequestTypes
+			.Where(x => x.Name == "CancelClass")
+			.Select(x => x.RequestTypeId)
+			.FirstOrDefaultAsync();
+
+		if (requestTypeId == 0)
+			throw new InvalidOperationException("RequestType 'CancelClass' not found.");
+
+		var pendingStatusId = await _db.RequestStatuses
+			.Where(x => x.Name == "Pending")
+			.Select(x => x.RequestStatusId)
+			.FirstOrDefaultAsync();
+
+		if (pendingStatusId == 0)
+			throw new InvalidOperationException("RequestStatus 'Pending' not found.");
+
+		var request = new Request
+		{
+			RequestTypeId = requestTypeId,
+			RequestStatusId = pendingStatusId,
+			RequestedByUserId = requestedByUserId,
+			Title = $"Cancellation request for event {timetableEventId}",
+			Notes = reason
+		};
+
+		_db.Requests.Add(request);
+		await _db.SaveChangesAsync();
+
+		var detail = new RequestScheduleChange
+		{
+			RequestId = request.RequestId,
+			TimetableEventId = timetableEventId,
+			ProposedRoomId = null,
+			ProposedStartUtc = null,
+			ProposedEndUtc = null,
+			Reason = reason
+		};
+
+		_db.RequestScheduleChanges.Add(detail);
+		await _db.SaveChangesAsync();
+
+		_logger.LogInformation(
+			"Cancel class request created. RequestId={RequestId}, EventId={EventId}, RequestedBy={RequestedBy}",
+			request.RequestId,
+			timetableEventId,
+			requestedByUserId);
+
+		return request.RequestId;
+	}
+
 	public async Task<long> CreateRoomBookingRequestAsync(
 		string requestedByUserId,
 		int roomId,
@@ -244,6 +311,10 @@ public sealed class RequestService : IRequestService
 			{
 				await ApplyApprovedScheduleChangeAsync(requestId, decidedByUserId);
 			}
+			else if (request.RequestType.Name == "CancelClass")
+			{
+				await ApplyApprovedCancellationAsync(requestId, decidedByUserId);
+			}
 			else if (request.RequestType.Name == "RoomBooking")
 			{
 				await ApplyApprovedRoomBookingAsync(requestId);
@@ -378,6 +449,97 @@ public sealed class RequestService : IRequestService
 			lecturerUserIds: lecturerUserIds,
 			oldStartUtc: oldStartUtc,
 			newStartUtc: newStartUtc);
+
+		var lastChange = await _db.TimetableEventChanges
+			.Where(x => x.TimetableEventId == timetableEvent.TimetableEventId)
+			.OrderByDescending(x => x.ChangedAtUtc)
+			.FirstOrDefaultAsync();
+
+		if (lastChange is not null)
+		{
+			lastChange.NotificationSent = true;
+			await _db.SaveChangesAsync();
+		}
+	}
+
+	private async Task ApplyApprovedCancellationAsync(long requestId, string changedByUserId)
+	{
+		var detail = await _db.RequestScheduleChanges
+			.Include(x => x.TimetableEvent)
+				.ThenInclude(te => te.EventCohorts)
+			.Include(x => x.TimetableEvent)
+				.ThenInclude(te => te.EventLecturers)
+			.FirstOrDefaultAsync(x => x.RequestId == requestId);
+
+		if (detail is null)
+			throw new InvalidOperationException($"RequestScheduleChange for request {requestId} not found.");
+
+		var timetableEvent = detail.TimetableEvent;
+		if (timetableEvent is null)
+			throw new InvalidOperationException("TimetableEvent not found for approved cancellation.");
+
+		var cancelledStatusId = await _db.EventStatuses
+			.Where(x => x.Name == "Cancelled")
+			.Select(x => x.EventStatusId)
+			.FirstOrDefaultAsync();
+
+		if (cancelledStatusId == 0)
+			throw new InvalidOperationException("EventStatus 'Cancelled' not found.");
+
+		var cohortIds = timetableEvent.EventCohorts.Select(ec => ec.CohortId).ToList();
+		var lecturerIds = timetableEvent.EventLecturers.Select(el => el.LecturerId).ToList();
+
+		timetableEvent.EventStatusId = cancelledStatusId;
+
+		_db.TimetableEventChanges.Add(new TimetableEventChange
+		{
+			TimetableEventId = timetableEvent.TimetableEventId,
+			ChangeType = "Cancellation",
+			Reason = detail.Reason,
+			ChangedByUserId = changedByUserId,
+			ChangedAtUtc = DateTime.UtcNow,
+			NotificationSent = false
+		});
+
+		await _db.SaveChangesAsync();
+
+		var recipientUserIds = new List<string>();
+
+		var studentUserIds = await (
+			from scm in _db.StudentCohortMemberships
+			join sp in _db.StudentProfiles on scm.StudentId equals sp.StudentId
+			where cohortIds.Contains(scm.CohortId) && sp.UserId != null
+			select sp.UserId!
+		)
+		.Distinct()
+		.ToListAsync();
+
+		recipientUserIds.AddRange(studentUserIds);
+
+		var lecturerUserIds = await _db.LecturerProfiles
+			.Where(lp => lecturerIds.Contains(lp.LecturerId) && lp.UserId != null)
+			.Select(lp => lp.UserId!)
+			.Distinct()
+			.ToListAsync();
+
+		recipientUserIds.AddRange(lecturerUserIds);
+
+		if (recipientUserIds.Count > 0)
+		{
+			await _notificationService.CreateAsync(
+				notificationTypeName: "EventCancelled",
+				title: "Class cancelled",
+				message: $"Timetable event #{timetableEvent.TimetableEventId} has been cancelled.",
+				recipientUserIds: recipientUserIds.Distinct(),
+				relatedTimetableEventId: timetableEvent.TimetableEventId,
+				relatedRequestId: requestId);
+		}
+
+		await _hubNotifier.PushEventCancelledAsync(
+			timetableEventId: timetableEvent.TimetableEventId,
+			cohortIds: cohortIds,
+			lecturerUserIds: lecturerUserIds,
+			reason: detail.Reason);
 
 		var lastChange = await _db.TimetableEventChanges
 			.Where(x => x.TimetableEventId == timetableEvent.TimetableEventId)
