@@ -10,6 +10,7 @@ using CollegeScheduler.Services;
 // usings for API clients
 using CollegeScheduler.Services.Implementations;
 using CollegeScheduler.Services.Interfaces;
+using CollegeScheduler.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -97,11 +98,16 @@ builder.Services.AddControllers();
 
 //Services
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IRequestService, RequestService>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+//SignalR
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<TimetableHubNotifier>();
 
 var app = builder.Build();
 
@@ -133,11 +139,14 @@ app.UseAntiforgery();
 
 // API endpoints
 app.MapControllers();
+app.MapHub<TimetableHub>("/hubs/timetable");
 
 // Blazor endpoints
 app.MapRazorComponents<App>()
 	.AddInteractiveServerRenderMode();
 
 app.MapAdditionalIdentityEndpoints();
+
+
 
 app.Run();
