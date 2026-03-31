@@ -1,0 +1,78 @@
+﻿@page "/admin/academic-years/{AcademicYearId:int}/terms/create"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+@inject ITermService TermService
+@inject NavigationManager Navigation
+
+<h3>Create Term</h3>
+
+<p>Academic Year Id: @AcademicYearId</p>
+
+<EditForm Model="model" OnValidSubmit="HandleCreate" FormName="CreateTerm">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Term Number</label>
+        <InputNumber class="form-control" @bind-Value="model.TermNumber" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Name</label>
+        <InputText class="form-control" @bind-Value="model.Name" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Start Date</label>
+        <InputDate class="form-control" @bind-Value="model.StartDate" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">End Date</label>
+        <InputDate class="form-control" @bind-Value="model.EndDate" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create</button>
+    <a class="btn btn-secondary ms-2"
+       href="/admin/academic-years/@AcademicYearId/terms">
+        Cancel
+    </a>
+</EditForm>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+}
+
+@code {
+    [Parameter]
+    public int AcademicYearId { get; set; }
+
+    private TermCreateDto model = new()
+    {
+        TermNumber = 1,
+        Name = "",
+        StartDate = DateTime.Today,
+        EndDate = DateTime.Today.AddMonths(4)
+    };
+
+    private string? errorMessage;
+
+    private async Task HandleCreate()
+    {
+        errorMessage = null;
+
+        var success = await TermService.CreateAsync(AcademicYearId, model);
+
+        if (success)
+        {
+            Navigation.NavigateTo($"/admin/academic-years/{AcademicYearId}/terms");
+            return;
+        }
+
+        errorMessage = "Failed to create term.";
+    }
+}

@@ -16,7 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // API clients // FrontEnd
 
-// FirstPart Branch
+// Forward auth cookie handler
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTransient<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
@@ -27,30 +27,47 @@ builder.Services.AddHttpClient<CollegeScheduler.Services.AdminBuildingsApi>(clie
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
 
-// SecondPart Branch
+// Admin campus state
 builder.Services.AddScoped<CollegeScheduler.Services.AdminCampusState>();
 
 
-// API clients
+// Campus API client
 builder.Services.AddHttpClient<ICampusService, CampusService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
 })
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// Building API client
 builder.Services.AddHttpClient<IBuildingService, BuildingService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
 })
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// Room API client
 builder.Services.AddHttpClient<IRoomService, RoomService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
 })
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// Scheduling API client
 builder.Services.AddHttpClient<IAdminSchedulingService, AdminSchedulingService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Academic year API client
+builder.Services.AddHttpClient<IAcademicYearService, AcademicYearService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Term API client
+builder.Services.AddHttpClient<ITermService, TermService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
 })

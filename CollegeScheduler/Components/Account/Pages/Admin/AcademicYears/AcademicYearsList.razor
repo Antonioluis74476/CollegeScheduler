@@ -1,0 +1,89 @@
+﻿@page "/admin/academic-years"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+@inject IAcademicYearService AcademicYearService
+
+<h3>Academic Years</h3>
+
+<a class="btn btn-primary mb-3" href="/admin/academic-years/create">
+    + Create Academic Year
+</a>
+
+@if (academicYears == null)
+{
+    <p>Loading...</p>
+}
+else if (!academicYears.Any())
+{
+    <p>No academic years found.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Label</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Current</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var year in academicYears)
+            {
+                <tr>
+                    <td>@year.Label</td>
+                    <td>@year.StartDate.ToShortDateString()</td>
+                    <td>@year.EndDate.ToShortDateString()</td>
+                    <td>
+                        @if (year.IsCurrent)
+                        {
+                            <span class="badge bg-success">Current</span>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-outline-primary"
+                                    @onclick="() => SetCurrent(year.AcademicYearId)">
+                                Set Current
+                            </button>
+                        }
+                    </td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-secondary"
+                           href="/admin/academic-years/@year.AcademicYearId/terms">
+                            View Terms
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<a class="btn btn-secondary" href="/admin">Back to Admin Dashboard</a>
+
+@code {
+    private List<AcademicYearDto>? academicYears;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await AcademicYearService.GetAllAsync();
+
+        academicYears = result?.Items?.ToList();
+    }
+
+    private async Task SetCurrent(int academicYearId)
+    {
+        var success = await AcademicYearService.SetCurrentAsync(academicYearId);
+
+        if (success)
+        {
+            var result = await AcademicYearService.GetAllAsync();
+            academicYears = result?.Items?.ToList();
+        }
+    }
+}
