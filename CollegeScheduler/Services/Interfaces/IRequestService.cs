@@ -12,6 +12,11 @@ public interface IRequestService
 		DateTime? proposedEndUtc,
 		string reason);
 
+	Task<long> CreateCancelClassRequestAsync(
+		string requestedByUserId,
+		long timetableEventId,
+		string reason);
+
 	Task<long> CreateRoomBookingRequestAsync(
 		string requestedByUserId,
 		int roomId,

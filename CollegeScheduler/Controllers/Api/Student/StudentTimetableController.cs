@@ -1,8 +1,10 @@
 ﻿using CollegeScheduler.Data;
 using CollegeScheduler.Data.Identity;
+using CollegeScheduler.DTOs.Profiles;
 using CollegeScheduler.DTOs.Requests;
 using CollegeScheduler.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -16,13 +18,16 @@ public sealed class StudentTimetableController : ControllerBase
 {
 	private readonly ApplicationDbContext _db;
 	private readonly IRequestService _requestService;
+	private readonly UserManager<ApplicationUser> _userManager;
 
 	public StudentTimetableController(
 		ApplicationDbContext db,
-		IRequestService requestService)
+		IRequestService requestService,
+		UserManager<ApplicationUser> userManager)
 	{
 		_db = db;
 		_requestService = requestService;
+		_userManager = userManager;
 	}
 
 	private string CurrentUserId =>
@@ -177,5 +182,61 @@ public sealed class StudentTimetableController : ControllerBase
 			.ToListAsync();
 
 		return Ok(requests);
+	}
+
+	[HttpGet("profile")]
+	public async Task<IActionResult> GetMyProfile()
+	{
+		var profile = await _db.StudentProfiles
+			.AsNoTracking()
+			.Where(sp => sp.UserId == CurrentUserId)
+			.Select(sp => new
+			{
+				sp.StudentId,
+				sp.StudentNumber,
+				sp.Name,
+				sp.LastName,
+				sp.Email,
+				sp.Status
+			})
+			.FirstOrDefaultAsync();
+
+		if (profile is null)
+			return NotFound("No student profile found for the current user.");
+
+		return Ok(profile);
+	}
+
+	[HttpPost("profile/change-password")]
+	public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+	{
+		if (string.IsNullOrWhiteSpace(dto.CurrentPassword) ||
+			string.IsNullOrWhiteSpace(dto.NewPassword))
+		{
+			return BadRequest("CurrentPassword and NewPassword are required.");
+		}
+
+		var user = await _userManager.FindByIdAsync(CurrentUserId);
+		if (user is null)
+			return NotFound("User not found.");
+
+		var result = await _userManager.ChangePasswordAsync(
+			user,
+			dto.CurrentPassword,
+			dto.NewPassword);
+
+		if (!result.Succeeded)
+		{
+			return BadRequest(new
+			{
+				message = "Password change failed.",
+				errors = result.Errors.Select(e => e.Description).ToList()
+			});
+		}
+
+		return Ok(new
+		{
+			message = "Password changed successfully."
+		});
 	}
 }
