@@ -1,0 +1,219 @@
+﻿@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+@rendermode InteractiveServer
+
+@page "/admin/programs/{DepartmentId:int}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject IProgramService ProgramService
+@inject IDepartmentService DepartmentService
+
+<h3>Programs</h3>
+
+@if (department is not null)
+{
+    <p class="text-muted">Department: @department.Name</p>
+}
+
+<button class="btn btn-primary mb-3" @onclick="ShowCreateForm">
+    + Create Program
+</button>
+
+@if (programs == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Level</th>
+                <th>Duration Years</th>
+                <th>Active</th>
+                <th>Actions</th>
+                <th>Cohorts</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var program in programs.Items)
+            {
+                <tr>
+                    <td>@program.Code</td>
+                    <td>@program.Name</td>
+                    <td>@program.Level</td>
+                    <td>@program.DurationYears</td>
+                    <td>@program.IsActive</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning"
+                                @onclick="() => StartEdit(program)">
+                            Edit
+                        </button>
+                    </td>
+                    <td>
+                        <a class="btn btn-sm btn-secondary"
+                           href="/admin/cohorts/@program.ProgramId">
+                            View Cohorts
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showCreate)
+{
+    <EditForm Model="createModel" OnValidSubmit="CreateProgram">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Code</label>
+            <InputText class="form-control" @bind-Value="createModel.Code" />
+        </div>
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="createModel.Name" />
+        </div>
+
+        <div class="mb-2">
+            <label>Level</label>
+            <InputText class="form-control" @bind-Value="createModel.Level" />
+        </div>
+
+        <div class="mb-2">
+            <label>Duration Years</label>
+            <InputNumber class="form-control" @bind-Value="createModel.DurationYears" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Save</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelCreate">Cancel</button>
+    </EditForm>
+}
+
+@if (showEdit)
+{
+    <EditForm Model="editModel" OnValidSubmit="UpdateProgram">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="editModel.Name" />
+        </div>
+
+        <div class="mb-2">
+            <label>Level</label>
+            <InputText class="form-control" @bind-Value="editModel.Level" />
+        </div>
+
+        <div class="mb-2">
+            <label>Duration Years</label>
+            <InputNumber class="form-control" @bind-Value="editModel.DurationYears" />
+        </div>
+
+        <div class="mb-2">
+            <label>Active</label>
+            <InputCheckbox @bind-Value="editModel.IsActive" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Update</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+    </EditForm>
+}
+
+<a class="btn btn-secondary mt-3" href="/admin/departments">
+    Back to Departments
+</a>
+
+@code {
+    [Parameter] public int DepartmentId { get; set; }
+
+    private CollegeScheduler.DTOs.Common.PagedResult<ProgramDto>? programs;
+    private DepartmentDto? department;
+    private bool showCreate = false;
+
+    private ProgramCreateDto createModel = new();
+
+    private bool showEdit = false;
+    private int editingProgramId;
+
+    private ProgramUpdateDto editModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        department = await DepartmentService.GetByIdAsync(DepartmentId);
+        programs = await ProgramService.GetByDepartmentAsync(DepartmentId);
+    }
+
+    private void ShowCreateForm()
+    {
+        showEdit = false;
+        showCreate = true;
+    }
+
+    private void CancelCreate()
+    {
+        showCreate = false;
+        createModel = new ProgramCreateDto();
+    }
+
+    private async Task CreateProgram()
+    {
+        var success = await ProgramService.CreateAsync(DepartmentId, createModel);
+
+        if (success)
+        {
+            showCreate = false;
+            createModel = new ProgramCreateDto();
+            await LoadData();
+        }
+    }
+
+
+
+    private void StartEdit(ProgramDto program)
+    {
+        editingProgramId = program.ProgramId;
+
+        editModel = new ProgramUpdateDto
+        {
+            Name = program.Name,
+            Level = program.Level,
+            DurationYears = program.DurationYears,
+            IsActive = program.IsActive
+        };
+
+        showCreate = false;
+        showEdit = true;
+    }
+
+    private async Task UpdateProgram()
+    {
+        var success = await ProgramService.UpdateAsync(editingProgramId, editModel);
+
+        if (success)
+        {
+            showEdit = false;
+            editingProgramId = 0;
+            editModel = new ProgramUpdateDto();
+            await LoadData();
+        }
+    }
+
+    private void CancelEdit()
+    {
+        showEdit = false;
+        editingProgramId = 0;
+        editModel = new ProgramUpdateDto();
+    }
+}

@@ -1,0 +1,238 @@
+﻿@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+@rendermode InteractiveServer
+
+@page "/admin/cohorts/{ProgramId:int}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject ICohortService CohortService
+@inject IProgramService ProgramService
+
+<h3>Cohorts</h3>
+
+@if (program is not null)
+{
+    <p class="text-muted">Program: @program.Name</p>
+}
+
+
+<button class="btn btn-primary mb-3" @onclick="ShowCreateForm">
+    + Create Cohort
+</button>
+
+@if (cohorts == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Year</th>
+                <th>Expected Size</th>
+                <th>Active</th>
+                <th>Actions</th>
+
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in cohorts.Items)
+            {
+                <tr>
+                    <td>@c.Code</td>
+                    <td>@c.Name</td>
+                    <td>@c.YearOfStudy</td>
+                    <td>@c.ExpectedSize</td>
+                    <td>@c.IsActive</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning"
+                                @onclick="() => StartEdit(c)">
+                            Edit
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showCreate)
+{
+    <EditForm Model="createModel" OnValidSubmit="CreateCohort">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Code</label>
+            <InputText class="form-control" @bind-Value="createModel.Code" />
+        </div>
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="createModel.Name" />
+        </div>
+
+        <div class="mb-2">
+            <label>Year Of Study</label>
+            <InputNumber class="form-control" @bind-Value="createModel.YearOfStudy" />
+        </div>
+
+        <div class="mb-2">
+            <label>Expected Size</label>
+            <InputNumber class="form-control" @bind-Value="createModel.ExpectedSize" />
+        </div>
+
+        <div class="mb-2">
+            <label>Academic Year Id</label>
+            <InputNumber class="form-control" @bind-Value="createModel.AcademicYearId" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Save</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelCreate">Cancel</button>
+    </EditForm>
+}
+
+@if (showEdit)
+{
+    <EditForm Model="editModel" OnValidSubmit="UpdateCohort">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Code</label>
+            <InputText class="form-control" @bind-Value="editModel.Code" />
+        </div>
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="editModel.Name" />
+        </div>
+
+        <div class="mb-2">
+            <label>Year Of Study</label>
+            <InputNumber class="form-control" @bind-Value="editModel.YearOfStudy" />
+        </div>
+
+        <div class="mb-2">
+            <label>Expected Size</label>
+            <InputNumber class="form-control" @bind-Value="editModel.ExpectedSize" />
+        </div>
+
+        <div class="mb-2">
+            <label>Academic Year Id</label>
+            <InputNumber class="form-control" @bind-Value="editModel.AcademicYearId" />
+        </div>
+
+        <div class="mb-2">
+            <label>Active</label>
+            <InputCheckbox @bind-Value="editModel.IsActive" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Update</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+    </EditForm>
+}
+
+@if (departmentId > 0)
+{
+    <a class="btn btn-secondary mt-3" href="/admin/programs/@departmentId">
+        Back to Programs
+    </a>
+}
+
+@code {
+    [Parameter] public int ProgramId { get; set; }
+
+    private CollegeScheduler.DTOs.Common.PagedResult<CohortDto>? cohorts;
+    private ProgramDto? program;
+
+    private bool showCreate = false;
+    private CohortCreateDto createModel = new();
+
+    private bool showEdit = false;
+    private int editingCohortId;
+    private CohortUpdateDto editModel = new();
+
+    private int departmentId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        program = await ProgramService.GetByIdAsync(ProgramId);
+        cohorts = await CohortService.GetByProgramAsync(ProgramId);
+
+        if (program is not null)
+        {
+            departmentId = program.DepartmentId;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        showEdit = false;
+        showCreate = true;
+    }
+
+    private void CancelCreate()
+    {
+        showCreate = false;
+        createModel = new CohortCreateDto();
+    }
+
+    private async Task CreateCohort()
+    {
+        var success = await CohortService.CreateAsync(ProgramId, createModel);
+
+        if (success)
+        {
+            showCreate = false;
+            createModel = new CohortCreateDto();
+            await LoadData();
+        }
+    }
+
+    private void StartEdit(CohortDto cohort)
+    {
+        editingCohortId = cohort.CohortId;
+
+        editModel = new CohortUpdateDto
+        {
+            Code = cohort.Code,
+            Name = cohort.Name,
+            YearOfStudy = cohort.YearOfStudy,
+            ExpectedSize = cohort.ExpectedSize,
+            AcademicYearId = cohort.AcademicYearId,
+            IsActive = cohort.IsActive
+        };
+
+        showCreate = false;
+        showEdit = true;
+    }
+
+    private async Task UpdateCohort()
+    {
+        var success = await CohortService.UpdateAsync(editingCohortId, editModel);
+
+        if (success)
+        {
+            showEdit = false;
+            editingCohortId = 0;
+            editModel = new CohortUpdateDto();
+            await LoadData();
+        }
+    }
+
+    private void CancelEdit()
+    {
+        showEdit = false;
+        editingCohortId = 0;
+        editModel = new CohortUpdateDto();
+    }
+}

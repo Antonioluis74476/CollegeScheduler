@@ -75,7 +75,26 @@ builder.Services.AddHttpClient<ITermService, TermService>(client =>
 })
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// Department API client
+builder.Services.AddHttpClient<IDepartmentService, DepartmentService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// Program API client
+builder.Services.AddHttpClient<IProgramService, ProgramService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Cohort API client
+builder.Services.AddHttpClient<ICohortService, CohortService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
 // UI (Blazor)
 builder.Services.AddRazorComponents()
@@ -117,9 +136,10 @@ builder.Services.AddControllers();
 
 //Services
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
-builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddScoped<IRequestService, RequestService>();
+// builder.Services.AddScoped<INotificationService, NotificationService>();
+// builder.Services.AddScoped<IRequestService, RequestService>();
 
+/*
 // RabbitMQ (MassTransit)
 builder.Services.AddMassTransit(x =>
 {
@@ -136,6 +156,7 @@ builder.Services.AddMassTransit(x =>
 		cfg.ConfigureEndpoints(context);
 	});
 });
+*/
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();

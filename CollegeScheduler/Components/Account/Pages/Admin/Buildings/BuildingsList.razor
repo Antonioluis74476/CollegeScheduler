@@ -1,11 +1,13 @@
-﻿@rendermode InteractiveServer
+﻿
+
+@rendermode InteractiveServer
 @inject IJSRuntime JS
 
 
 
 @using System.Linq
 
-@page "/admin/buildings-list-old"
+@page "/admin/buildings-list-old-not in use"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 @inject CollegeScheduler.Services.AdminBuildingsApi Api
 
@@ -85,6 +87,7 @@ else // show results
     }
 }
 
+<a class="btn btn-secondary" href="/admin">Back to Admin Dashboard</a>
 
 @code {
     private bool _loading = true;
@@ -157,3 +160,4 @@ else // show results
     }
 
 }
+*/
