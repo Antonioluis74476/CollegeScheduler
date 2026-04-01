@@ -12,14 +12,23 @@
 
 <h3>Create Building</h3>
 
+@if (CampusState.SelectedCampusId == 0)
+{
+    <div class="alert alert-warning">
+        No campus selected. Please go back and select a campus.
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        Creating building for: <strong>@CampusState.SelectedCampusName</strong>
+    </div>
+}
+
 @if (!string.IsNullOrWhiteSpace(_error))
 {
     <div class="alert alert-danger">@_error</div>
 }
-
-<div class="alert alert-info">
-    Creating building for Campus @CampusState.SelectedCampusId
-</div>
 
 <EditForm Model="_model" OnValidSubmit="Create">
 
@@ -55,6 +64,12 @@
 
     private async Task Create()
     {
+        if (CampusState.SelectedCampusId == 0)
+        {
+            _error = "Please select a campus before creating a building.";
+            return;
+        }
+
         _error = null;
         _saving = true;
 
@@ -78,6 +93,12 @@
 
     private async Task CreateDirect()
     {
+        if (CampusState.SelectedCampusId == 0)
+        {
+            _error = "Please select a campus before creating a building.";
+            return;
+        }
+
         try
         {
             await Api.CreateBuildingAsync(CampusState.SelectedCampusId, _model);

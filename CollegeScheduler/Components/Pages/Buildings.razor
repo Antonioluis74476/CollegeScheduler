@@ -1,4 +1,7 @@
-﻿@rendermode InteractiveServer
+﻿@inject CollegeScheduler.Services.AdminCampusState CampusState
+@inject IJSRuntime JS
+
+@rendermode InteractiveServer
 @page "/admin/buildings"
 
 @using CollegeScheduler.DTOs.Facilities
@@ -13,7 +16,7 @@
         <option value="">-- Select a campus --</option>
         @foreach (var campus in campuses)
         {
-            <option value="@campus.CampusId.ToString()">@campus.Name</option>
+            <option value="@campus.CampusId">@campus.Name - @campus.City</option>
         }
     </select>
 </div>
@@ -48,6 +51,7 @@ else
                 <th>Code</th>
                 <th>Faculty</th>
                 <th>Active</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -59,13 +63,33 @@ else
                     <td>@building.Code</td>
                     <td>@building.Faculty</td>
                     <td>@(building.IsActive ? "Yes" : "No")</td>
+                    <td>
+                        <a class="btn btn-sm btn-primary me-2"
+                           href="/admin/buildings/edit/@building.BuildingId">
+                            Edit
+                        </a>
+
+                        <button class="btn btn-sm btn-danger"
+                                @onclick="() => DeleteBuildingAsync(building.BuildingId, building.Name)">
+                            Delete
+                        </button>
+                    </td>
                 </tr>
             }
         </tbody>
     </table>
 }
 
-<a class="btn btn-secondary" href="/admin">Back to Admin Dashboard</a>
+@if (!string.IsNullOrWhiteSpace(selectedCampusValue))
+{
+    <a class="btn btn-primary" href="/admin/buildings/create">
+        Create Building
+    </a>
+
+    <p class="text-muted mt-2">
+        Create will use the currently selected campus.
+    </p>
+}
 
 @code {
     private List<CollegeScheduler.DTOs.Facilities.CampusDto> campuses = new();
@@ -84,7 +108,11 @@ else
 
             if (campusResult is not null)
             {
-                campuses = campusResult.Items.ToList();
+                campuses = campusResult.Items
+                .GroupBy(c => c.CampusId)
+                .Select(g => g.First())
+                .OrderBy(c => c.Name)
+                .ToList();
             }
         }
         catch (Exception ex)
@@ -111,6 +139,11 @@ else
         if (!int.TryParse(selectedCampusValue, out var campusId))
             return;
 
+        CampusState.SelectedCampusId = campusId;
+
+        CampusState.SelectedCampusName = campuses
+            .FirstOrDefault(c => c.CampusId == campusId)?.Name ?? "";
+        
         isLoadingBuildings = true;
 
         try
@@ -119,7 +152,9 @@ else
 
             if (buildingResult is not null)
             {
-                buildings = buildingResult.Items.ToList();
+                buildings = buildingResult.Items
+                    .Where(b => b.IsActive)
+                    .ToList();
             }
         }
         catch (Exception ex)
@@ -131,4 +166,36 @@ else
             isLoadingBuildings = false;
         }
     }
+
+    private async Task DeleteBuildingAsync(int buildingId, string buildingName)
+    {
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Delete building '{buildingName}'?"
+        );
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            var success = await BuildingService.DeleteAsync(buildingId);
+
+            if (success)
+            {
+                await LoadBuildingsAsync();
+            }
+            else
+            {
+                Console.WriteLine("Delete failed.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting building: {ex.Message}");
+        }
+    }
+
+
 }
+

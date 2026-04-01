@@ -1,7 +1,11 @@
-﻿@page "/admin/campuses"
+﻿@using Microsoft.AspNetCore.Components.Forms
+
+@page "/admin/campuses"
+@rendermode InteractiveServer
 
 @using CollegeScheduler.DTOs.Facilities
 @inject CollegeScheduler.Services.Interfaces.ICampusService CampusService
+@inject IJSRuntime JS
 
 <h3>Campuses</h3>
 
@@ -23,6 +27,7 @@ else
                 <th>Code</th>
                 <th>City</th>
                 <th>Active</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -30,19 +35,88 @@ else
             {
                 <tr>
                     <td>@campus.CampusId</td>
-                    <td>@campus.Name</td>
-                    <td>@campus.Code</td>
-                    <td>@campus.City</td>
-                    <td>@(campus.IsActive ? "Yes" : "No")</td>
+
+                    @if (editingCampusId == campus.CampusId)
+                    {
+                        <td><InputText class="form-control" @bind-Value="_editModel.Name" /></td>
+                        <td><InputText class="form-control" @bind-Value="_editModel.Code" /></td>
+                        <td><InputText class="form-control" @bind-Value="_editModel.City" /></td>
+                        <td>Yes</td>
+                        <td>
+                            <button class="btn btn-success btn-sm" @onclick="() => UpdateCampusAsync(campus.CampusId)">Save</button>
+                            <button class="btn btn-secondary btn-sm ms-2" @onclick="CancelEdit">Cancel</button>
+                        </td>
+                    }
+                    else
+                    {
+                        <td>@campus.Name</td>
+                        <td>@campus.Code</td>
+                        <td>@campus.City</td>
+                        <td>@(campus.IsActive ? "Yes" : "No")</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" @onclick="() => StartEdit(campus)">Edit</button>
+                            <button class="btn btn-danger btn-sm ms-2" @onclick="() => ConfirmDelete(campus)" ">Delete</button>
+                        </td>
+                    }
                 </tr>
             }
         </tbody>
     </table>
 }
 
+<button type="button" class="btn btn-primary mb-3" @onclick="ToggleCreateForm">
+    @(showCreateForm ? "Cancel" : "Create Campus")
+</button>
+
+@if (showCreateForm)
+{
+    <EditForm Model="_createModel" OnValidSubmit="CreateCampusAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="alert alert-danger">@_error</div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <InputText class="form-control" @bind-Value="_createModel.Name" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Code</label>
+            <InputText class="form-control" @bind-Value="_createModel.Code" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">City</label>
+            <InputText class="form-control" @bind-Value="_createModel.City" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Address</label>
+            <InputText class="form-control" @bind-Value="_createModel.Address" />
+        </div>
+
+        <button type="submit" class="btn btn-success" disabled="@_saving">Save</button>
+        <button type="button" class="btn btn-secondary ms-2" @onclick="ToggleCreateForm" disabled="@_saving">Cancel</button>
+    </EditForm>
+
+    <hr />
+}
+
 @code {
     private List<CampusDto> campuses = new();
     private bool isLoading = true;
+
+    private bool showCreateForm = false;
+    private bool _saving = false;
+    private string? _error;
+    private CampusCreateFormModel _createModel = new();
+
+    private int? editingCampusId = null;
+    private CampusEditFormModel _editModel = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -52,7 +126,9 @@ else
 
             if (result != null)
             {
-                campuses = result.Items.ToList();
+                campuses = result.Items
+                    .Where(c => c.IsActive)
+                    .ToList();
             }
         }
         catch (Exception ex)
@@ -64,4 +140,182 @@ else
             isLoading = false;
         }
     }
+
+
+    private void ToggleCreateForm()
+    {
+        showCreateForm = !showCreateForm;
+
+        if (!showCreateForm)
+        {
+            _createModel = new CampusCreateFormModel();
+            _error = null;
+        }
+    }
+
+    private async Task CreateCampusAsync()
+    {
+        _saving = true;
+        _error = null;
+
+        try
+        {
+            var dto = new CampusCreateDto
+            {
+                Name = _createModel.Name,
+                Code = _createModel.Code,
+                City = _createModel.City,
+                Address = _createModel.Address
+            };
+
+            var created = await CampusService.CreateAsync(dto);
+
+            if (!created)
+            {
+                _error = "Campus could not be created.";
+                return;
+            }
+
+            showCreateForm = false;
+            _createModel = new CampusCreateFormModel();
+
+            var result = await CampusService.GetAllAsync();
+            campuses = result?.Items?
+                .Where(c => c.IsActive)
+                .ToList() ?? new List<CampusDto>();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private sealed class CampusCreateFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+    }
+
+    private sealed class CampusEditFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+    }
+
+    private void StartEdit(CampusDto campus)
+    {
+        editingCampusId = campus.CampusId;
+
+        _editModel = new CampusEditFormModel
+        {
+            Name = campus.Name,
+            Code = campus.Code,
+            City = campus.City,
+            Address = campus.Address
+        };
+    }
+
+    private void CancelEdit()
+    {
+        editingCampusId = null;
+        _editModel = new CampusEditFormModel();
+    }
+
+    private async Task UpdateCampusAsync(int id)
+    {
+        _saving = true;
+        _error = null;
+
+        try
+        {
+            var dto = new CampusUpdateDto
+            {
+                Name = _editModel.Name,
+                Code = _editModel.Code,
+                City = _editModel.City,
+                Address = _editModel.Address,
+                IsActive = true
+            };
+
+            var success = await CampusService.UpdateAsync(id, dto);
+
+            if (!success)
+            {
+                _error = "Update failed.";
+                return;
+            }
+
+            editingCampusId = null;
+
+            var result = await CampusService.GetAllAsync();
+            campuses = result?.Items?
+                .Where(c => c.IsActive)
+                .ToList() ?? new List<CampusDto>();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteCampusAsync(CampusDto campus)
+    {
+        _saving = true;
+        _error = null;
+
+        try
+        {
+            var dto = new CampusUpdateDto
+            {
+                Name = campus.Name,
+                Code = campus.Code,
+                City = campus.City,
+                Address = campus.Address,
+                IsActive = false
+            };
+
+            var success = await CampusService.UpdateAsync(campus.CampusId, dto);
+
+            if (!success)
+            {
+                _error = "Delete failed.";
+                return;
+            }
+
+            var result = await CampusService.GetAllAsync();
+            campuses = result?.Items?.Where(c => c.IsActive).ToList() ?? new List<CampusDto>();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task ConfirmDelete(CampusDto campus)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this campus?"))
+        {
+            await DeleteCampusAsync(campus);
+        }
+    }
+    
+
+
 }
+

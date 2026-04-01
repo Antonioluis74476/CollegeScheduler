@@ -175,9 +175,11 @@ if (app.Environment.IsDevelopment())
 	await CollegeScheduler.Data.Identity.IdentitySeeder.SeedAsync(app.Services, app.Configuration);
 	await CollegeScheduler.Data.Seed.FacilitiesSeeder.SeedAsync(app.Services);
 	await CollegeScheduler.Data.Seed.SchedulingLookupSeeder.SeedAsync(app.Services);
+    await CollegeScheduler.Data.Seed.TestAcademicSeeder.SeedAsync(app.Services);
 
 
-	app.UseSwagger();
+
+    app.UseSwagger();
 	app.UseSwaggerUI();
 }
 else
