@@ -1,163 +1,281 @@
-﻿
-
+﻿@using CollegeScheduler.DTOs.Common
+@using CollegeScheduler.DTOs.Facilities
+@using CollegeScheduler.Services.Interfaces
 @rendermode InteractiveServer
 @inject IJSRuntime JS
 
-
-
-@using System.Linq
-
-@page "/admin/buildings-list-old-not in use"
+@page "/admin/buildings"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
-@inject CollegeScheduler.Services.AdminBuildingsApi Api
 
-@inject CollegeScheduler.Services.AdminCampusState CampusState // Branch 2
+@inject ICampusService CampusService
+@inject IBuildingService BuildingService
 
-<h3>Admin - Buildings</h3>
+<h3>Buildings</h3>
 
+<button class="btn btn-primary mb-3" @onclick="ShowCreateForm">
+    + Create Building
+</button>
 
-<a class="btn btn-primary mb-3" href="/admin/buildings/create">+ Create Building</a>
+<div class="form-check mb-3">
+    <InputCheckbox class="form-check-input" @bind-Value="showInactive" />
+    <label class="form-check-label">Show inactive buildings</label>
+</div>
 
+<div class="mb-3">
+    <label for="campusSelect" class="form-label">Select Campus</label>
+    <select id="campusSelect"
+            class="form-select"
+            @bind="selectedCampusId"
+            @bind:after="LoadBuildingsAsync">
+        <option value="">-- Select a campus --</option>
+        @foreach (var campus in campuses)
+        {
+            <option value="@campus.CampusId">@campus.Name - @campus.City</option>
+        }
+    </select>
+</div>
 
-@if (!string.IsNullOrWhiteSpace(_lastDelete)) // show last delete result (if any)
+@if (selectedCampusId == null)
 {
-<div class="alert alert-info">@_lastDelete</div>
+    <p>Please select a campus to view its buildings.</p>
 }
-
-@if (_loading) // show loading state
+else if (buildings == null)
 {
-    <p>Loading buildings...</p>
+    <p>Loading...</p>
 }
-else if (!string.IsNullOrWhiteSpace(_error)) // show error state
+else
 {
-    <div class="alert alert-danger">@_error</div>
-}
-else // show results
-{
-    if (_result.Items.Count == 0) // show empty state
-    {
-        <p>No buildings found.</p>
-    }
-    else // show table
-    {
-        <div class="mb-3">
-            <label class="form-label">Campus</label>
-            <select class="form-select" value="@CampusState.SelectedCampusId" @onchange="OnCampusChanged">
-                <option value="1">Campus 1</option>
-                <option value="2">Campus 2</option>
-            </select>
-        </div>
-
-
-        <table class="table table-striped">
-            <thead>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Faculty</th>
+                <th>Active</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var building in (showInactive
+                    ? buildings.Items
+                    : buildings.Items.Where(b => b.IsActive)))
+            {
                 <tr>
-                    <th>Id</th>
-                    <th>Name</th>
-                    <th>Code</th>
-                    <th></th>
-                </tr>
-            </thead>
-
-            <tbody>
-                @foreach (var b in _result.Items.Where(x => x.IsActive)) // only show active buildings
-                {
-                    <tr>
-                        <td>@b.Id</td>
-                        <td>@b.Name</td>
-                        <td>@b.Code</td>
-                        <td>
-                            <a class="btn btn-sm btn-outline-primary" href="/admin/buildings/edit/@b.Id">Edit</a>
-                        </td>
-
-                        <button class="btn btn-sm btn-outline-danger"
-                                @onclick="() => Delete(b.Id, b.Name)">
-                            Delete
+                    <td>@building.Code</td>
+                    <td>@building.Name</td>
+                    <td>@building.Faculty</td>
+                    <td>@(building.IsActive ? "Yes" : "No")</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-2"
+                                @onclick="() => StartEdit(building)">
+                            Edit
                         </button>
 
-                    </tr>
-                }
-            </tbody>
-
-        </table>
-
-        <p class="text-muted">
-            Page @_result.Page (PageSize @_result.PageSize) — Total @_result.TotalCount
-        </p>
-    }
+                        <button class="btn btn-sm btn-danger"
+                                @onclick="() => DeleteBuilding(building.BuildingId)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
 }
 
-<a class="btn btn-secondary" href="/admin">Back to Admin Dashboard</a>
+@if (showCreate && selectedCampusId != null)
+{
+    <EditForm Model="this" OnValidSubmit="CreateBuilding">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Code</label>
+            <InputText class="form-control" @bind-Value="createCode" />
+        </div>
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="createName" />
+        </div>
+
+        <div class="mb-2">
+            <label>Faculty</label>
+            <InputText class="form-control" @bind-Value="createFaculty" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Save</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelCreate">Cancel</button>
+    </EditForm>
+}
+
+@if (showEdit)
+{
+    <EditForm Model="this" OnValidSubmit="UpdateBuilding">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Code</label>
+            <InputText class="form-control" @bind-Value="editCode" />
+        </div>
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="editName" />
+        </div>
+
+        <div class="mb-2">
+            <label>Faculty</label>
+            <InputText class="form-control" @bind-Value="editFaculty" />
+        </div>
+
+        <div class="mb-2">
+            <label>Active</label>
+            <InputCheckbox @bind-Value="editIsActive" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Update</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+    </EditForm>
+}
 
 @code {
-    private bool _loading = true;
-    private string? _error;
-    private string? _lastDelete;
+    private List<CampusDto> campuses = new();
+    private CollegeScheduler.DTOs.Common.PagedResult<CollegeScheduler.DTOs.Facilities.BuildingDto>? buildings;
+    private int? selectedCampusId;
 
-    private CollegeScheduler.Services.PagedResult<CollegeScheduler.Services.BuildingDto> _result
-        = new();
+    private bool showInactive = false;
 
-    protected override async Task OnInitializedAsync() // load data on init
+    private bool showCreate = false;
+    private string createCode = string.Empty;
+    private string createName = string.Empty;
+    private string? createFaculty;
+
+    private bool showEdit = false;
+    private int editingBuildingId;
+
+    private string editCode = string.Empty;
+    private string editName = string.Empty;
+    private string? editFaculty;
+    private bool editIsActive;
+
+
+
+    protected override async Task OnInitializedAsync()
     {
-        try
+        var campusResult = await CampusService.GetAllAsync();
+        campuses = campusResult?.Items?.ToList() ?? new List<CampusDto>();
+    }
+
+    private async Task LoadBuildingsAsync()
+    {
+        if (selectedCampusId == null)
         {
-            await LoadAsync();
+            buildings = null;
+            return;
         }
-        catch (Exception ex)
+
+        buildings = await BuildingService.GetByCampusAsync(selectedCampusId.Value);
+    }
+
+    private void ShowCreateForm()
+    {
+        showCreate = true;
+    }
+
+    private void CancelCreate()
+    {
+        showCreate = false;
+        createCode = string.Empty;
+        createName = string.Empty;
+        createFaculty = null;
+    }
+
+    private async Task CreateBuilding()
+    {
+        if (selectedCampusId == null)
+            return;
+
+        var dto = new CollegeScheduler.DTOs.Facilities.BuildingCreateDto
         {
-            _error = ex.Message;
-        }
-        finally
+            Code = createCode,
+            Name = createName,
+            Faculty = createFaculty
+        };
+
+        var success = await BuildingService.CreateAsync(selectedCampusId.Value, dto);
+
+        if (success)
         {
-            _loading = false;
+            showCreate = false;
+            createCode = string.Empty;
+            createName = string.Empty;
+            createFaculty = null;
+            await LoadBuildingsAsync();
         }
     }
 
-    // TEMP: campusId = 1 (same as create/edit)
-    private async Task LoadAsync()
+    private void StartEdit(CollegeScheduler.DTOs.Facilities.BuildingDto building)
     {
-        _result = await Api.GetBuildingsAsync(campusId: CampusState.SelectedCampusId);
+        showCreate = false;
+
+        editingBuildingId = building.BuildingId;
+        editCode = building.Code;
+        editName = building.Name;
+        editFaculty = building.Faculty;
+        editIsActive = building.IsActive;
+
+        showEdit = true;
     }
 
-
-    // TEMP: confirm delete (no undo)
-
-    private async Task Delete(int id, string name) // confirm and delete
+    private async Task UpdateBuilding()
     {
-        _error = null;
-        _lastDelete = null;
-
-        var ok = await JS.InvokeAsync<bool>("confirm", $"Delete building '{name}'?");
-        if (!ok) return;
-
-        try // call delete API
+        var dto = new CollegeScheduler.DTOs.Facilities.BuildingUpdateDto
         {
-            var result = await Api.DeleteBuildingDebugAsync(id);
-            _lastDelete = $"DELETE id={id} -> ok={result.ok}, status={result.statusCode}, body='{result.body}'";
+            Code = editCode,
+            Name = editName,
+            Faculty = editFaculty,
+            IsActive = editIsActive
+        };
 
-            await LoadAsync();
-            StateHasChanged();
-        }
-        catch (Exception ex) // show error if delete fails
+        var success = await BuildingService.UpdateAsync(editingBuildingId, dto);
+
+        if (success)
         {
-            _error = ex.Message;
+            showEdit = false;
+            editingBuildingId = 0;
+            editCode = string.Empty;
+            editName = string.Empty;
+            editFaculty = null;
+            editIsActive = false;
+
+            await LoadBuildingsAsync();
         }
     }
 
-    private async Task OnCampusChanged(ChangeEventArgs e)
+    private void CancelEdit()
     {
-        if (e.Value is null) return;
+        showEdit = false;
+        editingBuildingId = 0;
+        editCode = string.Empty;
+        editName = string.Empty;
+        editFaculty = null;
+        editIsActive = false;
+    }
 
-        if (int.TryParse(e.Value.ToString(), out var campusId))
+    private async Task DeleteBuilding(int buildingId)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this building?");
+
+        if (!confirmed)
+            return;
+
+        var success = await BuildingService.DeleteAsync(buildingId);
+
+        if (success)
         {
-            CampusState.SelectedCampusId = campusId;
-
-            // Reset paging if you have it
-            //_page = 1; // only if you have _page
-
-            await LoadAsync();
+            await LoadBuildingsAsync();
         }
     }
 
 }
-*/

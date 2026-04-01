@@ -1,0 +1,395 @@
+﻿@using CollegeScheduler.DTOs.Common
+@using CollegeScheduler.DTOs.Facilities
+@using CollegeScheduler.Services.Interfaces
+@rendermode InteractiveServer
+
+@inject IJSRuntime JS
+
+@page "/admin/rooms"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject ICampusService CampusService
+@inject IBuildingService BuildingService
+@inject IRoomService RoomService
+
+<h3>Rooms</h3>
+
+<button class="btn btn-primary mb-3"
+        @onclick="() => showCreate = true"
+        disabled="@(selectedBuildingId == null)">
+    + Create Room
+</button>
+
+<div class="mb-3">
+    <label for="campusSelect" class="form-label">Select Campus</label>
+    <select id="campusSelect"
+            class="form-select"
+            @bind="selectedCampusId"
+            @bind:after="OnCampusChangedAsync">
+        <option value="">-- Select a campus --</option>
+        @foreach (var campus in campuses)
+        {
+            <option value="@campus.CampusId">@campus.Name - @campus.City</option>
+        }
+    </select>
+</div>
+
+<div class="mb-3">
+    <label for="buildingSelect" class="form-label">Select Building</label>
+    <select id="buildingSelect"
+            class="form-select"
+            @bind="selectedBuildingId"
+            @bind:after="LoadRoomsAsync"
+            disabled="@(selectedCampusId == null)">
+        <option value="">-- Select a building --</option>
+        @foreach (var building in buildings)
+        {
+            <option value="@building.BuildingId">@building.Name - @building.Code</option>
+        }
+    </select>
+</div>
+
+@if (selectedCampusId == null)
+{
+    <p>Please select a campus first.</p>
+}
+else if (selectedBuildingId == null)
+{
+    <p>Please select a building to view its rooms.</p>
+}
+else if (rooms == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Floor</th>
+                <th>Capacity</th>
+                <th>Bookable By Students</th>
+                <th>Requires Approval</th>
+                <th>Active</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var room in rooms.Items.Where(r => r.IsActive))
+            {
+                <tr>
+                    <td>@room.Code</td>
+                    <td>@room.Name</td>
+                    <td>@room.Floor</td>
+                    <td>@room.Capacity</td>
+                    <td>@(room.IsBookableByStudents ? "Yes" : "No")</td>
+                    <td>@(room.RequiresApproval ? "Yes" : "No")</td>
+                    <td>@(room.IsActive ? "Yes" : "No")</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-2"
+                                @onclick="() => StartEdit(room)">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-danger"
+                                @onclick="() => DeleteRoom(room.RoomId)">
+                            Delete
+                        </button>
+                    </td>
+
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showCreate && selectedBuildingId != null)
+{
+    <EditForm Model="this" OnValidSubmit="CreateRoom">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Code</label>
+            <InputText class="form-control" @bind-Value="createCode" />
+        </div>
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="createName" />
+        </div>
+
+        <div class="mb-2">
+            <label>Floor</label>
+            <InputText class="form-control" @bind-Value="createFloor" />
+        </div>
+
+        <div class="mb-2">
+            <label>Capacity</label>
+            <InputNumber class="form-control" @bind-Value="createCapacity" />
+        </div>
+
+        <div class="mb-2">
+            <label>Room Type Id</label>
+            <InputNumber class="form-control" @bind-Value="createRoomTypeId" />
+        </div>
+
+        <div class="form-check mb-2">
+            <InputCheckbox class="form-check-input" @bind-Value="createIsBookableByStudents" />
+            <label class="form-check-label">Bookable By Students</label>
+        </div>
+
+        <div class="form-check mb-2">
+            <InputCheckbox class="form-check-input" @bind-Value="createRequiresApproval" />
+            <label class="form-check-label">Requires Approval</label>
+        </div>
+
+        <button type="submit" class="btn btn-success">Save</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelCreate">Cancel</button>
+    </EditForm>
+}
+
+@if (showEdit)
+{
+    <EditForm Model="this" OnValidSubmit="UpdateRoom">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Code</label>
+            <InputText class="form-control" @bind-Value="editCode" />
+        </div>
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="editName" />
+        </div>
+
+        <div class="mb-2">
+            <label>Floor</label>
+            <InputText class="form-control" @bind-Value="editFloor" />
+        </div>
+
+        <div class="mb-2">
+            <label>Capacity</label>
+            <InputNumber class="form-control" @bind-Value="editCapacity" />
+        </div>
+
+        <div class="mb-2">
+            <label>Room Type Id</label>
+            <InputNumber class="form-control" @bind-Value="editRoomTypeId" />
+        </div>
+
+        <div class="form-check mb-2">
+            <InputCheckbox class="form-check-input" @bind-Value="editIsBookableByStudents" />
+            <label class="form-check-label">Bookable By Students</label>
+        </div>
+
+        <div class="form-check mb-2">
+            <InputCheckbox class="form-check-input" @bind-Value="editRequiresApproval" />
+            <label class="form-check-label">Requires Approval</label>
+        </div>
+
+        <div class="form-check mb-2">
+            <InputCheckbox class="form-check-input" @bind-Value="editIsActive" />
+            <label class="form-check-label">Active</label>
+        </div>
+
+        <button type="submit" class="btn btn-success">Update</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+    </EditForm>
+}
+
+@code {
+    private List<CampusDto> campuses = new();
+    private List<BuildingDto> buildings = new();
+    private CollegeScheduler.DTOs.Common.PagedResult<RoomDto>? rooms;
+
+    private int? selectedCampusId;
+    private int? selectedBuildingId;
+
+    private bool showCreate = false;
+
+    private string createCode = string.Empty;
+    private string createName = string.Empty;
+    private string createFloor = string.Empty;
+    private int createCapacity;
+    private bool createIsBookableByStudents;
+    private bool createRequiresApproval;
+    private int createRoomTypeId;
+
+    private bool showEdit = false;
+    private int editingRoomId;
+
+    private string editCode = string.Empty;
+    private string editName = string.Empty;
+    private string editFloor = string.Empty;
+    private int editCapacity;
+    private int editRoomTypeId;
+    private bool editIsBookableByStudents;
+    private bool editRequiresApproval;
+    private bool editIsActive;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var campusResult = await CampusService.GetAllAsync();
+        campuses = campusResult?.Items?.ToList() ?? new List<CampusDto>();
+    }
+
+    private async Task OnCampusChangedAsync()
+    {
+        selectedBuildingId = null;
+        rooms = null;
+        buildings.Clear();
+
+        if (selectedCampusId == null)
+            return;
+
+        var buildingResult = await BuildingService.GetByCampusAsync(selectedCampusId.Value);
+        buildings = buildingResult?.Items?.Where(b => b.IsActive).ToList()
+            ?? new List<BuildingDto>();
+    }
+
+    private async Task LoadRoomsAsync()
+    {
+        if (selectedBuildingId == null)
+        {
+            rooms = null;
+            return;
+        }
+
+        rooms = await RoomService.GetByBuildingAsync(selectedBuildingId.Value);
+    }
+
+    private async Task CreateRoom()
+    {
+        if (selectedBuildingId == null)
+            return;
+
+        var dto = new CollegeScheduler.DTOs.Facilities.RoomCreateDto
+        {
+            Code = createCode,
+            Name = createName,
+            Floor = createFloor,
+            Capacity = createCapacity,
+            RoomTypeId = createRoomTypeId,
+            IsBookableByStudents = createIsBookableByStudents,
+            RequiresApproval = createRequiresApproval
+        };
+
+        var success = await RoomService.CreateAsync(selectedBuildingId.Value, dto);
+
+        if (success)
+        {
+            showCreate = false;
+
+            createRoomTypeId = 0;
+
+            createCode = string.Empty;
+            createName = string.Empty;
+            createFloor = string.Empty;
+            createCapacity = 0;
+            createIsBookableByStudents = false;
+            createRequiresApproval = false;
+
+            await LoadRoomsAsync();
+        }
+    }
+
+    private void CancelCreate()
+    {
+        showCreate = false;
+
+        createRoomTypeId = 0;
+
+        createCode = string.Empty;
+        createName = string.Empty;
+        createFloor = string.Empty;
+        createCapacity = 0;
+        createIsBookableByStudents = false;
+        createRequiresApproval = false;
+    }
+
+    private void StartEdit(CollegeScheduler.DTOs.Facilities.RoomDto room)
+    {
+        showCreate = false;
+
+        editingRoomId = room.RoomId;
+        editCode = room.Code;
+        editName = room.Name;
+        editFloor = room.Floor ?? string.Empty;
+        editCapacity = room.Capacity;
+        editRoomTypeId = room.RoomTypeId;
+        editIsBookableByStudents = room.IsBookableByStudents;
+        editRequiresApproval = room.RequiresApproval;
+        editIsActive = room.IsActive;
+
+        showEdit = true;
+    }
+
+    private async Task UpdateRoom()
+    {
+        var dto = new CollegeScheduler.DTOs.Facilities.RoomUpdateDto
+        {
+            Code = editCode,
+            Name = editName,
+            Floor = editFloor,
+            Capacity = editCapacity,
+            RoomTypeId = editRoomTypeId,
+            IsBookableByStudents = editIsBookableByStudents,
+            RequiresApproval = editRequiresApproval,
+            IsActive = editIsActive
+        };
+
+        var success = await RoomService.UpdateAsync(editingRoomId, dto);
+
+        if (success)
+        {
+            showEdit = false;
+            editingRoomId = 0;
+            editCode = string.Empty;
+            editName = string.Empty;
+            editFloor = string.Empty;
+            editCapacity = 0;
+            editRoomTypeId = 0;
+            editIsBookableByStudents = false;
+            editRequiresApproval = false;
+            editIsActive = false;
+
+            await LoadRoomsAsync();
+        }
+    }
+
+    private void CancelEdit()
+    {
+        showEdit = false;
+        editingRoomId = 0;
+        editCode = string.Empty;
+        editName = string.Empty;
+        editFloor = string.Empty;
+        editCapacity = 0;
+        editRoomTypeId = 0;
+        editIsBookableByStudents = false;
+        editRequiresApproval = false;
+        editIsActive = false;
+    }
+
+    private async Task DeleteRoom(int roomId)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this room?");
+
+        if (!confirmed)
+            return;
+
+        var success = await RoomService.DeleteAsync(roomId);
+
+        if (success)
+        {
+            await LoadRoomsAsync();
+        }
+    }
+
+
+}

@@ -1,6 +1,4 @@
 ﻿using System.Net.Http.Json;
-using CollegeScheduler.DTOs.Common;
-using CollegeScheduler.DTOs.Facilities;
 using CollegeScheduler.Services.Interfaces;
 
 namespace CollegeScheduler.Services.Implementations
@@ -14,7 +12,7 @@ namespace CollegeScheduler.Services.Implementations
             _httpClient = httpClient;
         }
 
-        public async Task<PagedResult<CollegeScheduler.DTOs.Facilities.RoomDto>?> GetByBuildingAsync(
+        public async Task<CollegeScheduler.DTOs.Common.PagedResult<CollegeScheduler.DTOs.Facilities.RoomDto>?> GetByBuildingAsync(
             int buildingId,
             int page = 1,
             int pageSize = 10,
@@ -27,7 +25,7 @@ namespace CollegeScheduler.Services.Implementations
                 url += $"&search={Uri.EscapeDataString(search)}";
             }
 
-            return await _httpClient.GetFromJsonAsync<PagedResult<CollegeScheduler.DTOs.Facilities.RoomDto>>(url);
+            return await _httpClient.GetFromJsonAsync<CollegeScheduler.DTOs.Common.PagedResult<CollegeScheduler.DTOs.Facilities.RoomDto>>(url);
         }
 
         public async Task<CollegeScheduler.DTOs.Facilities.RoomDto?> GetByIdAsync(int roomId)
@@ -36,7 +34,7 @@ namespace CollegeScheduler.Services.Implementations
                 $"api/v1/admin/rooms/{roomId}");
         }
 
-        public async Task<bool> CreateAsync(int buildingId, RoomCreateDto dto)
+        public async Task<bool> CreateAsync(int buildingId, CollegeScheduler.DTOs.Facilities.RoomCreateDto dto)
         {
             var response = await _httpClient.PostAsJsonAsync(
                 $"api/v1/admin/buildings/{buildingId}/rooms", dto);
@@ -44,7 +42,7 @@ namespace CollegeScheduler.Services.Implementations
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<bool> UpdateAsync(int roomId, RoomUpdateDto dto)
+        public async Task<bool> UpdateAsync(int roomId, CollegeScheduler.DTOs.Facilities.RoomUpdateDto dto)
         {
             var response = await _httpClient.PutAsJsonAsync(
                 $"api/v1/admin/rooms/{roomId}", dto);
@@ -54,7 +52,9 @@ namespace CollegeScheduler.Services.Implementations
 
         public async Task<bool> DeleteAsync(int roomId)
         {
-            var response = await _httpClient.DeleteAsync($"api/v1/admin/rooms/{roomId}");
+            var response = await _httpClient.DeleteAsync(
+                $"api/v1/admin/rooms/{roomId}");
+
             return response.IsSuccessStatusCode;
         }
     }

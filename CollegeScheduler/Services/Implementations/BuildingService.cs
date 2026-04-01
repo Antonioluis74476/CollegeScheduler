@@ -1,6 +1,4 @@
 ﻿using System.Net.Http.Json;
-using CollegeScheduler.DTOs.Common;
-using CollegeScheduler.DTOs.Facilities;
 using CollegeScheduler.Services.Interfaces;
 
 namespace CollegeScheduler.Services.Implementations
@@ -14,16 +12,20 @@ namespace CollegeScheduler.Services.Implementations
             _httpClient = httpClient;
         }
 
-        public async Task<PagedResult<CollegeScheduler.DTOs.Facilities.BuildingDto>?> GetByCampusAsync(
+        public async Task<CollegeScheduler.DTOs.Common.PagedResult<CollegeScheduler.DTOs.Facilities.BuildingDto>?> GetByCampusAsync(
             int campusId,
             int page = 1,
             int pageSize = 10,
             string? search = null)
         {
-            var url = $"api/v1/admin/campuses/{campusId}/buildings";
+            var url = $"api/v1/admin/campuses/{campusId}/buildings?page={page}&pageSize={pageSize}";
 
-            return await _httpClient.GetFromJsonAsync<
-                PagedResult<CollegeScheduler.DTOs.Facilities.BuildingDto>>(url);
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                url += $"&search={Uri.EscapeDataString(search)}";
+            }
+
+            return await _httpClient.GetFromJsonAsync<CollegeScheduler.DTOs.Common.PagedResult<CollegeScheduler.DTOs.Facilities.BuildingDto>>(url);
         }
 
         public async Task<CollegeScheduler.DTOs.Facilities.BuildingDto?> GetByIdAsync(int buildingId)
@@ -32,7 +34,7 @@ namespace CollegeScheduler.Services.Implementations
                 $"api/v1/admin/buildings/{buildingId}");
         }
 
-        public async Task<bool> CreateAsync(int campusId, BuildingCreateDto dto)
+        public async Task<bool> CreateAsync(int campusId, CollegeScheduler.DTOs.Facilities.BuildingCreateDto dto)
         {
             var response = await _httpClient.PostAsJsonAsync(
                 $"api/v1/admin/campuses/{campusId}/buildings", dto);
@@ -40,7 +42,7 @@ namespace CollegeScheduler.Services.Implementations
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<bool> UpdateAsync(int buildingId, BuildingUpdateDto dto)
+        public async Task<bool> UpdateAsync(int buildingId, CollegeScheduler.DTOs.Facilities.BuildingUpdateDto dto)
         {
             var response = await _httpClient.PutAsJsonAsync(
                 $"api/v1/admin/buildings/{buildingId}", dto);
@@ -50,7 +52,9 @@ namespace CollegeScheduler.Services.Implementations
 
         public async Task<bool> DeleteAsync(int buildingId)
         {
-            var response = await _httpClient.DeleteAsync($"api/v1/admin/buildings/{buildingId}");
+            var response = await _httpClient.DeleteAsync(
+                $"api/v1/admin/buildings/{buildingId}");
+
             return response.IsSuccessStatusCode;
         }
     }
