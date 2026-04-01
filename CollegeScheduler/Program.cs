@@ -54,6 +54,27 @@ builder.Services.AddHttpClient<IRoomService, RoomService>(client =>
 })
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// RoomType API client
+builder.Services.AddHttpClient<IRoomTypeService, RoomTypeService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Feature API client
+builder.Services.AddHttpClient<IFeatureService, FeatureService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// RoomFeature API client
+builder.Services.AddHttpClient<IRoomFeatureService, RoomFeatureService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
 // Scheduling API client
 builder.Services.AddHttpClient<IAdminSchedulingService, AdminSchedulingService>(client =>
 {

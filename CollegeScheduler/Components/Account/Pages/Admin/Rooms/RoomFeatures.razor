@@ -1,0 +1,225 @@
+﻿@page "/admin/rooms/{RoomId:int}/features"
+@rendermode InteractiveServer
+
+
+
+@using CollegeScheduler.DTOs.Facilities
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+
+@inject IRoomFeatureService RoomFeatureService
+@inject IFeatureService FeatureService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@inject IRoomService RoomService
+
+<PageTitle>Room Features</PageTitle>
+
+<h3 class="mb-3">Room Features — @RoomName</h3>
+
+@if (!string.IsNullOrWhiteSpace(ErrorMessage))
+{
+    <div class="alert alert-danger">@ErrorMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(SuccessMessage))
+{
+    <div class="alert alert-success">@SuccessMessage</div>
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Add Feature to Room</h5>
+
+        <EditForm Model="@AddForm" OnValidSubmit="@AddFeature">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">Feature</label>
+                <InputSelect class="form-select" @bind-Value="AddForm.FeatureId">
+                    <option value="0">-- Select Feature --</option>
+                    @foreach (var feature in AvailableFeatures)
+                    {
+                        <option value="@feature.FeatureId">@feature.Name</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Add Feature</button>
+            <button type="button" class="btn btn-secondary ms-2" @onclick="GoBack">Back</button>
+        </EditForm>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Assigned Features</h5>
+
+        @if (AssignedFeatures is null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else if (!AssignedFeatures.Any())
+        {
+            <p>No features assigned to this room.</p>
+        }
+        else
+        {
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>FeatureId</th>
+                        <th>Name</th>
+                        <th style="width: 160px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var feature in AssignedFeatures)
+                    {
+                        <tr>
+                            <td>@feature.FeatureId</td>
+                            <td>@GetFeatureName(feature.FeatureId)</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm"
+                                        @onclick="() => RemoveFeature(feature.FeatureId)">
+                                    Remove
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int RoomId { get; set; }
+
+    private List<RoomFeatureDto>? AssignedFeatures;
+    private List<FeatureDto> AllFeatures = new();
+
+    private AddRoomFeatureFormModel AddForm = new();
+
+    private string? ErrorMessage;
+    private string? SuccessMessage;
+
+    private string? RoomName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var room = await RoomService.GetByIdAsync(RoomId);
+        RoomName = room?.Name;
+
+        try
+        {
+            AssignedFeatures = await RoomFeatureService.GetByRoomIdAsync(RoomId) ?? new List<RoomFeatureDto>();
+
+            var featuresPaged = await FeatureService.GetAllAsync(page: 1, pageSize: 200);
+            AllFeatures = featuresPaged?.Items?.ToList() ?? new List<FeatureDto>();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error loading room features: {ex.Message}";
+        }
+    }
+
+    private string GetFeatureName(int featureId)
+    {
+        return AllFeatures.FirstOrDefault(f => f.FeatureId == featureId)?.Name
+               ?? $"Feature {featureId}";
+    }
+
+    private List<FeatureDto> AvailableFeatures =>
+    AllFeatures
+        .Where(f => AssignedFeatures == null || !AssignedFeatures.Any(rf => rf.FeatureId == f.FeatureId))
+        .ToList();
+
+    private async Task AddFeature()
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        if (AddForm.FeatureId <= 0)
+        {
+            ErrorMessage = "Please select a feature.";
+            return;
+        }
+
+        try
+        {
+            var dto = new RoomFeatureAddDto
+            {
+                FeatureId = AddForm.FeatureId
+            };
+
+            var added = await RoomFeatureService.AddAsync(RoomId, dto);
+
+            if (added)
+            {
+                SuccessMessage = "Feature added to room successfully.";
+                AddForm = new AddRoomFeatureFormModel();
+                await LoadData();
+            }
+            else
+            {
+                ErrorMessage = "Could not add feature to room.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error adding feature: {ex.Message}";
+        }
+    }
+
+    private async Task RemoveFeature(int featureId)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to remove this feature from the room?");
+        if (!confirmed)
+            return;
+
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        try
+        {
+            var removed = await RoomFeatureService.DeleteAsync(RoomId, featureId);
+
+            if (removed)
+            {
+                SuccessMessage = "Feature removed from room successfully.";
+                await LoadData();
+            }
+            else
+            {
+                ErrorMessage = "Could not remove feature from room.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error removing feature: {ex.Message}";
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/admin/rooms");
+    }
+
+    private class AddRoomFeatureFormModel
+    {
+        public int FeatureId { get; set; }
+    }
+}

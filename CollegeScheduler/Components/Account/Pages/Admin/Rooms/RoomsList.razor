@@ -93,6 +93,11 @@ else
                             Edit
                         </button>
 
+                        <a class="btn btn-sm btn-info me-2"
+                           href="/admin/rooms/@room.RoomId/features">
+                            Features
+                        </a>
+
                         <button class="btn btn-sm btn-danger"
                                 @onclick="() => DeleteRoom(room.RoomId)">
                             Delete
@@ -390,6 +395,8 @@ else
             await LoadRoomsAsync();
         }
     }
+
+
 
 
 }

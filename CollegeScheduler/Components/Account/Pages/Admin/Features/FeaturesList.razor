@@ -1,0 +1,245 @@
+﻿@page "/admin/features"
+@rendermode InteractiveServer
+@using CollegeScheduler.DTOs.Facilities
+@using CollegeScheduler.DTOs.Common
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@inject IFeatureService FeatureService
+
+
+
+<PageTitle>Features</PageTitle>
+
+<h3 class="mb-3">Features</h3>
+
+@if (!string.IsNullOrWhiteSpace(ErrorMessage))
+{
+    <div class="alert alert-danger">@ErrorMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(SuccessMessage))
+{
+    <div class="alert alert-success">@SuccessMessage</div>
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Create Feature</h5>
+
+        <EditForm Model="@CreateForm" OnValidSubmit="@CreateFeature">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">Name</label>
+                <InputText class="form-control" @bind-Value="CreateForm.Name" />
+            </div>
+
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Feature List</h5>
+
+        @if (Features is null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else if (!Features.Items.Any())
+        {
+            <p>No features found.</p>
+        }
+        else
+        {
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>FeatureId</th>
+                        <th>Name</th>
+                        <th style="width: 220px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var feature in Features.Items)
+                    {
+                        <tr>
+                            <td>@feature.FeatureId</td>
+                            <td>
+                                @if (EditingFeatureId == feature.FeatureId)
+                                {
+                                    <InputText class="form-control" @bind-Value="EditFeatureName" />
+                                }
+                                else
+                                {
+                                    @feature.Name
+                                }
+                            </td>
+                            <td>
+                                @if (EditingFeatureId == feature.FeatureId)
+                                {
+                                    <button class="btn btn-success btn-sm me-2" @onclick="() => UpdateFeature(feature.FeatureId)">Save</button>
+                                    <button class="btn btn-secondary btn-sm" @onclick="CancelEdit">Cancel</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-warning btn-sm me-2" @onclick="() => StartEdit(feature)">Edit</button>
+                                    <button class="btn btn-danger btn-sm"
+                                            @onclick="() => DeleteFeature(feature.FeatureId)">
+                                        Delete
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    private PagedResult<FeatureDto>? Features;
+    private FeatureFormModel CreateForm = new();
+    private string EditFeatureName = string.Empty;
+
+    private int? EditingFeatureId;
+
+    private string? ErrorMessage;
+    private string? SuccessMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFeatures();
+    }
+
+    private async Task LoadFeatures()
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        try
+        {
+            Features = await FeatureService.GetAllAsync(page: 1, pageSize: 100);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error loading features: {ex.Message}";
+        }
+    }
+
+    private async Task CreateFeature()
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        try
+        {
+            var dto = new FeatureCreateDto
+            {
+                Name = CreateForm.Name
+            };
+
+            var created = await FeatureService.CreateAsync(dto);
+
+            if (created)
+            {
+                SuccessMessage = "Feature created successfully.";
+                CreateForm = new FeatureFormModel();
+                await LoadFeatures();
+            }
+            else
+            {
+                ErrorMessage = "Could not create feature.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error creating feature: {ex.Message}";
+        }
+    }
+
+    private void StartEdit(FeatureDto feature)
+    {
+        EditingFeatureId = feature.FeatureId;
+        EditFeatureName = feature.Name;
+    }
+
+    private void CancelEdit()
+    {
+        EditingFeatureId = null;
+        EditFeatureName = string.Empty;
+    }
+
+    private async Task UpdateFeature(int featureId)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        try
+        {
+            var dto = new FeatureUpdateDto
+            {
+                Name = EditFeatureName
+            };
+
+            var updated = await FeatureService.UpdateAsync(featureId, dto);
+
+            if (updated)
+            {
+                SuccessMessage = "Feature updated successfully.";
+                EditingFeatureId = null;
+                EditFeatureName = string.Empty;
+                await LoadFeatures();
+            }
+            else
+            {
+                ErrorMessage = "Could not update feature.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error updating feature: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteFeature(int featureId)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this feature?");
+        if (!confirmed)
+            return;
+
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        try
+        {
+            var deleted = await FeatureService.DeleteAsync(featureId);
+
+            if (deleted)
+            {
+                SuccessMessage = "Feature deleted successfully.";
+                await LoadFeatures();
+            }
+            else
+            {
+                ErrorMessage = "Could not delete feature.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error deleting feature: {ex.Message}";
+        }
+    }
+
+    [Inject]
+    private IJSRuntime JS { get; set; } = default!;
+
+    private class FeatureFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+}
