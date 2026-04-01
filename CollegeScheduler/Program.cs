@@ -110,8 +110,22 @@ builder.Services.AddHttpClient<IProgramService, ProgramService>(client =>
 })
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// Module API client
+builder.Services.AddHttpClient<IModuleService, ModuleService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
 // Cohort API client
 builder.Services.AddHttpClient<ICohortService, CohortService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// CohortModule API client
+builder.Services.AddHttpClient<ICohortModuleService, CohortModuleService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
 })

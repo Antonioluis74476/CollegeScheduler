@@ -47,11 +47,17 @@ else
                     <td>@c.YearOfStudy</td>
                     <td>@c.ExpectedSize</td>
                     <td>@c.IsActive</td>
+
                     <td>
-                        <button class="btn btn-sm btn-warning"
-                                @onclick="() => StartEdit(c)">
+                        <a class="btn btn-sm btn-outline-primary me-2"
+                           href="/admin/cohorts/@c.CohortId/modules">
+                            Manage Modules
+                        </a>
+
+                        <a class="btn btn-sm btn-outline-warning"
+                           href="/admin/cohorts/edit/@c.CohortId">
                             Edit
-                        </button>
+                        </a>
                     </td>
                 </tr>
             }

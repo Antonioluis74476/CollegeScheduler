@@ -1,0 +1,125 @@
+﻿@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+
+@page "/admin/cohort-modules/edit/{CohortModuleId:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject ICohortModuleService CohortModuleService
+@inject NavigationManager Navigation
+@inject IModuleService ModuleService
+@inject ITermService TermService
+@inject ICohortService CohortService
+
+<h3>Edit Cohort Module</h3>
+
+@if (model == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="Save">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Module</label>
+            <InputSelect class="form-control" @bind-Value="model.ModuleId">
+                <option value="0">-- Select Module --</option>
+                @foreach (var module in modules)
+                {
+                    <option value="@module.ModuleId">@module.Title</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Term</label>
+            <InputSelect class="form-control" @bind-Value="model.TermId">
+                <option value="0">-- Select Term --</option>
+                @foreach (var term in terms)
+                {
+                    <option value="@term.TermId">@term.Name</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="form-check mb-3">
+            <InputCheckbox class="form-check-input" @bind-Value="model.IsRequired" />
+            <label class="form-check-label">Required</label>
+        </div>
+
+        <button type="submit" class="btn btn-success">Save</button>
+        <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int CohortModuleId { get; set; }
+
+    private CohortModuleUpdateDto? model;
+    private int cohortId;
+
+    private List<ModuleDto> modules = new();
+    private List<TermDto> terms = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var existing = await CohortModuleService.GetByIdAsync(CohortModuleId);
+
+        if (existing != null)
+        {
+            cohortId = existing.CohortId;
+
+            model = new CohortModuleUpdateDto
+            {
+                ModuleId = existing.ModuleId,
+                TermId = existing.TermId,
+                IsRequired = existing.IsRequired
+            };
+
+            var moduleResult = await ModuleService.GetAllAsync();
+            if (moduleResult != null)
+            {
+                modules = moduleResult.Items.ToList();
+            }
+
+            var cohort = await CohortService.GetByIdAsync(cohortId);
+            if (cohort != null)
+            {
+                var termResult = await TermService.GetByAcademicYearAsync(cohort.AcademicYearId);
+                if (termResult != null)
+                {
+                    terms = termResult.Items.ToList();
+                }
+            }
+        }
+    }
+
+    private async Task Save()
+    {
+        if (model == null)
+            return;
+
+        var success = await CohortModuleService.UpdateAsync(CohortModuleId, model);
+
+        if (success)
+        {
+            Navigation.NavigateTo($"/admin/cohorts/{cohortId}/modules");
+        }
+    }
+
+    private void Cancel()
+    {
+        if (cohortId > 0)
+        {
+            Navigation.NavigateTo($"/admin/cohorts/{cohortId}/modules");
+        }
+        else
+        {
+            Navigation.NavigateTo("/admin/modules");
+        }
+    }
+}

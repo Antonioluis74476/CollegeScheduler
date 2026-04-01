@@ -1,0 +1,87 @@
+﻿@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+
+@page "/admin/modules/{ModuleId:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject IModuleService ModuleService
+@inject IDepartmentService DepartmentService
+@inject NavigationManager Navigation
+
+<h3>Module Details</h3>
+
+@if (module == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">@module.Title</h5>
+
+            <dl class="row">
+                <dt class="col-sm-3">Module ID</dt>
+                <dd class="col-sm-9">@module.ModuleId</dd>
+
+                <dt class="col-sm-3">Code</dt>
+                <dd class="col-sm-9">@module.Code</dd>
+
+                <dt class="col-sm-3">Title</dt>
+                <dd class="col-sm-9">@module.Title</dd>
+
+                <dt class="col-sm-3">Department</dt>
+                <dd class="col-sm-9">@departmentName</dd>
+
+                <dt class="col-sm-3">Credits</dt>
+                <dd class="col-sm-9">@module.Credits</dd>
+
+                <dt class="col-sm-3">Hours Per Week</dt>
+                <dd class="col-sm-9">@module.HoursPerWeek</dd>
+
+                <dt class="col-sm-3">Minimum Room Capacity</dt>
+                <dd class="col-sm-9">@module.MinRoomCapacity</dd>
+
+                <dt class="col-sm-3">Status</dt>
+                <dd class="col-sm-9">
+                    @if (module.IsActive)
+                    {
+                        <span class="badge bg-success">Active</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">Inactive</span>
+                    }
+                </dd>
+            </dl>
+
+            <a class="btn btn-outline-warning me-2" href="/admin/modules/edit/@module.ModuleId">Edit</a>
+            <button class="btn btn-secondary" @onclick="BackToList">Back</button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int ModuleId { get; set; }
+
+    private ModuleDto? module;
+    private string departmentName = "-";
+
+    protected override async Task OnInitializedAsync()
+    {
+        module = await ModuleService.GetByIdAsync(ModuleId);
+
+        if (module?.DepartmentId != null)
+        {
+            var department = await DepartmentService.GetByIdAsync(module.DepartmentId.Value);
+            departmentName = department?.Name ?? "-";
+        }
+    }
+
+    private void BackToList()
+    {
+        Navigation.NavigateTo("/admin/modules");
+    }
+}

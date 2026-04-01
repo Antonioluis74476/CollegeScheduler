@@ -1,0 +1,121 @@
+﻿@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+
+@page "/admin/modules/edit/{ModuleId:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject IModuleService ModuleService
+@inject NavigationManager Navigation
+@inject IDepartmentService DepartmentService
+
+<h3>Edit Module</h3>
+
+@if (model == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="Save">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Department</label>
+            <InputSelect class="form-control" @bind-Value="model.DepartmentId">
+                <option value="">-- Select Department --</option>
+                @foreach (var dept in departments)
+                {
+                    <option value="@dept.DepartmentId">@dept.Name</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-2">
+            <label>Code</label>
+            <InputText class="form-control" @bind-Value="model.Code" />
+        </div>
+
+        <div class="mb-2">
+            <label>Title</label>
+            <InputText class="form-control" @bind-Value="model.Title" />
+        </div>
+
+        <div class="mb-2">
+            <label>Credits</label>
+            <InputNumber class="form-control" @bind-Value="model.Credits" />
+        </div>
+
+        <div class="mb-2">
+            <label>Hours Per Week</label>
+            <InputNumber class="form-control" @bind-Value="model.HoursPerWeek" />
+        </div>
+
+        <div class="mb-2">
+            <label>Minimum Room Capacity</label>
+            <InputNumber class="form-control" @bind-Value="model.MinRoomCapacity" />
+        </div>
+
+        <div class="mb-2 form-check">
+            <InputCheckbox class="form-check-input" @bind-Value="model.IsActive" />
+            <label class="form-check-label">Active</label>
+        </div>
+
+        <button type="submit" class="btn btn-success">Save</button>
+        <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int ModuleId { get; set; }
+
+    private ModuleUpdateDto? model;
+
+    private List<DepartmentDto> departments = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var existing = await ModuleService.GetByIdAsync(ModuleId);
+
+        if (existing != null)
+        {
+            model = new ModuleUpdateDto
+            {
+                Code = existing.Code,
+                Title = existing.Title,
+                Credits = existing.Credits,
+                HoursPerWeek = existing.HoursPerWeek,
+                MinRoomCapacity = existing.MinRoomCapacity,
+                IsActive = existing.IsActive,
+                DepartmentId = existing.DepartmentId
+            };
+        }
+
+        var result = await DepartmentService.GetAllAsync();
+
+        if (result != null)
+        {
+            departments = result.Items.ToList();
+        }
+    }
+
+    private async Task Save()
+    {
+        if (model == null)
+            return;
+
+        var success = await ModuleService.UpdateAsync(ModuleId, model);
+
+        if (success)
+        {
+            Navigation.NavigateTo("/admin/modules");
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/admin/modules");
+    }
+}
