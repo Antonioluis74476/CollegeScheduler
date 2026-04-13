@@ -1,0 +1,67 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>SignalR Test</title>
+</head>
+<body>
+    <h2>SignalR Test Page</h2>
+    <p>Open the browser console to see live events.</p>
+
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/timetable")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("RequestDecision", data => {
+            console.log("RequestDecision received:", data);
+            const p = document.createElement("p");
+            p.textContent = "RequestDecision: " + JSON.stringify(data);
+            document.body.appendChild(p);
+        });
+
+        connection.on("EventChanged", data => {
+            console.log("EventChanged received:", data);
+            const p = document.createElement("p");
+            p.textContent = "EventChanged: " + JSON.stringify(data);
+            document.body.appendChild(p);
+        });
+
+        connection.on("EventCancelled", data => {
+            console.log("EventCancelled received:", data);
+            const p = document.createElement("p");
+            p.textContent = "EventCancelled: " + JSON.stringify(data);
+            document.body.appendChild(p);
+        });
+
+        async function start() {
+            try {
+                await connection.start();
+                console.log("SignalR connected. ConnectionId:", connection.connectionId);
+
+                // For testing as a student in cohort 1:
+                await connection.invoke("JoinCohortGroup", 1);
+
+                // For lecturer testing, uncomment and replace with real lecturer AspNetUsers.Id
+                // await connection.invoke("JoinLecturerGroup", "YOUR-LECTURER-USER-ID");
+
+                const p = document.createElement("p");
+                p.textContent = "Connected to SignalR. ConnectionId: " + connection.connectionId;
+                document.body.appendChild(p);
+            } catch (err) {
+                console.error("SignalR connection error:", err);
+                setTimeout(start, 3000);
+            }
+        }
+
+        connection.onclose(async () => {
+            console.log("SignalR disconnected. Reconnecting...");
+            await start();
+        });
+
+        start();
+    </script>
+</body>
+</html>
