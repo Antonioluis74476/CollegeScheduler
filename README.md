@@ -128,9 +128,13 @@ http://collegescheduler.runasp.net/swagger/index.html
 The system can be tested directly through API endpoints.
 
 Demo Credentials
+
 Role	Email	Password
+
 Admin	admin@college.ie	Admin123!
+
 Lecturer	lecturertest@college.ie	Lecturer.123
+
 Student	studenttest@college.ie	Student.123
 
 Notes
