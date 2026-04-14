@@ -1,6 +1,7 @@
-﻿using MassTransit;
-
-namespace CollegeScheduler.Messaging;
+﻿using System.Net;
+using System.Net.Mail;
+using CollegeScheduler.Messaging;
+using MassTransit;
 
 public sealed class SendEmailConsumer : IConsumer<SendEmailMessage>
 {
@@ -11,19 +12,38 @@ public sealed class SendEmailConsumer : IConsumer<SendEmailMessage>
 		_logger = logger;
 	}
 
-	public Task Consume(ConsumeContext<SendEmailMessage> context)
+	public async Task Consume(ConsumeContext<SendEmailMessage> context)
 	{
 		var msg = context.Message;
 
-		_logger.LogInformation(
-			"RabbitMQ email consumer received message. To={To}, Subject={Subject}",
-			msg.To,
-			msg.Subject);
+		try
+		{
+			var smtp = new SmtpClient("smtp.gmail.com")
+			{
+				Port = 587,
+				Credentials = new NetworkCredential("your-email@gmail.com", "your-app-password"),
+				EnableSsl = true
+			};
 
-		// MVP version:
-		// just log receipt of the email job.
-		// Later, you can replace this with real SMTP sending.
+			var mail = new MailMessage
+			{
+				From = new MailAddress("your-email@gmail.com"),
+				Subject = msg.Subject,
+				Body = msg.Body,
+				IsBodyHtml = false
+			};
 
-		return Task.CompletedTask;
+			mail.To.Add(msg.To);
+
+			await smtp.SendMailAsync(mail);
+
+			_logger.LogInformation(
+				"Email sent successfully to {To}", msg.To);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex,
+				"Failed to send email to {To}", msg.To);
+		}
 	}
 }
