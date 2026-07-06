@@ -178,18 +178,17 @@ builder.Services.AddScoped<IRequestService, RequestService>();
 // RabbitMQ (MassTransit)
 builder.Services.AddMassTransit(x =>
 {
-	x.AddConsumer<SendEmailConsumer>();
+    x.AddConsumer<SendEmailConsumer>();
 
-	x.UsingRabbitMq((context, cfg) =>
-	{
-		cfg.Host("localhost", "/", h =>
-		{
-			h.Username("guest");
-			h.Password("guest");
-		});
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitUrl = builder.Configuration["RabbitMQ:Url"]
+    ?? throw new InvalidOperationException("RabbitMQ:Url not found.");
 
-		cfg.ConfigureEndpoints(context);
-	});
+        cfg.Host(new Uri(rabbitUrl));
+
+        cfg.ConfigureEndpoints(context);
+    });
 });
 
 
@@ -207,10 +206,7 @@ if (app.Environment.IsDevelopment())
 {
 	app.UseMigrationsEndPoint();
 
-	await CollegeScheduler.Data.Identity.IdentitySeeder.SeedAsync(app.Services, app.Configuration);
-	await CollegeScheduler.Data.Seed.FacilitiesSeeder.SeedAsync(app.Services);
-	await CollegeScheduler.Data.Seed.SchedulingLookupSeeder.SeedAsync(app.Services);
-    await CollegeScheduler.Data.Seed.TestAcademicSeeder.SeedAsync(app.Services);
+	
 
 
 
@@ -223,7 +219,12 @@ else
 	app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+await CollegeScheduler.Data.Identity.IdentitySeeder.SeedAsync(app.Services, app.Configuration);
+await CollegeScheduler.Data.Seed.FacilitiesSeeder.SeedAsync(app.Services);
+await CollegeScheduler.Data.Seed.SchedulingLookupSeeder.SeedAsync(app.Services);
+await CollegeScheduler.Data.Seed.TestAcademicSeeder.SeedAsync(app.Services);
+
+//app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 

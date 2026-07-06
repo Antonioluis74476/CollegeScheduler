@@ -77,11 +77,26 @@ namespace CollegeScheduler.Services.Implementations
             return await response.Content.ReadFromJsonAsync<RecurringEventCreateResultDto>();
         }
 
-        public async Task<EventStatusDtoPagedResult?> GetEventStatusesAsync()
+        /*public async Task<EventStatusDtoPagedResult?> GetEventStatusesAsync()
         {
             return await _httpClient.GetFromJsonAsync<EventStatusDtoPagedResult>(
                 "api/v1/admin/event-statuses"
             );
+        }*/
+
+        public async Task<EventStatusDtoPagedResult?> GetEventStatusesAsync()
+        {
+            var response = await _httpClient.GetAsync("api/v1/admin/event-statuses");
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode || body.TrimStart().StartsWith("<"))
+            {
+                throw new Exception(
+                    $"API returned non-JSON. Status: {response.StatusCode}. Body: {body.Substring(0, Math.Min(body.Length, 500))}"
+                );
+            }
+
+            return await response.Content.ReadFromJsonAsync<EventStatusDtoPagedResult>();
         }
 
         public async Task<RoomDtoPagedResult?> GetRoomsByBuildingAsync(int buildingId)
