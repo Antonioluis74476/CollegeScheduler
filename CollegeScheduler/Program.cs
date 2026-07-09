@@ -131,6 +131,13 @@ builder.Services.AddHttpClient<ICohortModuleService, CohortModuleService>(client
 })
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// Admin user API client
+builder.Services.AddHttpClient<IAdminUserService, AdminUserService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
 // UI (Blazor)
 builder.Services.AddRazorComponents()
 	.AddInteractiveServerComponents();

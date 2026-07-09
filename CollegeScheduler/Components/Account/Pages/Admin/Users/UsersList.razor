@@ -1,0 +1,756 @@
+﻿@using CollegeScheduler.DTOs.Profiles
+@using CollegeScheduler.Services.Interfaces
+
+@page "/admin/users"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject IAdminUserService UserService
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="mb-1">User Management</h3>
+        <p class="text-muted mb-0">
+            Create and manage student and lecturer accounts.
+        </p>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="text-muted">Students</h6>
+                    <h3>@students.Count</h3>
+                    <p class="mb-0 text-muted">Registered student accounts</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="text-muted">Lecturers</h6>
+                    <h3>@lecturers.Count</h3>
+                    <p class="mb-0 text-muted">Registered lecturer accounts</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Users</h6>
+                    <h3>@(students.Count + lecturers.Count)</h3>
+                    <p class="mb-0 text-muted">Students and lecturers combined</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div>
+        <button class="btn btn-primary me-2" @onclick="ShowStudentForm">
+            + Create Student
+        </button>
+
+        <button class="btn btn-success" @onclick="ShowLecturerForm">
+            + Create Lecturer
+        </button>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <label class="form-label fw-bold">Search Users</label>
+        <InputText class="form-control"
+                   placeholder="Search by email, name, student number, staff number..."
+                   @bind-Value="searchText" />
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(successMessage))
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+
+@if (showStudentForm)
+{
+    <div class="card p-3 mb-4">
+        <h5>Create Student</h5>
+
+        <EditForm Model="newStudent" OnValidSubmit="CreateStudent">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-2">
+                <label>Email</label>
+                <InputText class="form-control" @bind-Value="newStudent.Email" />
+            </div>
+
+            <div class="mb-2">
+                <label>Password</label>
+                <InputText type="password" class="form-control" @bind-Value="newStudent.Password" />
+            </div>
+
+            <div class="mb-2">
+                <label>Student Number</label>
+                <InputText class="form-control" @bind-Value="newStudent.StudentNumber" />
+            </div>
+
+            <div class="mb-2">
+                <label>Name</label>
+                <InputText class="form-control" @bind-Value="newStudent.Name" />
+            </div>
+
+            <div class="mb-2">
+                <label>Last Name</label>
+                <InputText class="form-control" @bind-Value="newStudent.LastName" />
+            </div>
+
+            <div class="mb-2">
+                <label>Status</label>
+                <InputSelect class="form-control" @bind-Value="newStudent.Status">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </InputSelect>
+            </div>
+
+            <button type="submit" class="btn btn-primary me-2">Save Student</button>
+            <button type="button" class="btn btn-secondary" @onclick="CancelForms">Cancel</button>
+        </EditForm>
+    </div>
+}
+
+@if (showEditStudentForm)
+{
+    <div class="card p-3 mb-4">
+        <h5>Edit Student</h5>
+
+        <EditForm Model="editStudent" OnValidSubmit="SaveStudentEdit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-2">
+                <label>Name</label>
+                <InputText class="form-control" @bind-Value="editStudent.Name" />
+            </div>
+
+            <div class="mb-2">
+                <label>Last Name</label>
+                <InputText class="form-control" @bind-Value="editStudent.LastName" />
+            </div>
+
+            <div class="mb-2">
+                <label>Status</label>
+                <InputSelect class="form-control" @bind-Value="editStudent.Status">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Graduated">Graduated</option>
+                    <option value="Withdrawn">Withdrawn</option>
+                </InputSelect>
+            </div>
+
+            <div class="form-check mb-3">
+                <InputCheckbox class="form-check-input" @bind-Value="editStudent.IsActive" />
+                <label class="form-check-label">Active account</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary me-2">Save Changes</button>
+            <button type="button" class="btn btn-secondary" @onclick="CancelEditStudent">Cancel</button>
+        </EditForm>
+    </div>
+}
+
+@if (showLecturerForm)
+{
+    <div class="card p-3 mb-4">
+        <h5>Create Lecturer</h5>
+
+        <EditForm Model="newLecturer" OnValidSubmit="CreateLecturer">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-2">
+                <label>Email</label>
+                <InputText class="form-control" @bind-Value="newLecturer.Email" />
+            </div>
+
+            <div class="mb-2">
+                <label>Password</label>
+                <InputText type="password" class="form-control" @bind-Value="newLecturer.Password" />
+            </div>
+
+            <div class="mb-2">
+                <label>Staff Number</label>
+                <InputText class="form-control" @bind-Value="newLecturer.StaffNumber" />
+            </div>
+
+            <div class="mb-2">
+                <label>Name</label>
+                <InputText class="form-control" @bind-Value="newLecturer.Name" />
+            </div>
+
+            <div class="mb-2">
+                <label>Last Name</label>
+                <InputText class="form-control" @bind-Value="newLecturer.LastName" />
+            </div>
+
+            <div class="mb-2">
+                <label>Employment Type</label>
+                <InputSelect class="form-control" @bind-Value="newLecturer.EmploymentType">
+                    <option value="FullTime">FullTime</option>
+                    <option value="PartTime">PartTime</option>
+                </InputSelect>
+            </div>
+
+            <div class="mb-2">
+                <label>Max Weekly Hours</label>
+                <InputNumber class="form-control" @bind-Value="newLecturer.MaxWeeklyHours" />
+            </div>
+
+            <button type="submit" class="btn btn-success me-2">Save Lecturer</button>
+            <button type="button" class="btn btn-secondary" @onclick="CancelForms">Cancel</button>
+        </EditForm>
+    </div>
+}
+
+@if (showEditLecturerForm)
+{
+    <div class="card p-3 mb-4">
+        <h5>Edit Lecturer</h5>
+
+        <EditForm Model="editLecturer" OnValidSubmit="SaveLecturerEdit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-2">
+                <label>Name</label>
+                <InputText class="form-control" @bind-Value="editLecturer.Name" />
+            </div>
+
+            <div class="mb-2">
+                <label>Last Name</label>
+                <InputText class="form-control" @bind-Value="editLecturer.LastName" />
+            </div>
+
+            <div class="mb-2">
+                <label>Department ID</label>
+                <InputNumber class="form-control" @bind-Value="editLecturer.DepartmentId" />
+            </div>
+
+            <div class="mb-2">
+                <label>Employment Type</label>
+                <InputSelect class="form-control" @bind-Value="editLecturer.EmploymentType">
+                    <option value="FullTime">FullTime</option>
+                    <option value="PartTime">PartTime</option>
+                </InputSelect>
+            </div>
+
+            <div class="mb-2">
+                <label>Max Weekly Hours</label>
+                <InputNumber class="form-control" @bind-Value="editLecturer.MaxWeeklyHours" />
+            </div>
+
+            <div class="form-check mb-3">
+                <InputCheckbox class="form-check-input" @bind-Value="editLecturer.IsActive" />
+                <label class="form-check-label">Active account</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary me-2">Save Changes</button>
+            <button type="button" class="btn btn-secondary" @onclick="CancelEditLecturer">Cancel</button>
+        </EditForm>
+    </div>
+}
+
+<hr />
+
+<div class="mb-3">
+    <button class="btn @(selectedTable == "Students" ? "btn-primary" : "btn-outline-primary") me-2"
+            @onclick='() => selectedTable = "Students"'>
+        Students
+    </button>
+
+    <button class="btn @(selectedTable == "Lecturers" ? "btn-primary" : "btn-outline-primary")"
+            @onclick='() => selectedTable = "Lecturers"'>
+        Lecturers
+    </button>
+</div>
+
+@if (selectedTable == "Students")
+{
+    <h4>Students</h4>
+
+
+@if (isLoading)
+{
+    <p>Loading users...</p>
+}
+else if (students.Count == 0)
+{
+    <p>No students found.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Student Number</th>
+                <th>Name</th>
+                <th>Last Name</th>
+                <th>Status</th>
+                <th>Active</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var student in FilteredStudents)
+            {
+                <tr>
+                    <td>@student.Email</td>
+                    <td>@student.StudentNumber</td>
+                    <td>@student.Name</td>
+                    <td>@student.LastName</td>
+                    <td>@student.Status</td>
+                    <td>
+                        @if (student.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactive</span>
+                        }
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1"
+                                @onclick="() => StartEditStudent(student)">
+                            Edit
+                        </button>
+
+                        @if (student.IsActive)
+                        {
+                            <button class="btn btn-sm btn-outline-danger"
+                                    @onclick="() => ConfirmStudentStatus(student)">
+                                Deactivate
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-outline-success"
+                                    @onclick="() => ConfirmStudentStatus(student)">
+                                Activate
+                            </button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+}
+<hr />
+
+@if (selectedTable == "Lecturers")
+{
+    <h4>Lecturers</h4>
+
+@if (isLoading)
+{
+    <p>Loading lecturers...</p>
+}
+else if (lecturers.Count == 0)
+{
+    <p>No lecturers found.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Staff Number</th>
+                <th>Name</th>
+                <th>Last Name</th>
+                <th>Department</th>
+                <th>Employment Type</th>
+                <th>Max Weekly Hours</th>
+                <th>Active</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var lecturer in FilteredLecturers)
+            {
+                <tr>
+                    <td>@lecturer.Email</td>
+                    <td>@lecturer.StaffNumber</td>
+                    <td>@lecturer.Name</td>
+                    <td>@lecturer.LastName</td>
+                    <td>@lecturer.DepartmentId</td>
+                    <td>@lecturer.EmploymentType</td>
+                    <td>@lecturer.MaxWeeklyHours</td>
+                    <td>
+                        @if (lecturer.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactive</span>
+                        }
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1"
+                                @onclick="() => StartEditLecturer(lecturer)">
+                            Edit
+                        </button>
+
+                        @if (lecturer.IsActive)
+                        {
+                            <button class="btn btn-sm btn-outline-danger"
+                                    @onclick="() => ConfirmLecturerStatus(lecturer)">
+                                Deactivate
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-outline-success"
+                                    @onclick="() => ConfirmLecturerStatus(lecturer)">
+                                Activate
+                            </button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+}
+@if (showConfirmDialog)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @(activateAction ? "Activate Account" : "Deactivate Account")
+                    </h5>
+                </div>
+
+                <div class="modal-body">
+                    <p>
+                        Are you sure you want to
+                        <strong>@(activateAction ? "activate" : "deactivate")</strong>
+                        this account?
+                    </p>
+
+                    <p class="mb-0">
+                        <strong>@selectedUserName</strong>
+                    </p>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CancelConfirm">
+                        Cancel
+                    </button>
+
+                    <button class="btn @(activateAction ? "btn-success" : "btn-danger")"
+                            @onclick="ApplyStatusChange">
+                        @(activateAction ? "Activate" : "Deactivate")
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
+}
+
+@code
+{
+
+    private List<StudentDto> students = new();
+    private List<LecturerDto> lecturers = new();
+    private bool isLoading = true;
+
+    private string searchText = "";
+
+    private bool showStudentForm;
+    private bool showLecturerForm;
+
+    private bool showEditStudentForm;
+    private int editingStudentId;
+    private StudentUpdateDto editStudent = new();
+
+    private bool showEditLecturerForm;
+    private int editingLecturerId;
+    private LecturerUpdateDto editLecturer = new();
+
+    private bool showConfirmDialog;
+    private bool isStudentAction;
+    private bool activateAction;
+    private int selectedUserId;
+    private string selectedUserName = "";
+
+    private string selectedTable = "Students";
+
+    private void ShowStudentForm()
+    {
+        showStudentForm = true;
+        showLecturerForm = false;
+    }
+
+    private void ShowLecturerForm()
+    {
+        showLecturerForm = true;
+        showStudentForm = false;
+    }
+
+    private StudentCreateDto newStudent = new();
+
+    private async Task CreateStudent()
+    {
+        successMessage = null;
+        errorMessage = null;
+
+        var created = await UserService.CreateStudentAsync(newStudent);
+
+        if (created is not null)
+        {
+            successMessage = $"Student created: {created.Email}";
+            newStudent = new StudentCreateDto();
+            showStudentForm = false;
+            await LoadUsers();
+        }
+        else
+        {
+            errorMessage = "Student was not created. Check if email, student number, or password is invalid/duplicated.";
+        }
+    }
+
+    private void CancelForms()
+    {
+        showStudentForm = false;
+        showLecturerForm = false;
+    }
+
+    private string? successMessage;
+    private string? errorMessage;
+
+    private LecturerCreateDto newLecturer = new();
+
+    private async Task SaveStudentEdit()
+    {
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            await UserService.UpdateStudentAsync(editingStudentId, editStudent);
+            successMessage = "Student updated successfully.";
+            showEditStudentForm = false;
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void CancelEditStudent()
+    {
+        showEditStudentForm = false;
+    }
+
+    private async Task CreateLecturer()
+    {
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            var created = await UserService.CreateLecturerAsync(newLecturer);
+
+            if (created is not null)
+            {
+                successMessage = $"Lecturer created: {created.Email}";
+                newLecturer = new LecturerCreateDto();
+                showLecturerForm = false;
+                await LoadUsers();
+            }
+            else
+            {
+                errorMessage = "Lecturer was not created. Check if email, staff number, or password is invalid/duplicated.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void StartEditStudent(StudentDto student)
+    {
+        editingStudentId = student.StudentId;
+
+        editStudent = new StudentUpdateDto
+        {
+            Name = student.Name,
+            LastName = student.LastName,
+            Status = student.Status,
+            IsActive = student.IsActive
+        };
+
+        showEditStudentForm = true;
+        showStudentForm = false;
+        showLecturerForm = false;
+    }
+
+    private void StartEditLecturer(LecturerDto lecturer)
+    {
+        editingLecturerId = lecturer.LecturerId;
+
+        editLecturer = new LecturerUpdateDto
+        {
+            Name = lecturer.Name,
+            LastName = lecturer.LastName,
+            DepartmentId = lecturer.DepartmentId,
+            EmploymentType = lecturer.EmploymentType,
+            MaxWeeklyHours = lecturer.MaxWeeklyHours,
+            IsActive = lecturer.IsActive
+        };
+
+        showEditLecturerForm = true;
+        showEditStudentForm = false;
+        showStudentForm = false;
+        showLecturerForm = false;
+    }
+
+    private async Task SaveLecturerEdit()
+    {
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            await UserService.UpdateLecturerAsync(editingLecturerId, editLecturer);
+            successMessage = "Lecturer updated successfully.";
+            showEditLecturerForm = false;
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void CancelEditLecturer()
+    {
+        showEditLecturerForm = false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        isLoading = true;
+
+        students = await UserService.GetStudentsAsync();
+        lecturers = await UserService.GetLecturersAsync();
+
+        isLoading = false;
+    }
+
+    private List<StudentDto> FilteredStudents =>
+    students
+        .Where(s =>
+            string.IsNullOrWhiteSpace(searchText)
+            || s.Email.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+            || s.StudentNumber.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+            || s.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+            || s.LastName.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+            || s.Status.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    private List<LecturerDto> FilteredLecturers =>
+        lecturers
+            .Where(l =>
+                string.IsNullOrWhiteSpace(searchText)
+                || l.Email.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+                || l.StaffNumber.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+                || l.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+                || l.LastName.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+                || l.EmploymentType.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+
+    private void ConfirmStudentStatus(StudentDto student)
+    {
+        selectedUserId = student.StudentId;
+        selectedUserName = $"{student.Name} {student.LastName}";
+        activateAction = !student.IsActive;
+        isStudentAction = true;
+        showConfirmDialog = true;
+    }
+
+    private void ConfirmLecturerStatus(LecturerDto lecturer)
+    {
+        selectedUserId = lecturer.LecturerId;
+        selectedUserName = $"{lecturer.Name} {lecturer.LastName}";
+        activateAction = !lecturer.IsActive;
+        isStudentAction = false;
+        showConfirmDialog = true;
+    }
+
+    private void CancelConfirm()
+    {
+        showConfirmDialog = false;
+    }
+
+    private async Task ApplyStatusChange()
+    {
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            if (isStudentAction)
+            {
+                if (activateAction)
+                    await UserService.ActivateStudentAsync(selectedUserId);
+                else
+                    await UserService.DeactivateStudentAsync(selectedUserId);
+            }
+            else
+            {
+                if (activateAction)
+                    await UserService.ActivateLecturerAsync(selectedUserId);
+                else
+                    await UserService.DeactivateLecturerAsync(selectedUserId);
+            }
+
+            successMessage = activateAction
+                ? "Account activated successfully."
+                : "Account deactivated successfully.";
+
+            showConfirmDialog = false;
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            showConfirmDialog = false;
+        }
+    }
+}
