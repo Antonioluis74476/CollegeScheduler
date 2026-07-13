@@ -59,15 +59,10 @@ builder.Services.AddScoped<IRequestService, RequestService>();
 builder.Services.AddMassTransit(x =>
 {
 	x.AddConsumer<SendEmailConsumer>();
-
 	x.UsingRabbitMq((context, cfg) =>
 	{
-		cfg.Host("localhost", "/", h =>
-		{
-			h.Username("guest");
-			h.Password("guest");
-		});
-
+		var rabbitMqUrl = builder.Configuration["RabbitMQ:Url"];
+		cfg.Host(new Uri(rabbitMqUrl));
 		cfg.ConfigureEndpoints(context);
 	});
 });
@@ -82,17 +77,16 @@ builder.Services.AddSingleton<TimetableHubNotifier>();
 
 var app = builder.Build();
 
+// Swagger - always enabled
+app.UseSwagger();
+app.UseSwaggerUI();
+
 if (app.Environment.IsDevelopment())
 {
 	app.UseMigrationsEndPoint();
-
 	await CollegeScheduler.Data.Identity.IdentitySeeder.SeedAsync(app.Services, app.Configuration);
 	await CollegeScheduler.Data.Seed.FacilitiesSeeder.SeedAsync(app.Services);
 	await CollegeScheduler.Data.Seed.SchedulingLookupSeeder.SeedAsync(app.Services);
-
-
-	app.UseSwagger();
-	app.UseSwaggerUI();
 }
 else
 {
@@ -101,23 +95,15 @@ else
 }
 
 app.UseHttpsRedirection();
-
 app.UseStaticFiles();
 app.UseAntiforgery();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 // API endpoints
 app.MapControllers();
 app.MapHub<TimetableHub>("/hubs/timetable");
-
 // Blazor endpoints
 app.MapRazorComponents<App>()
 	.AddInteractiveServerRenderMode();
-
 app.MapAdditionalIdentityEndpoints();
-
-
-
 app.Run();
