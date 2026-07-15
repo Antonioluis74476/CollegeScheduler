@@ -138,6 +138,17 @@ builder.Services.AddHttpClient<IAdminUserService, AdminUserService>(client =>
 })
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// Student API client
+builder.Services.AddHttpClient<IStudentService, StudentService>(client =>
+{
+	var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
+		?? throw new InvalidOperationException(
+			"ApiBaseUrl configuration is missing.");
+
+	client.BaseAddress = new Uri(apiBaseUrl);
+})
+.AddHttpMessageHandler<ForwardAuthCookieHandler>();
+
 // UI (Blazor)
 builder.Services.AddRazorComponents()
 	.AddInteractiveServerComponents();

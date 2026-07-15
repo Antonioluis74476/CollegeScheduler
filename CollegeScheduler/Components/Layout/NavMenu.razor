@@ -10,111 +10,228 @@
     </div>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<input type="checkbox"
+       title="Navigation menu"
+       class="navbar-toggler" />
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+<div class="nav-scrollable"
+     onclick="document.querySelector('.navbar-toggler').click()">
+
     <nav class="flex-column">
+
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            <NavLink class="nav-link"
+                     href=""
+                     Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu"
+                      aria-hidden="true"></span>
+                Home
             </NavLink>
         </div>
 
         <AuthorizeView Roles="Admin">
             <Authorized>
-                <li class="nav-item px-3">
-                    <NavLink class="nav-link" href="admin/campuses">
-                        <span class="oi oi-list-rich" aria-hidden="true"></span> Campuses
-                    </NavLink>
-                </li>
-
-                <li class="nav-item px-3">
-                    <NavLink class="nav-link" href="admin/buildings">
-                        <span class="oi oi-home" aria-hidden="true"></span> Buildings
-                    </NavLink>
-                </li>
-
-                <NavLink class="nav-link" href="/admin/rooms" Match="NavLinkMatch.All">
-                    <span class="bi bi-list-ul me-2" aria-hidden="true"></span> Rooms
-                </NavLink>
-
-                <NavLink class="nav-link" href="/admin/room-types" Match="NavLinkMatch.All">
-                    <span class="bi bi-list-ul me-2" aria-hidden="true"></span> Room Types
-                </NavLink>
-
-                <NavLink class="nav-link" href="/admin/features" Match="NavLinkMatch.All">
-                    <span class="bi bi-list-ul me-2" aria-hidden="true"></span> Features
-                </NavLink>
-
-                <li class="nav-item px-3">
-                    <NavLink class="nav-link" href="admin/scheduling">
-                        <span class="oi oi-calendar" aria-hidden="true"></span> Scheduling
-                    </NavLink>
-                </li>
-
-                <li class="nav-item px-3">
-                    <NavLink class="nav-link" href="/admin">
-                        <span class="oi oi-dashboard" aria-hidden="true"></span> Admin Dashboard
-                    </NavLink>
-                </li>
 
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="/admin/departments">
-                        <span class="bi bi-diagram-3-fill-nav-menu" aria-hidden="true"></span> Departments
+                    <NavLink class="nav-link"
+                             href="admin/campuses">
+                        <span class="oi oi-list-rich"
+                              aria-hidden="true"></span>
+                        Campuses
                     </NavLink>
                 </div>
 
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="admin/modules">
-                        <span class="bi bi-book-fill-nav-menu" aria-hidden="true"></span> Modules
+                    <NavLink class="nav-link"
+                             href="admin/buildings">
+                        <span class="oi oi-home"
+                              aria-hidden="true"></span>
+                        Buildings
                     </NavLink>
                 </div>
 
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="/admin/academic-years">
-                        <span class="bi bi-calendar3-nav-menu" aria-hidden="true"></span> Academic Years
+                    <NavLink class="nav-link"
+                             href="admin/rooms">
+                        <span class="bi bi-list-ul me-2"
+                              aria-hidden="true"></span>
+                        Rooms
                     </NavLink>
                 </div>
 
-       
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/room-types">
+                        <span class="bi bi-list-ul me-2"
+                              aria-hidden="true"></span>
+                        Room Types
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/features">
+                        <span class="bi bi-list-ul me-2"
+                              aria-hidden="true"></span>
+                        Features
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/scheduling">
+                        <span class="oi oi-calendar"
+                              aria-hidden="true"></span>
+                        Scheduling
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin">
+                        <span class="oi oi-dashboard"
+                              aria-hidden="true"></span>
+                        Admin Dashboard
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/departments">
+                        <span class="bi bi-diagram-3-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        Departments
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/modules">
+                        <span class="bi bi-book-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        Modules
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/academic-years">
+                        <span class="bi bi-calendar3-nav-menu"
+                              aria-hidden="true"></span>
+                        Academic Years
+                    </NavLink>
+                </div>
+
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Student">
+            <Authorized>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/profile">
+                        <span class="bi bi-person-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        Profile
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/timetable">
+                        <span class="bi bi-calendar3-nav-menu"
+                              aria-hidden="true"></span>
+                        My Timetable
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/notifications">
+                        <span class="bi bi-bell-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        Notifications
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/room-booking">
+                        <span class="bi bi-door-open-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        Book a Room
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/requests">
+                        <span class="bi bi-list-check"
+                              aria-hidden="true"></span>
+                        My Requests
+                    </NavLink>
+                </div>
 
             </Authorized>
         </AuthorizeView>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="auth">
-                <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Auth Required
+            <NavLink class="nav-link"
+                     href="auth">
+                <span class="bi bi-lock-nav-menu"
+                      aria-hidden="true"></span>
+                Auth Required
             </NavLink>
         </div>
 
         <AuthorizeView>
             <Authorized>
+
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
+                    <NavLink class="nav-link"
+                             href="Account/Manage">
+                        <span class="bi bi-person-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        @context.User.Identity?.Name
                     </NavLink>
                 </div>
 
-                <li class="nav-item px-3">
-                    <a class="nav-link" href="/logout" data-enhance-nav="false">
-                        <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
+                <div class="nav-item px-3">
+                    <a class="nav-link"
+                       href="/logout"
+                       data-enhance-nav="false">
+                        <span class="bi bi-arrow-bar-left-nav-menu"
+                              aria-hidden="true"></span>
+                        Logout
                     </a>
-                </li>
+                </div>
 
             </Authorized>
+
             <NotAuthorized>
+
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
+                    <NavLink class="nav-link"
+                             href="Account/Register">
+                        <span class="bi bi-person-nav-menu"
+                              aria-hidden="true"></span>
+                        Register
                     </NavLink>
                 </div>
+
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
+                    <NavLink class="nav-link"
+                             href="Account/Login">
+                        <span class="bi bi-person-badge-nav-menu"
+                              aria-hidden="true"></span>
+                        Login
                     </NavLink>
                 </div>
+
             </NotAuthorized>
         </AuthorizeView>
+
     </nav>
 </div>
 
@@ -123,13 +240,21 @@
 
     protected override void OnInitialized()
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        currentUrl =
+            NavigationManager.ToBaseRelativePath(
+                NavigationManager.Uri);
+
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    private void OnLocationChanged(
+        object? sender,
+        LocationChangedEventArgs e)
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        currentUrl =
+            NavigationManager.ToBaseRelativePath(
+                e.Location);
+
         StateHasChanged();
     }
 
@@ -138,4 +263,3 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-

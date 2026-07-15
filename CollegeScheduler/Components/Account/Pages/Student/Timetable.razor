@@ -1,0 +1,258 @@
+﻿@page "/student/timetable"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = RoleNames.Student)]
+
+@using CollegeScheduler.Data.Identity
+@using CollegeScheduler.DTOs.Student
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IStudentService StudentService
+
+<PageTitle>My Timetable</PageTitle>
+
+<div class="container py-4">
+
+    <div class="d-flex flex-column flex-md-row
+                justify-content-between align-items-md-center
+                gap-3 mb-4">
+
+        <div>
+            <h1 class="h3 mb-1">My Timetable</h1>
+
+            <p class="text-muted mb-0">
+                View your scheduled classes for the selected week.
+            </p>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-outline-secondary"
+                    @onclick="PreviousWeek"
+                    disabled="@_isLoading">
+                Previous
+            </button>
+
+            <button class="btn btn-outline-primary"
+                    @onclick="CurrentWeek"
+                    disabled="@_isLoading">
+                Current week
+            </button>
+
+            <button class="btn btn-outline-secondary"
+                    @onclick="NextWeek"
+                    disabled="@_isLoading">
+                Next
+            </button>
+        </div>
+
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <strong>Week:</strong>
+            @_weekStart.ToString("dd MMM yyyy")
+            -
+            @_weekEnd.ToString("dd MMM yyyy")
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex align-items-center gap-2">
+
+            <div class="spinner-border spinner-border-sm"
+                 role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+
+            <span>Loading timetable...</span>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-danger">
+            @_errorMessage
+        </div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div class="alert alert-info">
+            No timetable events were found for this week.
+        </div>
+    }
+    else
+    {
+        @foreach (var dayGroup in _items
+            .OrderBy(x => x.StartUtc)
+            .GroupBy(x => x.StartUtc.ToLocalTime().Date))
+        {
+            <div class="mb-4">
+
+                <h2 class="h5 border-bottom pb-2">
+                    @dayGroup.Key.ToString("dddd, dd MMMM yyyy")
+                </h2>
+
+                <div class="row g-3">
+
+                    @foreach (var item in dayGroup.OrderBy(x => x.StartUtc))
+                    {
+                        <div class="col-12">
+
+                            <div class="card shadow-sm">
+                                <div class="card-body">
+
+                                    <div class="d-flex flex-column
+                                                            flex-md-row
+                                                            justify-content-between
+                                                            gap-3">
+
+                                        <div>
+                                            <h3 class="h6 mb-2">
+                                                @item.SessionType
+                                            </h3>
+
+                                            <div class="text-muted">
+                                                Module ID:
+                                                <strong>@item.ModuleId</strong>
+                                            </div>
+
+                                            <div class="text-muted">
+                                                Room ID:
+                                                <strong>@item.RoomId</strong>
+                                            </div>
+
+                                            <div class="text-muted">
+                                                Cohort ID:
+                                                <strong>@item.CohortId</strong>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-md-end">
+
+                                            <div class="fw-semibold fs-5">
+                                                @(item.StartUtc
+                                                                                    .ToLocalTime()
+                                                                                    .ToString("HH:mm"))
+                                                                                                       -
+                                                @(item.EndUtc
+                                                                                    .ToLocalTime()
+                                                                                    .ToString("HH:mm"))
+                                </div>
+
+                                            <span class="badge bg-secondary mt-2">
+                                                Status @item.StatusId
+                                            </span>
+
+                                        </div>
+
+                                    </div>
+
+                        @if (!string.IsNullOrWhiteSpace(item.Notes))
+                                    {
+                                        <hr />
+
+                                        <div>
+                                            <strong>Notes:</strong>
+                                            @item.Notes
+                                        </div>
+                                    }
+
+                                </div>
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+        }
+    }
+
+</div>
+
+@code {
+    private readonly List<StudentTimetableItemDto> _items = [];
+
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    private DateTime _weekStart;
+    private DateTime _weekEnd;
+
+    protected override async Task OnInitializedAsync()
+    {
+        SetWeek(DateTime.Today);
+        await LoadTimetableAsync();
+    }
+
+    private void SetWeek(DateTime date)
+    {
+        var difference =
+            (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+
+        _weekStart = date.Date.AddDays(-difference);
+        _weekEnd = _weekStart.AddDays(6);
+    }
+
+    private async Task LoadTimetableAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var fromUtc = DateTime.SpecifyKind(
+                    _weekStart,
+                    DateTimeKind.Local)
+                .ToUniversalTime();
+
+            var toUtc = DateTime.SpecifyKind(
+                    _weekEnd.AddDays(1).AddTicks(-1),
+                    DateTimeKind.Local)
+                .ToUniversalTime();
+
+            var results = await StudentService.GetTimetableAsync(
+                fromUtc,
+                toUtc);
+
+            _items.Clear();
+            _items.AddRange(results);
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = ex.Message.Trim('"');
+        }
+        catch (Exception)
+        {
+            _errorMessage =
+                "An unexpected error occurred while loading the timetable.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task PreviousWeek()
+    {
+        _weekStart = _weekStart.AddDays(-7);
+        _weekEnd = _weekEnd.AddDays(-7);
+
+        await LoadTimetableAsync();
+    }
+
+    private async Task CurrentWeek()
+    {
+        SetWeek(DateTime.Today);
+        await LoadTimetableAsync();
+    }
+
+    private async Task NextWeek()
+    {
+        _weekStart = _weekStart.AddDays(7);
+        _weekEnd = _weekEnd.AddDays(7);
+
+        await LoadTimetableAsync();
+    }
+}
