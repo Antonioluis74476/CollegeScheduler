@@ -1,0 +1,369 @@
+﻿@page "/lecturer/profile"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = RoleNames.Lecturer)]
+
+@using CollegeScheduler.Data.Identity
+@using CollegeScheduler.DTOs.Lecturer
+@using CollegeScheduler.DTOs.Profiles
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+
+@inject ILecturerService LecturerService
+
+<PageTitle>Lecturer Profile</PageTitle>
+
+<div class="container py-4">
+
+    <div class="mb-4">
+        <h1 class="h3 mb-1">Lecturer Profile</h1>
+
+        <p class="text-muted mb-0">
+            View your lecturer information and manage your password.
+        </p>
+    </div>
+
+    @if (_isLoadingProfile)
+    {
+        <div class="d-flex align-items-center gap-2 py-3">
+
+            <div class="spinner-border spinner-border-sm"
+                 role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+
+            <span>Loading profile...</span>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_profileErrorMessage))
+    {
+        <div class="alert alert-danger"
+             role="alert">
+            @_profileErrorMessage
+        </div>
+    }
+    else if (_profile is null)
+    {
+        <div class="alert alert-warning"
+             role="alert">
+            No lecturer profile was found for the current user.
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header bg-light">
+                <strong>
+                    @_profile.Name @_profile.LastName
+                </strong>
+            </div>
+
+            <div class="card-body">
+
+                <div class="row g-4">
+
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">
+                            Staff number
+                        </label>
+
+                        <div class="fw-semibold">
+                            @_profile.StaffNumber
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">
+                            Department ID
+                        </label>
+
+                        <div class="fw-semibold">
+                            @GetDepartmentDisplay()
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">
+                            First name
+                        </label>
+
+                        <div class="fw-semibold">
+                            @_profile.Name
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">
+                            Last name
+                        </label>
+
+                        <div class="fw-semibold">
+                            @_profile.LastName
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label text-muted">
+                            Email
+                        </label>
+
+                        <div class="fw-semibold">
+                            @_profile.Email
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+
+            <div class="card-header bg-light">
+                <strong>Change Password</strong>
+            </div>
+
+            <div class="card-body">
+
+                @if (!string.IsNullOrWhiteSpace(_passwordSuccessMessage))
+                {
+                    <div class="alert alert-success"
+                         role="alert">
+                        @_passwordSuccessMessage
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_passwordErrorMessage))
+                {
+                    <div class="alert alert-danger"
+                         role="alert">
+                        @_passwordErrorMessage
+                    </div>
+                }
+
+                <EditForm Model="_passwordForm"
+                          OnValidSubmit="ChangePasswordAsync">
+
+                    <DataAnnotationsValidator />
+
+                    <div class="row g-3">
+
+                        <div class="col-12">
+                            <label for="currentPassword"
+                                   class="form-label">
+                                Current password
+                            </label>
+
+                            <InputText id="currentPassword"
+                                       type="password"
+                                       class="form-control"
+                                       autocomplete="current-password"
+                                       @bind-Value="_passwordForm.CurrentPassword" />
+
+                            <ValidationMessage For="@(() => _passwordForm.CurrentPassword)" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="newPassword"
+                                   class="form-label">
+                                New password
+                            </label>
+
+                            <InputText id="newPassword"
+                                       type="password"
+                                       class="form-control"
+                                       autocomplete="new-password"
+                                       @bind-Value="_passwordForm.NewPassword" />
+
+                            <ValidationMessage For="@(() => _passwordForm.NewPassword)" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="confirmPassword"
+                                   class="form-label">
+                                Confirm new password
+                            </label>
+
+                            <InputText id="confirmPassword"
+                                       type="password"
+                                       class="form-control"
+                                       autocomplete="new-password"
+                                       @bind-Value="_passwordForm.ConfirmPassword" />
+
+                            <ValidationMessage For="@(() => _passwordForm.ConfirmPassword)" />
+                        </div>
+
+                    </div>
+
+                    <ValidationSummary class="text-danger mt-3" />
+
+                    <div class="d-flex flex-wrap gap-2 mt-4">
+
+                        <button type="submit"
+                                class="btn btn-primary"
+                                disabled="@_isChangingPassword">
+
+                            @if (_isChangingPassword)
+                            {
+                                <span class="spinner-border
+                                                     spinner-border-sm me-2"
+                                      aria-hidden="true">
+                                </span>
+
+                                <span>Changing password...</span>
+                            }
+                            else
+                            {
+                                <span>Change password</span>
+                            }
+
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                @onclick="ClearPasswordForm"
+                                disabled="@_isChangingPassword">
+                            Clear
+                        </button>
+
+                    </div>
+
+                </EditForm>
+
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private LecturerProfileDto? _profile;
+
+    private bool _isLoadingProfile = true;
+    private string? _profileErrorMessage;
+
+    private ChangePasswordFormModel _passwordForm = new();
+
+    private bool _isChangingPassword;
+    private string? _passwordSuccessMessage;
+    private string? _passwordErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfileAsync();
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        _isLoadingProfile = true;
+        _profileErrorMessage = null;
+
+        try
+        {
+            _profile = await LecturerService.GetProfileAsync();
+        }
+        catch (HttpRequestException ex)
+        {
+            _profileErrorMessage =
+                CleanErrorMessage(ex.Message);
+        }
+        catch (Exception)
+        {
+            _profileErrorMessage =
+                "An unexpected error occurred while loading the profile.";
+        }
+        finally
+        {
+            _isLoadingProfile = false;
+        }
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        _isChangingPassword = true;
+        _passwordSuccessMessage = null;
+        _passwordErrorMessage = null;
+
+        try
+        {
+            var dto = new ChangePasswordDto
+            {
+                CurrentPassword = _passwordForm.CurrentPassword,
+                NewPassword = _passwordForm.NewPassword
+            };
+
+            var result =
+                await LecturerService.ChangePasswordAsync(dto);
+
+            _passwordSuccessMessage =
+                result?.Message
+                ?? "Password changed successfully.";
+
+            _passwordForm = new ChangePasswordFormModel();
+        }
+        catch (HttpRequestException ex)
+        {
+            _passwordErrorMessage =
+                CleanErrorMessage(ex.Message);
+        }
+        catch (Exception)
+        {
+            _passwordErrorMessage =
+                "An unexpected error occurred while changing the password.";
+        }
+        finally
+        {
+            _isChangingPassword = false;
+        }
+    }
+
+    private string GetDepartmentDisplay()
+    {
+        if (_profile is null)
+        {
+            return "Not assigned";
+        }
+
+        return _profile.DepartmentId.HasValue
+            ? _profile.DepartmentId.Value.ToString()
+            : "Not assigned";
+    }
+
+    private void ClearPasswordForm()
+    {
+        _passwordForm = new ChangePasswordFormModel();
+        _passwordSuccessMessage = null;
+        _passwordErrorMessage = null;
+    }
+
+    private static string CleanErrorMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return "The request could not be completed.";
+        }
+
+        return message.Trim('"');
+    }
+
+    private sealed class ChangePasswordFormModel
+    {
+        [Required(ErrorMessage = "Your current password is required.")]
+        public string CurrentPassword { get; set; } = "";
+
+        [Required(ErrorMessage = "A new password is required.")]
+        [MinLength(
+            6,
+            ErrorMessage =
+                "The new password must contain at least 6 characters.")]
+        public string NewPassword { get; set; } = "";
+
+        [Required(ErrorMessage = "Please confirm the new password.")]
+        [Compare(
+            nameof(NewPassword),
+            ErrorMessage =
+                "The new password and confirmation do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

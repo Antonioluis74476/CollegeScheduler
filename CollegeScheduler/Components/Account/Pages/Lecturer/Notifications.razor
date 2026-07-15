@@ -1,0 +1,325 @@
+﻿@page "/lecturer/notifications"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = RoleNames.Lecturer)]
+
+@using CollegeScheduler.Data.Identity
+@using CollegeScheduler.DTOs.Lecturer
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject ILecturerService LecturerService
+
+<PageTitle>Notifications</PageTitle>
+
+<div class="container py-4">
+
+    <div class="d-flex flex-column flex-md-row
+                justify-content-between align-items-md-center
+                gap-3 mb-4">
+
+        <div>
+            <h1 class="h3 mb-1">Notifications</h1>
+
+            <p class="text-muted mb-0">
+                View class updates, request decisions and other alerts.
+            </p>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+
+            <div class="form-check form-switch">
+
+                <input id="unreadOnly"
+                       class="form-check-input"
+                       type="checkbox"
+                       role="switch"
+                       @bind="_unreadOnly"
+                       @bind:after="UnreadFilterChanged"
+                       disabled="@_isLoading" />
+
+                <label class="form-check-label"
+                       for="unreadOnly">
+                    Unread only
+                </label>
+
+            </div>
+
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    @onclick="LoadNotificationsAsync"
+                    disabled="@_isLoading">
+                Refresh
+            </button>
+
+        </div>
+
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show"
+             role="alert">
+
+            @_successMessage
+
+            <button type="button"
+                    class="btn-close"
+                    aria-label="Close"
+                    @onclick="ClearSuccessMessage">
+            </button>
+        </div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="d-flex align-items-center gap-2">
+
+            <div class="spinner-border spinner-border-sm"
+                 role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+
+            <span>Loading notifications...</span>
+
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-danger"
+             role="alert">
+            @_errorMessage
+        </div>
+    }
+    else if (_notifications.Count == 0)
+    {
+        <div class="alert alert-info"
+             role="alert">
+
+            @if (_unreadOnly)
+            {
+                <span>You have no unread notifications.</span>
+            }
+            else
+            {
+                <span>You have no notifications.</span>
+            }
+
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-3">
+
+            @foreach (var notification in _notifications
+                    .OrderByDescending(x => x.CreatedAtUtc))
+            {
+                <div class="card shadow-sm
+                                    @(notification.IsRead ? "" : "border-primary")">
+
+                    <div class="card-body">
+
+                        <div class="d-flex flex-column flex-md-row
+                                            justify-content-between gap-3">
+
+                            <div class="flex-grow-1">
+
+                                <div class="d-flex flex-wrap
+                                                    align-items-center gap-2 mb-2">
+
+                                    <h2 class="h5 mb-0">
+                                        @notification.Title
+                                    </h2>
+
+                                    @if (!notification.IsRead)
+                                    {
+                                        <span class="badge bg-primary">
+                                            New
+                                        </span>
+                                    }
+
+                            </div>
+
+                            <p class="mb-2">
+                                @notification.Message
+                            </p>
+
+                            <div class="text-muted small">
+                                @(notification.CreatedAtUtc
+                                                            .ToLocalTime()
+                                                            .ToString(
+                                                            "dddd, dd MMMM yyyy HH:mm"))
+                        </div>
+
+                        @if (notification.RelatedTimetableEventId.HasValue ||
+                                                notification.RelatedRequestId.HasValue)
+                                {
+                                    <div class="text-muted small mt-2">
+
+                                        @if (notification.RelatedTimetableEventId.HasValue)
+                                        {
+                                            <span class="me-3">
+                                                Event:
+                                                @notification.RelatedTimetableEventId
+                                            </span>
+                                        }
+
+                                        @if (notification.RelatedRequestId.HasValue)
+                                        {
+                                            <span>
+                                                Request:
+                                                @notification.RelatedRequestId
+                                            </span>
+                                        }
+
+                                    </div>
+                                }
+
+                            </div>
+
+                            <div class="d-flex align-items-start">
+
+                                @if (!notification.IsRead)
+                                {
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            disabled="@IsBeingMarkedRead(
+                                                                                            notification.NotificationId)"
+                                @onclick="() => MarkAsReadAsync(
+                                                                                notification)">
+
+                            @if (IsBeingMarkedRead(
+                                                        notification.NotificationId))
+                                        {
+                                            <span class="spinner-border
+                                                                         spinner-border-sm me-1"
+                                                  aria-hidden="true">
+                                            </span>
+                                        }
+
+                                        Mark as read
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-light text-dark border">
+                                        Read
+                                    </span>
+                                }
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+            }
+
+        </div>
+    }
+
+</div>
+
+@code {
+    private readonly List<LecturerNotificationDto> _notifications = [];
+
+    private bool _isLoading = true;
+    private bool _unreadOnly;
+
+    private long? _markingReadId;
+
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNotificationsAsync();
+    }
+
+    private async Task LoadNotificationsAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var results =
+                await LecturerService.GetNotificationsAsync(_unreadOnly);
+
+            _notifications.Clear();
+
+            _notifications.AddRange(
+                results.OrderByDescending(x => x.CreatedAtUtc));
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = CleanErrorMessage(ex.Message);
+        }
+        catch (Exception)
+        {
+            _errorMessage =
+                "An unexpected error occurred while loading notifications.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task UnreadFilterChanged()
+    {
+        await LoadNotificationsAsync();
+    }
+
+    private async Task MarkAsReadAsync(
+        LecturerNotificationDto notification)
+    {
+        _markingReadId = notification.NotificationId;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            await LecturerService.MarkNotificationAsReadAsync(
+                notification.NotificationId);
+
+            notification.ReadAtUtc = DateTime.UtcNow;
+
+            if (_unreadOnly)
+            {
+                _notifications.Remove(notification);
+            }
+
+            _successMessage = "Notification marked as read.";
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = CleanErrorMessage(ex.Message);
+        }
+        catch (Exception)
+        {
+            _errorMessage =
+                "An unexpected error occurred while updating the notification.";
+        }
+        finally
+        {
+            _markingReadId = null;
+        }
+    }
+
+    private bool IsBeingMarkedRead(long notificationId)
+    {
+        return _markingReadId == notificationId;
+    }
+
+    private void ClearSuccessMessage()
+    {
+        _successMessage = null;
+    }
+
+    private static string CleanErrorMessage(string message)
+    {
+        return string.IsNullOrWhiteSpace(message)
+            ? "The request could not be completed."
+            : message.Trim('"');
+    }
+}
