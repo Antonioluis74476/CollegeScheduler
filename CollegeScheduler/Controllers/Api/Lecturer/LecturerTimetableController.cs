@@ -244,6 +244,26 @@ public sealed class LecturerTimetableController : ControllerBase
 		return Ok(notifications);
 	}
 
+	[HttpPost("notifications/{id:long}/read")]
+	public async Task<IActionResult> MarkNotificationAsRead(long id)
+	{
+		var row = await _db.NotificationRecipients
+			.FirstOrDefaultAsync(nr =>
+				nr.NotificationId == id &&
+				nr.UserId == CurrentUserId);
+
+		if (row is null)
+			return NotFound();
+
+		if (row.ReadAtUtc is null)
+		{
+			row.ReadAtUtc = DateTime.UtcNow;
+			await _db.SaveChangesAsync();
+		}
+
+		return NoContent();
+	}
+
 	[HttpGet("profile")]
 	public async Task<IActionResult> GetMyProfile()
 	{
