@@ -1,6 +1,7 @@
 ﻿using CollegeScheduler.DTOs.Lecturer;
 using CollegeScheduler.DTOs.Profiles;
 using CollegeScheduler.DTOs.Requests;
+using CollegeScheduler.DTOs.Scheduling;
 
 namespace CollegeScheduler.Services.Interfaces;
 
@@ -28,6 +29,9 @@ public interface ILecturerService
 	Task<LecturerRequestResponseDto?> CreateRoomBookingRequestAsync(
 		LecturerRoomBookingRequestCreateDto dto);
 
-	Task<ApiMessageResponseDto?> ChangePasswordAsync(
+    Task<List<AvailableRoomDto>> GetAvailableRoomsAsync(
+    RoomSearchQuery query);
+
+    Task<ApiMessageResponseDto?> ChangePasswordAsync(
 		ChangePasswordDto dto);
 }

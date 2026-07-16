@@ -1,6 +1,7 @@
 ﻿using CollegeScheduler.Data.Entities.Scheduling;
 using CollegeScheduler.DTOs.Scheduling;
 
+
 namespace CollegeScheduler.Services.Interfaces;
 
 public interface ISchedulingService

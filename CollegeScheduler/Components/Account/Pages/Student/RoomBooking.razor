@@ -7,9 +7,14 @@
 @using CollegeScheduler.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @using System.ComponentModel.DataAnnotations
+@using CollegeScheduler.DTOs.Scheduling
+
+
 
 @inject IStudentService StudentService
+
 @inject NavigationManager NavigationManager
+
 
 <PageTitle>Book a Room</PageTitle>
 
@@ -83,19 +88,25 @@
                         <div class="col-md-6">
                             <label for="roomId"
                                    class="form-label">
-                                Room ID
+                                Room
                             </label>
 
-                            <InputNumber id="roomId"
-                                         class="form-control"
-                                         @bind-Value="_formModel.RoomId" />
+                            <InputSelect id="roomId"
+                                         class="form-select"
+                                         @bind-Value="_formModel.RoomId">
+
+                                <option value="0">Select a room</option>
+
+                                @foreach (var room in _availableRooms)
+                                {
+                                    <option value="@room.RoomId">
+                                        @($"{room.Code} - {room.Name} - {room.BuildingName}")
+                                    </option>
+                                }
+
+                            </InputSelect>
 
                             <ValidationMessage For="@(() => _formModel.RoomId)" />
-
-                            <div class="form-text">
-                                Enter the ID of the room you want to book.
-                                This will later be replaced with a room selector.
-                            </div>
                         </div>
 
                         <div class="col-md-6">
@@ -166,6 +177,25 @@
                         </div>
 
                         <div class="col-12">
+                            <button type="button"
+                                    class="btn btn-outline-primary"
+                                    @onclick="LoadAvailableRoomsAsync"
+                                    disabled="@_isLoadingRooms">
+
+                                @if (_isLoadingRooms)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Loading rooms...</span>
+                                }
+                                else
+                                {
+                                    <span>Load available rooms</span>
+                                }
+
+                            </button>
+                        </div>
+
+                        <div class="col-12">
                             <label for="purpose"
                                    class="form-label">
                                 Purpose
@@ -231,12 +261,18 @@
 @code {
     private RoomBookingFormModel _formModel = CreateInitialForm();
 
+    
+
     private bool _isSubmitting;
+    private bool _isLoadingRooms;
     private bool _submittedSuccessfully;
 
     private long? _createdRequestId;
     private string? _successMessage;
     private string? _errorMessage;
+
+    private List<AvailableRoomDto> _availableRooms = new();
+    
 
     private async Task SubmitRequestAsync()
     {
@@ -350,6 +386,36 @@
         };
     }
 
+    private async Task LoadAvailableRoomsAsync()
+    {
+        _isLoadingRooms = true;
+        _availableRooms.Clear();
+        _formModel.RoomId = 0;
+
+        try
+        {
+            var startDateTime = _formModel.StartDate.Date
+                .Add(TimeSpan.Parse(_formModel.StartTime));
+
+            var endDateTime = _formModel.EndDate.Date
+                .Add(TimeSpan.Parse(_formModel.EndTime));
+
+            var query = new RoomSearchQuery
+            {
+                StartUtc = DateTime.SpecifyKind(startDateTime, DateTimeKind.Utc),
+                EndUtc = DateTime.SpecifyKind(endDateTime, DateTimeKind.Utc),
+                MinCapacity = _formModel.ExpectedAttendees
+            };
+
+            _availableRooms =
+                await StudentService.GetAvailableRoomsAsync(query);
+        }
+        finally
+        {
+            _isLoadingRooms = false;
+        }
+    }
+
     private static string CleanErrorMessage(string message)
     {
         if (string.IsNullOrWhiteSpace(message))
@@ -393,4 +459,5 @@
                 "Expected attendees must be between 1 and 1000.")]
         public int ExpectedAttendees { get; set; }
     }
+
 }

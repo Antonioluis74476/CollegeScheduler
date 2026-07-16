@@ -18,10 +18,10 @@ namespace CollegeScheduler.Services.Implementations
         public async Task<List<AvailableRoomDto>?> GetAvailableRoomsAsync(RoomSearchQuery query)
         {
             var queryParts = new List<string>
-            {
-                $"startUtc={Uri.EscapeDataString(query.StartUtc.ToString("o"))}",
-                $"endUtc={Uri.EscapeDataString(query.EndUtc.ToString("o"))}"
-            };
+    {
+        $"startUtc={Uri.EscapeDataString(query.StartUtc.ToString("o"))}",
+        $"endUtc={Uri.EscapeDataString(query.EndUtc.ToString("o"))}"
+    };
 
             if (query.MinCapacity.HasValue)
                 queryParts.Add($"minCapacity={query.MinCapacity.Value}");
@@ -45,7 +45,16 @@ namespace CollegeScheduler.Services.Implementations
 
             var url = $"api/v1/admin/scheduling/rooms/available?{string.Join("&", queryParts)}";
 
-            return await _httpClient.GetFromJsonAsync<List<AvailableRoomDto>>(url);
+            var response = await _httpClient.GetAsync(url);
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode || body.TrimStart().StartsWith("<"))
+            {
+                throw new Exception(
+                    $"API returned non-JSON. Status: {response.StatusCode}\n\n{body.Substring(0, Math.Min(body.Length, 500))}");
+            }
+
+            return await response.Content.ReadFromJsonAsync<List<AvailableRoomDto>>();
         }
 
         public async Task<ClashResult?> CheckClashesAsync(ClashCheckRequest request)

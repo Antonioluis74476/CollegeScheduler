@@ -1,6 +1,7 @@
 ﻿using CollegeScheduler.DTOs.Profiles;
 using CollegeScheduler.DTOs.Requests;
 using CollegeScheduler.DTOs.Student;
+using CollegeScheduler.DTOs.Scheduling;
 
 namespace CollegeScheduler.Services.Interfaces;
 
@@ -20,8 +21,14 @@ public interface IStudentService
 	Task<RoomBookingResponseDto?> CreateRoomBookingRequestAsync(
 		RoomBookingRequestCreateDto dto);
 
-	Task<IReadOnlyList<StudentRequestDto>> GetRequestsAsync();
+    Task<List<AvailableRoomDto>> GetAvailableRoomsAsync(
+    RoomSearchQuery query);
+
+    Task<IReadOnlyList<StudentRequestDto>> GetRequestsAsync();
 
 	Task<ApiMessageResponseDto?> ChangePasswordAsync(
 		ChangePasswordDto dto);
+
+
+
 }
