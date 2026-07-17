@@ -69,19 +69,32 @@ public sealed class StudentTimetableController : ControllerBase
 
 		var items = await query
 			.OrderBy(ec => ec.TimetableEvent.StartUtc)
-			.Select(ec => new
-			{
-				ec.TimetableEvent.TimetableEventId,
-				ec.CohortId,
-				ec.TimetableEvent.StartUtc,
-				ec.TimetableEvent.EndUtc,
-				ec.TimetableEvent.SessionType,
-				ModuleId = ec.TimetableEvent.ModuleId,
-				RoomId = ec.TimetableEvent.RoomId,
-				StatusId = ec.TimetableEvent.EventStatusId,
-				ec.TimetableEvent.Notes
-			})
-			.Distinct()
+            .Select(ec => new
+            {
+                ec.TimetableEvent.TimetableEventId,
+
+                CohortId = ec.CohortId,
+                CohortCode = ec.Cohort.Code,
+                CohortName = ec.Cohort.Name,
+
+                ec.TimetableEvent.StartUtc,
+                ec.TimetableEvent.EndUtc,
+                ec.TimetableEvent.SessionType,
+
+                ModuleId = ec.TimetableEvent.ModuleId,
+                ModuleCode = ec.TimetableEvent.Module!.Code,
+                ModuleTitle = ec.TimetableEvent.Module.Title,
+
+                RoomId = ec.TimetableEvent.RoomId,
+                RoomCode = ec.TimetableEvent.Room!.Code,
+                RoomName = ec.TimetableEvent.Room.Name,
+
+                StatusId = ec.TimetableEvent.EventStatusId,
+                StatusName = ec.TimetableEvent.EventStatus!.Name,
+
+                ec.TimetableEvent.Notes
+            })
+            .Distinct()
 			.ToListAsync();
 
 		return Ok(items);

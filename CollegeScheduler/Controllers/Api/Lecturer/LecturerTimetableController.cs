@@ -65,10 +65,19 @@ public sealed class LecturerTimetableController : ControllerBase
 				el.TimetableEvent.StartUtc,
 				el.TimetableEvent.EndUtc,
 				el.TimetableEvent.SessionType,
-				ModuleId = el.TimetableEvent.ModuleId,
-				RoomId = el.TimetableEvent.RoomId,
-				StatusId = el.TimetableEvent.EventStatusId,
-				el.TimetableEvent.Notes
+
+                ModuleId = el.TimetableEvent.ModuleId,
+                ModuleCode = el.TimetableEvent.Module!.Code,
+                ModuleTitle = el.TimetableEvent.Module.Title,
+
+                RoomId = el.TimetableEvent.RoomId,
+                RoomCode = el.TimetableEvent.Room!.Code,
+                RoomName = el.TimetableEvent.Room.Name,
+
+                StatusId = el.TimetableEvent.EventStatusId,
+                StatusName = el.TimetableEvent.EventStatus.Name,
+
+                el.TimetableEvent.Notes
 			})
 			.ToListAsync();
 

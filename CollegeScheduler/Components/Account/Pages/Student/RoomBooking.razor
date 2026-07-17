@@ -85,28 +85,9 @@
 
                     <div class="row g-3">
 
-                        <div class="col-md-6">
-                            <label for="roomId"
-                                   class="form-label">
-                                Room
-                            </label>
-
-                            <InputSelect id="roomId"
-                                         class="form-select"
-                                         @bind-Value="_formModel.RoomId">
-
-                                <option value="0">Select a room</option>
-
-                                @foreach (var room in _availableRooms)
-                                {
-                                    <option value="@room.RoomId">
-                                        @($"{room.Code} - {room.Name} - {room.BuildingName}")
-                                    </option>
-                                }
-
-                            </InputSelect>
-
-                            <ValidationMessage For="@(() => _formModel.RoomId)" />
+                        <div class="form-text mb-2">
+                            Select the expected attendees, date and time first, then click
+                            <strong>Search available rooms</strong>.
                         </div>
 
                         <div class="col-md-6">
@@ -134,6 +115,7 @@
 
                             <ValidationMessage For="@(() => _formModel.StartDate)" />
                         </div>
+
 
                         <div class="col-md-6">
                             <label for="startTime"
@@ -189,10 +171,34 @@
                                 }
                                 else
                                 {
-                                    <span>Load available rooms</span>
+                                    <span>Find available rooms</span>
                                 }
 
                             </button>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="roomId"
+                                   class="form-label">
+                                Room
+                            </label>
+
+                            <InputSelect id="roomId"
+                                         class="form-select"
+                                         @bind-Value="_formModel.RoomId">
+
+                                <option value="0">Select a room</option>
+
+                                @foreach (var room in _availableRooms)
+                                {
+                                    <option value="@room.RoomId">
+                                        @($"{room.Code} - {room.Name} - {room.BuildingName}")
+                                    </option>
+                                }
+
+                            </InputSelect>
+
+                            <ValidationMessage For="@(() => _formModel.RoomId)" />
                         </div>
 
                         <div class="col-12">

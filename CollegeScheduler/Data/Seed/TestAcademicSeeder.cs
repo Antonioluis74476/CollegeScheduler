@@ -13,6 +13,9 @@ public static class TestAcademicSeeder
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+        var adminUser = await db.Users
+            .SingleAsync(u => u.Email == "admin@college.ie");
+
         // Prevent reseeding
         if (await db.Departments.AnyAsync() ||
             await db.AcademicPrograms.AnyAsync() ||
@@ -224,6 +227,16 @@ public static class TestAcademicSeeder
         db.LecturerProfiles.AddRange(lecturers);
         await db.SaveChangesAsync();
 
+        var lecturerTestUser = await db.Users
+            .SingleAsync(u => u.Email == "lecturertest@college.ie");
+
+        var lecturerTestProfile = lecturers
+            .Single(l => l.StaffNumber == "L001");
+
+        lecturerTestProfile.UserId = lecturerTestUser.Id;
+
+        await db.SaveChangesAsync();
+
         // -----------------------
         // ModuleLecturers
         // -----------------------
@@ -282,6 +295,16 @@ public static class TestAcademicSeeder
         };
 
         db.StudentProfiles.AddRange(students);
+        await db.SaveChangesAsync();
+
+        var studentTestUser = await db.Users
+            .SingleAsync(u => u.Email == "studenttest@college.ie");
+
+        var studentTestProfile = students
+            .Single(s => s.StudentNumber == "S001");
+
+        studentTestProfile.UserId = studentTestUser.Id;
+
         await db.SaveChangesAsync();
 
         // -----------------------
@@ -358,7 +381,7 @@ public static class TestAcademicSeeder
                         EventStatusId = scheduledStatus.EventStatusId,
                         SessionType = "Lecture",
                         Notes = $"Seeded event for {cohort.Name}",
-                        CreatedByUserId = "seed"
+                        CreatedByUserId = adminUser.Id
                     };
 
                     timetableEvents.Add(evt);
