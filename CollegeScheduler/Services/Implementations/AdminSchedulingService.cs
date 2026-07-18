@@ -3,6 +3,8 @@ using CollegeScheduler.DTOs.Facilities;
 using CollegeScheduler.DTOs.Scheduling;
 using CollegeScheduler.Services.Interfaces;
 using System.Net.Http.Json;
+using CollegeScheduler.DTOs.Common;
+using CollegeScheduler.DTOs.Profiles;
 
 namespace CollegeScheduler.Services.Implementations
 {
@@ -128,5 +130,27 @@ namespace CollegeScheduler.Services.Implementations
                 $"api/v1/admin/academic-years/{academicYearId}/terms"
             );
         }
+
+        public async Task<PagedResult<CohortDto>?> GetCohortsByProgramAsync(int programId)
+        {
+            return await _httpClient.GetFromJsonAsync<PagedResult<CohortDto>>(
+                $"api/v1/admin/programs/{programId}/cohorts?page=1&pageSize=100"
+            );
+        }
+
+        public async Task<PagedResult<ProgramDto>?> GetProgramsAsync()
+        {
+            return await _httpClient.GetFromJsonAsync<PagedResult<ProgramDto>>(
+                "api/v1/admin/departments/1/programs?page=1&pageSize=100"
+            );
+        }
+
+        public async Task<PagedResult<LecturerDto>?> GetLecturersAsync()
+        {
+            return await _httpClient.GetFromJsonAsync<PagedResult<LecturerDto>>(
+                "api/v1/admin/lecturers?page=1&pageSize=100"
+            );
+        }
+
     }
 }
