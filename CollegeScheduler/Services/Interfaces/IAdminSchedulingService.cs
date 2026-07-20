@@ -2,6 +2,7 @@
 using CollegeScheduler.DTOs.Facilities;
 using CollegeScheduler.DTOs.Profiles;
 using CollegeScheduler.DTOs.Scheduling;
+using CollegeScheduler.DTOs.Requests;
 
 
 namespace CollegeScheduler.Services.Interfaces
@@ -18,5 +19,12 @@ namespace CollegeScheduler.Services.Interfaces
         Task<PagedResult<CohortDto>?> GetCohortsByProgramAsync(int programId);
         Task<PagedResult<ProgramDto>?> GetProgramsAsync();
         Task<PagedResult<LecturerDto>?> GetLecturersAsync();
+
+        Task<List<PendingRequestDto>?> GetPendingRequestsAsync();
+
+        Task<DecisionResultDto?> DecideRequestAsync(
+            long requestId,
+            DecideRequestDto request);
+
     }
 }

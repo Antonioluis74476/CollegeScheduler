@@ -5,6 +5,7 @@ using CollegeScheduler.Services.Interfaces;
 using System.Net.Http.Json;
 using CollegeScheduler.DTOs.Common;
 using CollegeScheduler.DTOs.Profiles;
+using CollegeScheduler.DTOs.Requests;
 
 namespace CollegeScheduler.Services.Implementations
 {
@@ -152,5 +153,49 @@ namespace CollegeScheduler.Services.Implementations
             );
         }
 
+    
+
+    public async Task<List<PendingRequestDto>?> GetPendingRequestsAsync()
+        {
+            var response = await _httpClient.GetAsync(
+                "api/v1/admin/scheduling/requests/pending"
+            );
+
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception(
+                    $"Unable to load pending requests. " +
+                    $"Status: {response.StatusCode}. Response: {body}"
+                );
+            }
+
+            return await response.Content
+                .ReadFromJsonAsync<List<PendingRequestDto>>();
+        }
+
+        public async Task<DecisionResultDto?> DecideRequestAsync(
+            long requestId,
+            DecideRequestDto request)
+        {
+            var response = await _httpClient.PostAsJsonAsync(
+                $"api/v1/admin/scheduling/requests/{requestId}/decide",
+                request
+            );
+
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception(
+                    $"Unable to process request. " +
+                    $"Status: {response.StatusCode}. Response: {body}"
+                );
+            }
+
+            return await response.Content
+                .ReadFromJsonAsync<DecisionResultDto>();
+        }
     }
 }

@@ -138,6 +138,13 @@ builder.Services.AddHttpClient<IAdminUserService, AdminUserService>(client =>
 })
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// Admin notification API client
+builder.Services.AddHttpClient<IAdminNotificationService, AdminNotificationService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
 // Student API client
 builder.Services.AddHttpClient<IStudentService, StudentService>(client =>
 {
