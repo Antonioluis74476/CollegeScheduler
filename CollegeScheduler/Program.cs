@@ -216,6 +216,10 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
+// SMTP / Mailtrap settings
+builder.Services.Configure<CollegeScheduler.Messaging.SmtpSettings>(
+	builder.Configuration.GetSection("Smtp"));
+
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
