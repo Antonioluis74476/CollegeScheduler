@@ -3,6 +3,7 @@ using CollegeScheduler.DTOs.Lecturer;
 using CollegeScheduler.DTOs.Profiles;
 using CollegeScheduler.DTOs.Requests;
 using CollegeScheduler.Services.Interfaces;
+using CollegeScheduler.DTOs.Scheduling;
 
 namespace CollegeScheduler.Services.Implementations;
 
@@ -141,7 +142,60 @@ public sealed class LecturerService : ILecturerService
 			.ReadFromJsonAsync<LecturerRequestResponseDto>();
 	}
 
-	public async Task<ApiMessageResponseDto?> ChangePasswordAsync(
+    public async Task<List<AvailableRoomDto>> GetAvailableRoomsAsync(
+    RoomSearchQuery query)
+    {
+        var parameters = new List<string>
+    {
+        $"startUtc={Uri.EscapeDataString(query.StartUtc.ToString("O"))}",
+        $"endUtc={Uri.EscapeDataString(query.EndUtc.ToString("O"))}"
+    };
+
+        if (query.MinCapacity.HasValue)
+        {
+            parameters.Add(
+                $"minCapacity={query.MinCapacity.Value}");
+        }
+
+        if (query.RoomTypeId.HasValue)
+        {
+            parameters.Add(
+                $"roomTypeId={query.RoomTypeId.Value}");
+        }
+
+        if (query.BuildingId.HasValue)
+        {
+            parameters.Add(
+                $"buildingId={query.BuildingId.Value}");
+        }
+
+        if (query.CampusId.HasValue)
+        {
+            parameters.Add(
+                $"campusId={query.CampusId.Value}");
+        }
+
+        if (query.RequiredFeatureIds is { Count: > 0 })
+        {
+            foreach (var featureId in query.RequiredFeatureIds)
+            {
+                parameters.Add($"requiredFeatureIds={featureId}");
+            }
+        }
+
+        var endpoint =
+            $"api/v1/rooms/available?{string.Join("&", parameters)}";
+
+        using var response = await _httpClient.GetAsync(endpoint);
+
+        await EnsureSuccessAsync(response);
+
+        return await response.Content
+            .ReadFromJsonAsync<List<AvailableRoomDto>>()
+            ?? [];
+    }
+
+    public async Task<ApiMessageResponseDto?> ChangePasswordAsync(
 		ChangePasswordDto dto)
 	{
 		using var response = await _httpClient.PostAsJsonAsync(

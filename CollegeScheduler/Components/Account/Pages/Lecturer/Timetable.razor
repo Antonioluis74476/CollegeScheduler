@@ -124,19 +124,20 @@
                                             </h3>
 
                                             <div class="text-muted">
-                                                Module ID:
-                                                <strong>@item.ModuleId</strong>
+                                                Module:
+                                                <strong>@item.ModuleCode - @item.ModuleTitle</strong>
                                             </div>
 
                                             <div class="text-muted">
-                                                Room ID:
-                                                <strong>@item.RoomId</strong>
-                                            </div>
-
-                                            <div class="text-muted">
-                                                Event ID:
-                                                <strong>@item.TimetableEventId</strong>
-                                            </div>
+                                                Room:
+                                                <strong>
+                                                    @item.RoomCode
+                                                    @if (!string.IsNullOrWhiteSpace(item.RoomName))
+                                                    {
+                                                        <span>- @item.RoomName</span>
+                                                    }
+                                            </strong>
+                                        </div>
 
                                         </div>
 
@@ -153,7 +154,7 @@
                                 </div>
 
                                             <span class="badge bg-secondary mt-2">
-                                                Status @item.StatusId
+                                                @item.StatusName
                                             </span>
 
                                         </div>

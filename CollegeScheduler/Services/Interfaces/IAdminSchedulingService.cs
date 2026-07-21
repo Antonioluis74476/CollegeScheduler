@@ -1,5 +1,6 @@
 ﻿using CollegeScheduler.DTOs.Academic;
 using CollegeScheduler.DTOs.Facilities;
+using CollegeScheduler.DTOs.Profiles;
 using CollegeScheduler.DTOs.Scheduling;
 
 
@@ -14,6 +15,8 @@ namespace CollegeScheduler.Services.Interfaces
         Task<RoomDtoPagedResult?> GetRoomsByBuildingAsync(int buildingId);
         Task<ModuleDtoPagedResult?> GetModulesAsync();
         Task<TermDtoPagedResult?> GetTermsByAcademicYearAsync(int academicYearId);
-
+        Task<PagedResult<CohortDto>?> GetCohortsByProgramAsync(int programId);
+        Task<PagedResult<ProgramDto>?> GetProgramsAsync();
+        Task<PagedResult<LecturerDto>?> GetLecturersAsync();
     }
 }

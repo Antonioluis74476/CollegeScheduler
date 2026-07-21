@@ -3,6 +3,8 @@ using CollegeScheduler.DTOs.Facilities;
 using CollegeScheduler.DTOs.Scheduling;
 using CollegeScheduler.Services.Interfaces;
 using System.Net.Http.Json;
+using CollegeScheduler.DTOs.Common;
+using CollegeScheduler.DTOs.Profiles;
 
 namespace CollegeScheduler.Services.Implementations
 {
@@ -18,10 +20,10 @@ namespace CollegeScheduler.Services.Implementations
         public async Task<List<AvailableRoomDto>?> GetAvailableRoomsAsync(RoomSearchQuery query)
         {
             var queryParts = new List<string>
-            {
-                $"startUtc={Uri.EscapeDataString(query.StartUtc.ToString("o"))}",
-                $"endUtc={Uri.EscapeDataString(query.EndUtc.ToString("o"))}"
-            };
+    {
+        $"startUtc={Uri.EscapeDataString(query.StartUtc.ToString("o"))}",
+        $"endUtc={Uri.EscapeDataString(query.EndUtc.ToString("o"))}"
+    };
 
             if (query.MinCapacity.HasValue)
                 queryParts.Add($"minCapacity={query.MinCapacity.Value}");
@@ -45,7 +47,16 @@ namespace CollegeScheduler.Services.Implementations
 
             var url = $"api/v1/admin/scheduling/rooms/available?{string.Join("&", queryParts)}";
 
-            return await _httpClient.GetFromJsonAsync<List<AvailableRoomDto>>(url);
+            var response = await _httpClient.GetAsync(url);
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode || body.TrimStart().StartsWith("<"))
+            {
+                throw new Exception(
+                    $"API returned non-JSON. Status: {response.StatusCode}\n\n{body.Substring(0, Math.Min(body.Length, 500))}");
+            }
+
+            return await response.Content.ReadFromJsonAsync<List<AvailableRoomDto>>();
         }
 
         public async Task<ClashResult?> CheckClashesAsync(ClashCheckRequest request)
@@ -119,5 +130,27 @@ namespace CollegeScheduler.Services.Implementations
                 $"api/v1/admin/academic-years/{academicYearId}/terms"
             );
         }
+
+        public async Task<PagedResult<CohortDto>?> GetCohortsByProgramAsync(int programId)
+        {
+            return await _httpClient.GetFromJsonAsync<PagedResult<CohortDto>>(
+                $"api/v1/admin/programs/{programId}/cohorts?page=1&pageSize=100"
+            );
+        }
+
+        public async Task<PagedResult<ProgramDto>?> GetProgramsAsync()
+        {
+            return await _httpClient.GetFromJsonAsync<PagedResult<ProgramDto>>(
+                "api/v1/admin/departments/1/programs?page=1&pageSize=100"
+            );
+        }
+
+        public async Task<PagedResult<LecturerDto>?> GetLecturersAsync()
+        {
+            return await _httpClient.GetFromJsonAsync<PagedResult<LecturerDto>>(
+                "api/v1/admin/lecturers?page=1&pageSize=100"
+            );
+        }
+
     }
 }
