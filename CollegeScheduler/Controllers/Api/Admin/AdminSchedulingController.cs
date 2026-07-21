@@ -173,34 +173,123 @@ public sealed class AdminSchedulingController : ControllerBase
 				r.Notes,
 				RequestType = r.RequestType.Name,
 				RequestStatus = r.RequestStatus.Name,
-				r.RequestedByUserId,
-				r.CreatedAtUtc,
+                r.RequestedByUserId,
 
-				ScheduleChangeDetail = _db.RequestScheduleChanges
+                RequestedByEmail = _db.Users
+					.Where(u => u.Id == r.RequestedByUserId)
+					.Select(u => u.Email)
+					.FirstOrDefault(),
+
+                RequestedByName =
+					_db.StudentProfiles
+						.Where(sp => sp.UserId == r.RequestedByUserId)
+						.Select(sp => (sp.Name + " " + sp.LastName).Trim())
+						.FirstOrDefault()
+					??
+					_db.LecturerProfiles
+						.Where(lp => lp.UserId == r.RequestedByUserId)
+						.Select(lp => (lp.Name + " " + lp.LastName).Trim())
+						.FirstOrDefault(),
+
+                RequestedByRole =
+					_db.StudentProfiles.Any(
+						sp => sp.UserId == r.RequestedByUserId)
+						? "Student"
+						: _db.LecturerProfiles.Any(
+							lp => lp.UserId == r.RequestedByUserId)
+							? "Lecturer"
+							: "User",
+
+                r.CreatedAtUtc,
+
+
+                ScheduleChangeDetail = _db.RequestScheduleChanges
 					.Where(sc => sc.RequestId == r.RequestId)
 					.Select(sc => new
 					{
 						sc.TimetableEventId,
+
+						ModuleCode = _db.TimetableEvents
+							.Where(te => te.TimetableEventId == sc.TimetableEventId)
+							.Select(te => te.Module.Code)
+							.FirstOrDefault(),
+
+						ModuleTitle = _db.TimetableEvents
+							.Where(te => te.TimetableEventId == sc.TimetableEventId)
+							.Select(te => te.Module.Title)
+							.FirstOrDefault(),
+
+						CurrentRoomId = _db.TimetableEvents
+							.Where(te => te.TimetableEventId == sc.TimetableEventId)
+							.Select(te => te.RoomId)
+							.FirstOrDefault(),
+
+						CurrentRoomCode = _db.TimetableEvents
+							.Where(te => te.TimetableEventId == sc.TimetableEventId)
+							.Select(te => te.Room.Code)
+							.FirstOrDefault(),
+
+						CurrentRoomName = _db.TimetableEvents
+							.Where(te => te.TimetableEventId == sc.TimetableEventId)
+							.Select(te => te.Room.Name)
+							.FirstOrDefault(),
+
+						CurrentStartUtc = _db.TimetableEvents
+							.Where(te => te.TimetableEventId == sc.TimetableEventId)
+							.Select(te => te.StartUtc)
+							.FirstOrDefault(),
+
+						CurrentEndUtc = _db.TimetableEvents
+							.Where(te => te.TimetableEventId == sc.TimetableEventId)
+							.Select(te => te.EndUtc)
+							.FirstOrDefault(),
+
 						sc.ProposedRoomId,
+
+						ProposedRoomCode = sc.ProposedRoomId.HasValue
+							? _db.Rooms
+								.Where(room => room.RoomId == sc.ProposedRoomId.Value)
+								.Select(room => room.Code)
+								.FirstOrDefault()
+							: null,
+
+						ProposedRoomName = sc.ProposedRoomId.HasValue
+							? _db.Rooms
+								.Where(room => room.RoomId == sc.ProposedRoomId.Value)
+								.Select(room => room.Name)
+								.FirstOrDefault()
+							: null,
+
 						sc.ProposedStartUtc,
 						sc.ProposedEndUtc,
 						sc.Reason
 					})
 					.FirstOrDefault(),
 
-				RoomBookingDetail = _db.RequestRoomBookings
+                RoomBookingDetail = _db.RequestRoomBookings
 					.Where(rb => rb.RequestId == r.RequestId)
 					.Select(rb => new
 					{
 						rb.RoomId,
+
+						RoomCode = _db.Rooms
+							.Where(room => room.RoomId == rb.RoomId)
+							.Select(room => room.Code)
+							.FirstOrDefault(),
+
+						RoomName = _db.Rooms
+							.Where(room => room.RoomId == rb.RoomId)
+							.Select(room => room.Name)
+							.FirstOrDefault(),
+
 						rb.StartUtc,
 						rb.EndUtc,
 						rb.Purpose,
 						rb.ExpectedAttendees
 					})
 					.FirstOrDefault()
-			})
-			.ToListAsync();
+				})
+				.ToListAsync();
 
 		return Ok(pendingRequests);
 	}
