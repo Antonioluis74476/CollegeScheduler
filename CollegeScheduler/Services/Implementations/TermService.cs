@@ -39,9 +39,16 @@ namespace CollegeScheduler.Services.Implementations
         public async Task<bool> CreateAsync(int academicYearId, TermCreateDto dto)
         {
             var response = await _httpClient.PostAsJsonAsync(
-                $"api/v1/admin/academic-years/{academicYearId}/terms", dto);
+                $"api/v1/admin/academic-years/{academicYearId}/terms",
+                dto);
 
-            return response.IsSuccessStatusCode;
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                throw new Exception(error);
+            }
+
+            return true;
         }
 
         public async Task<bool> UpdateAsync(int termId, TermUpdateDto dto)

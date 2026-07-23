@@ -65,14 +65,23 @@
     {
         errorMessage = null;
 
-        var success = await TermService.CreateAsync(AcademicYearId, model);
-
-        if (success)
+        try
         {
-            Navigation.NavigateTo($"/admin/academic-years/{AcademicYearId}/terms");
-            return;
-        }
+            var success = await TermService.CreateAsync(AcademicYearId, model);
 
-        errorMessage = "Failed to create term.";
+            if (success)
+            {
+                Navigation.NavigateTo(
+                    $"/admin/academic-years/{AcademicYearId}/terms");
+
+                return;
+            }
+
+            errorMessage = "Failed to create term.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
     }
 }

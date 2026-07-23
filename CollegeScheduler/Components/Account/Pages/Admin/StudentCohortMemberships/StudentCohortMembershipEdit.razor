@@ -1,0 +1,207 @@
+﻿@page "/admin/student-cohort-memberships/edit/{StudentId:int}/{CohortId:int}/{AcademicYearId:int}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Authorization
+@using CollegeScheduler.DTOs.Membership
+@using CollegeScheduler.Services.Interfaces
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Profiles
+
+
+@inject IStudentCohortMembershipService MembershipService
+@inject NavigationManager Navigation
+@inject IAdminUserService AdminUserService
+@inject ICohortService CohortService
+@inject IAcademicYearService AcademicYearService
+
+<h3>Edit Student Cohort Membership</h3>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (isLoading)
+{
+    <p>Loading membership...</p>
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label class="form-label">Student</label>
+            <input class="form-control"
+                   value="@(student is null
+                                  ? $"Student {StudentId}"
+                                  : $"{student.StudentNumber} - {student.Name} {student.LastName}")"
+               disabled />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Cohort</label>
+            <input class="form-control"
+                   value="@(cohort is null
+                              ? $"Cohort {CohortId}"
+                              : $"{cohort.Code} - {cohort.Name}")"
+               disabled />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Academic Year</label>
+            <input class="form-control"
+                   value="@(academicYear?.Label
+                              ?? $"Year {AcademicYearId}")"
+               disabled />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Membership Type</label>
+            <InputSelect class="form-select"
+                         @bind-Value="model.MembershipType">
+                <option value="">Select a membership type</option>
+                <option value="Primary">Primary</option>
+                <option value="RepeatYear">Repeat Year</option>
+                <option value="Visiting">Visiting</option>
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Start Date</label>
+            <InputDate class="form-control"
+                       @bind-Value="model.StartDate" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">End Date</label>
+            <InputDate class="form-control"
+                       @bind-Value="model.EndDate" />
+        </div>
+
+        <button class="btn btn-primary"
+                type="submit"
+                disabled="@isSaving">
+            @(isSaving ? "Saving..." : "Save Changes")
+        </button>
+
+        <a class="btn btn-secondary ms-2"
+           href="/admin/student-cohort-memberships">
+            Cancel
+        </a>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int StudentId { get; set; }
+
+    [Parameter]
+    public int CohortId { get; set; }
+
+    [Parameter]
+    public int AcademicYearId { get; set; }
+
+    private StudentCohortMembershipUpdateDto model = new();
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? errorMessage;
+
+    private StudentDto? student;
+    private CohortDto? cohort;
+    private AcademicYearDto? academicYear;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            var membership = await MembershipService.GetAsync(
+                StudentId,
+                CohortId,
+                AcademicYearId);
+
+            student = (await AdminUserService.GetStudentsAsync())
+                .FirstOrDefault(x => x.StudentId == StudentId);
+
+            cohort = await CohortService.GetByIdAsync(CohortId);
+
+            academicYear = await AcademicYearService.GetByIdAsync(
+                AcademicYearId);
+
+            if (membership is null)
+            {
+                errorMessage = "Membership not found.";
+                return;
+            }
+
+            model = new StudentCohortMembershipUpdateDto
+            {
+                MembershipType = membership.MembershipType,
+                StartDate = membership.StartDate,
+                EndDate = membership.EndDate
+            };
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+
+
+
+    }
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(model.MembershipType))
+        {
+            errorMessage = "Please select a membership type.";
+            return;
+        }
+
+        if (model.StartDate.HasValue &&
+            model.EndDate.HasValue &&
+            model.EndDate < model.StartDate)
+        {
+            errorMessage =
+                "The end date cannot be earlier than the start date.";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+
+            var success = await MembershipService.UpdateAsync(
+                StudentId,
+                CohortId,
+                AcademicYearId,
+                model);
+
+            if (!success)
+            {
+                errorMessage =
+                    "The membership could not be updated.";
+                return;
+            }
+
+            Navigation.NavigateTo(
+                "/admin/student-cohort-memberships");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}
