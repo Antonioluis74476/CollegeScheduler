@@ -1,0 +1,261 @@
+﻿@page "/admin/module-lecturers/create"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Profiles
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IModuleLecturerService ModuleLecturerService
+@inject IModuleService ModuleService
+@inject IAdminUserService AdminUserService
+@inject IAcademicYearService AcademicYearService
+@inject ITermService TermService
+@inject NavigationManager Navigation
+
+<PageTitle>Assign Lecturer</PageTitle>
+
+<h1>Assign Lecturer to Module</h1>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+
+@if (isLoading)
+{
+    <p>Loading form...</p>
+}
+else
+{
+    <EditForm Model="model"
+              OnValidSubmit="CreateAssignmentAsync">
+
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label class="form-label">Module</label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="model.ModuleId">
+                <option value="0">-- Select Module --</option>
+
+                @foreach (var module in modules)
+                {
+                    <option value="@module.ModuleId">
+                        @module.Code - @module.Title
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Lecturer</label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="model.LecturerId">
+                <option value="0">-- Select Lecturer --</option>
+
+                @foreach (var lecturer in lecturers)
+                {
+                    <option value="@lecturer.LecturerId">
+                        @lecturer.Name @lecturer.LastName
+                        (@lecturer.StaffNumber)
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Academic Year</label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="selectedAcademicYearId"
+                         @bind-Value:after="LoadTermsAsync">
+                <option value="0">-- Select Academic Year --</option>
+
+                @foreach (var academicYear in academicYears)
+                {
+                    <option value="@academicYear.AcademicYearId">
+                        @academicYear.Label
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Term</label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="model.TermId"
+                         disabled="@(selectedAcademicYearId == 0)">
+                <option value="0">-- Select Term --</option>
+
+                @foreach (var term in terms)
+                {
+                    <option value="@term.TermId">
+                        @term.Name
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Role</label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="model.Role">
+                <option value="Lead">Lead</option>
+                <option value="Assistant">Assistant</option>
+                <option value="Substitute">Substitute</option>
+            </InputSelect>
+        </div>
+
+        <button class="btn btn-primary"
+                type="submit"
+                disabled="@isSaving">
+            @(isSaving ? "Saving..." : "Create Assignment")
+        </button>
+
+        <button class="btn btn-secondary ms-2"
+                type="button"
+                @onclick="Cancel">
+            Cancel
+        </button>
+    </EditForm>
+}
+
+@code {
+    private ModuleLecturerCreateDto model = new()
+    {
+        Role = "Lead"
+    };
+
+    private List<ModuleDto> modules = [];
+    private List<LecturerDto> lecturers = [];
+    private List<AcademicYearDto> academicYears = [];
+    private List<TermDto> terms = [];
+
+    private int selectedAcademicYearId;
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var moduleResult =
+                await ModuleService.GetAllAsync(
+                    page: 1,
+                    pageSize: 100);
+
+            modules =
+                moduleResult?.Items?.ToList() ?? [];
+
+            lecturers =
+                await AdminUserService.GetLecturersAsync();
+
+            var academicYearResult =
+                await AcademicYearService.GetAllAsync(
+                    page: 1,
+                    pageSize: 100);
+
+            academicYears =
+                academicYearResult?.Items?.ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadTermsAsync()
+    {
+        model.TermId = 0;
+        terms = [];
+
+        if (selectedAcademicYearId == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var result =
+                await TermService.GetByAcademicYearAsync(
+                    selectedAcademicYearId,
+                    page: 1,
+                    pageSize: 100);
+
+            terms = result?.Items?.ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private async Task CreateAssignmentAsync()
+    {
+        errorMessage = null;
+
+        if (model.ModuleId == 0)
+        {
+            errorMessage = "Please select a module.";
+            return;
+        }
+
+        if (model.LecturerId == 0)
+        {
+            errorMessage = "Please select a lecturer.";
+            return;
+        }
+
+        if (model.TermId == 0)
+        {
+            errorMessage = "Please select a term.";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+
+            var created =
+                await ModuleLecturerService.CreateAsync(model);
+
+            if (!created)
+            {
+                errorMessage =
+                    "The assignment could not be created.";
+                return;
+            }
+
+            Navigation.NavigateTo(
+                "/admin/module-lecturers");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo(
+            "/admin/module-lecturers");
+    }
+}
