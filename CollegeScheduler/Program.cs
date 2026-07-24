@@ -142,6 +142,18 @@ builder.Services.AddHttpClient<
 .AddHttpMessageHandler<
     CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// TimetableEvent API client
+
+builder.Services.AddHttpClient<
+    ITimetableEventService,
+    TimetableEventService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
 // Student Cohort Membership API client
 builder.Services.AddHttpClient<
     IStudentCohortMembershipService,

@@ -1,0 +1,168 @@
+﻿@page "/admin/timetable-events/details/{Id:long}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject ITimetableEventService TimetableEventService
+@inject NavigationManager Navigation
+
+@inject IModuleService ModuleService
+@inject ITermService TermService
+@inject IRoomService RoomService
+
+<PageTitle>Timetable Event Details</PageTitle>
+
+<h1>Timetable Event Details</h1>
+
+@if (isLoading)
+{
+    <p>Loading event...</p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+else if (item is null)
+{
+    <div class="alert alert-warning">
+        Timetable event not found.
+    </div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            Event Information
+        </div>
+
+        <div class="card-body p-0">
+            <table class="table table-bordered mb-0">
+                <tbody>
+                    <tr>
+                        <th style="width: 25%;">Event ID</th>
+                        <td>@item.TimetableEventId</td>
+                    </tr>
+
+                    <tr>
+                        <th>Module</th>
+                        <td>@moduleName</td>
+                    </tr>
+
+                    <tr>
+                        <th>Term</th>
+                        <td>@termName</td>
+                    </tr>
+
+                    <tr>
+                        <th>Room</th>
+                        <td>@roomName</td>
+                    </tr>
+
+                    <tr>
+                        <th>Start</th>
+                        <td>
+                            @item.StartUtc.ToLocalTime().ToString("ddd dd MMM yyyy HH:mm")
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th>End</th>
+                        <td>
+                            @item.EndUtc.ToLocalTime().ToString("ddd dd MMM yyyy HH:mm")
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th>Session Type</th>
+                        <td>@item.SessionType</td>
+                    </tr>
+
+                    <tr>
+                        <th>Status</th>
+                        <td>
+                            @(item.EventStatusId switch
+                            {
+                                1 => "Scheduled",
+                                2 => "Cancelled",
+                                3 => "Completed",
+                                _ => "Unknown"
+                            })
+                    </td>
+                </tr>
+
+                    <tr>
+                        <th>Notes</th>
+                        <td>
+                            @(string.IsNullOrWhiteSpace(item.Notes)
+                                                    ? "None"
+                                                    : item.Notes)
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+    <button class="btn btn-secondary"
+            @onclick="Back">
+        Back
+    </button>
+}
+
+@code {
+    [Parameter]
+    public long Id { get; set; }
+
+    private TimetableEventDto? item;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private string moduleName = "";
+    private string termName = "";
+    private string roomName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            item = await TimetableEventService.GetByIdAsync(Id);
+
+            if (item is not null)
+{
+    var module = await ModuleService.GetByIdAsync(item.ModuleId);
+    moduleName = module is null
+        ? "Unknown module"
+        : $"{module.Code} - {module.Title}";
+
+    var term = await TermService.GetByIdAsync(item.TermId);
+    termName = term is null
+        ? "Unknown term"
+        : term.Name;
+
+    var room = await RoomService.GetByIdAsync(item.RoomId);
+    roomName = room is null
+        ? "Unknown room"
+        : $"{room.Code} - {room.Name}";
+}
+
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load timetable event: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void Back()
+    {
+        Navigation.NavigateTo("/admin/timetable-events");
+    }
+}
