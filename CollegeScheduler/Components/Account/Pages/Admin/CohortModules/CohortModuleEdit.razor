@@ -77,7 +77,8 @@ else
             {
                 ModuleId = existing.ModuleId,
                 TermId = existing.TermId,
-                IsRequired = existing.IsRequired
+                IsRequired = existing.IsRequired,
+                IsActive = existing.IsActive
             };
 
             var moduleResult = await ModuleService.GetAllAsync();

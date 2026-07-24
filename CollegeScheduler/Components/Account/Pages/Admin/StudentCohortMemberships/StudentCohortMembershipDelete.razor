@@ -1,0 +1,173 @@
+﻿@page "/admin/student-cohort-memberships/delete/{StudentId:int}/{CohortId:int}/{AcademicYearId:int}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Authorization
+@using CollegeScheduler.DTOs.Membership
+@using CollegeScheduler.Services.Interfaces
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Profiles
+
+
+@inject IStudentCohortMembershipService MembershipService
+@inject NavigationManager Navigation
+@inject IAdminUserService AdminUserService
+@inject ICohortService CohortService
+@inject IAcademicYearService AcademicYearService
+
+<h3>Delete Student Cohort Membership</h3>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (isLoading)
+{
+    <p>Loading membership...</p>
+}
+else if (membership is null)
+{
+    <div class="alert alert-warning">
+        Membership not found.
+    </div>
+
+    <a class="btn btn-secondary"
+       href="/admin/student-cohort-memberships">
+        Back
+    </a>
+}
+else
+{
+    <div class="alert alert-warning">
+        Are you sure you want to delete this membership?
+    </div>
+
+    <dl class="row">
+        <dt class="col-sm-3">Student</dt>
+        <dd class="col-sm-9">
+            @(student is null
+                    ? $"Student {StudentId}"
+                    : $"{student.StudentNumber} - {student.Name} {student.LastName}")
+                                                                                 </dd>
+
+        <dt class="col-sm-3">Cohort</dt>
+        <dd class="col-sm-9">
+            @(cohort is null
+                    ? $"Cohort {CohortId}"
+                    : $"{cohort.Code} - {cohort.Name}")
+                                                   </dd>
+
+        <dt class="col-sm-3">Academic Year</dt>
+        <dd class="col-sm-9">
+            @(academicYear?.Label
+                    ?? $"Year {AcademicYearId}")
+        </dd>
+
+        <dt class="col-sm-3">Membership Type</dt>
+        <dd class="col-sm-9">@membership.MembershipType</dd>
+
+        <dt class="col-sm-3">Start Date</dt>
+        <dd class="col-sm-9">
+            @(membership.StartDate?.ToString("dd/MM/yyyy") ?? "-")
+        </dd>
+
+        <dt class="col-sm-3">End Date</dt>
+        <dd class="col-sm-9">
+            @(membership.EndDate?.ToString("dd/MM/yyyy") ?? "-")
+        </dd>
+    </dl>
+
+    <button class="btn btn-danger"
+            @onclick="DeleteMembershipAsync"
+            disabled="@isDeleting">
+        @(isDeleting ? "Deleting..." : "Delete")
+    </button>
+
+    <a class="btn btn-secondary ms-2"
+       href="/admin/student-cohort-memberships">
+        Cancel
+    </a>
+}
+
+@code {
+    [Parameter]
+    public int StudentId { get; set; }
+
+    [Parameter]
+    public int CohortId { get; set; }
+
+    [Parameter]
+    public int AcademicYearId { get; set; }
+
+    private StudentCohortMembershipDto? membership;
+
+    private bool isLoading = true;
+    private bool isDeleting;
+    private string? errorMessage;
+
+    private StudentDto? student;
+    private CohortDto? cohort;
+    private AcademicYearDto? academicYear;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            membership = await MembershipService.GetAsync(
+                StudentId,
+                CohortId,
+                AcademicYearId);
+
+            student = (await AdminUserService.GetStudentsAsync())
+                .FirstOrDefault(x => x.StudentId == StudentId);
+
+            cohort = await CohortService.GetByIdAsync(CohortId);
+
+            academicYear = await AcademicYearService.GetByIdAsync(
+                AcademicYearId);
+
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DeleteMembershipAsync()
+    {
+        errorMessage = null;
+
+        try
+        {
+            isDeleting = true;
+
+            var success = await MembershipService.DeleteAsync(
+                StudentId,
+                CohortId,
+                AcademicYearId);
+
+            if (!success)
+            {
+                errorMessage =
+                    "The membership could not be deleted.";
+                return;
+            }
+
+            Navigation.NavigateTo(
+                "/admin/student-cohort-memberships");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+}

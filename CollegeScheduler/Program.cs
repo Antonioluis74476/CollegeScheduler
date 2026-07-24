@@ -131,6 +131,16 @@ builder.Services.AddHttpClient<ICohortModuleService, CohortModuleService>(client
 })
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// Student Cohort Membership API client
+builder.Services.AddHttpClient<
+    IStudentCohortMembershipService,
+    StudentCohortMembershipService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<ForwardAuthCookieHandler>();
+
 // Admin user API client
 builder.Services.AddHttpClient<IAdminUserService, AdminUserService>(client =>
 {
