@@ -50,5 +50,14 @@ namespace CollegeScheduler.Services.Implementations
 
             return response.IsSuccessStatusCode;
         }
+
+        public async Task<CollegeScheduler.DTOs.Common.PagedResult<CohortDto>?> GetAllAsync(
+            int page = 1,
+            int pageSize = 100)
+        {
+            return await _httpClient.GetFromJsonAsync<
+                CollegeScheduler.DTOs.Common.PagedResult<CohortDto>>(
+                $"api/v1/admin/cohorts?page={page}&pageSize={pageSize}");
+        }
     }
 }

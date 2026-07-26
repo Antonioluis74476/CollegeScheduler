@@ -15,6 +15,8 @@ using CollegeScheduler.Messaging;
 using MassTransit;
 
 
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // API clients // FrontEnd
@@ -154,6 +156,17 @@ builder.Services.AddHttpClient<
     })
 .AddHttpMessageHandler<
     CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// EventCohort API client
+builder.Services.AddHttpClient<
+    IEventCohortService,
+    EventCohortService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+    .AddHttpMessageHandler<
+        CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
 // Student Cohort Membership API client
 builder.Services.AddHttpClient<

@@ -64,6 +64,7 @@ public sealed class TimetableEventController : ControllerBase
 				CreatedByUserId = x.CreatedByUserId,
 				CreatedAtUtc = x.CreatedAtUtc,
 				UpdatedAtUtc = x.UpdatedAtUtc
+
 			})
 			.ToListAsync();
 
@@ -97,6 +98,7 @@ public sealed class TimetableEventController : ControllerBase
 				CreatedByUserId = x.CreatedByUserId,
 				CreatedAtUtc = x.CreatedAtUtc,
 				UpdatedAtUtc = x.UpdatedAtUtc
+
 			})
 			.FirstOrDefaultAsync();
 

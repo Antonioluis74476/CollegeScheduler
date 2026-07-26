@@ -6,12 +6,17 @@
 @using CollegeScheduler.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 
+@using CollegeScheduler.DTOs.Academic
+
 @inject ITimetableEventService TimetableEventService
 @inject NavigationManager Navigation
 
 @inject IModuleService ModuleService
 @inject ITermService TermService
 @inject IRoomService RoomService
+
+@inject IEventCohortService EventCohortService
+@inject ICohortService CohortService
 
 <PageTitle>Timetable Event Details</PageTitle>
 
@@ -108,6 +113,78 @@ else
     </div>
 </div>
 
+
+    <hr class="my-4" />
+
+    <h4>Assigned Cohorts</h4>
+
+@if (!string.IsNullOrWhiteSpace(cohortMessage))
+    {
+        <div class="alert alert-info">
+            @cohortMessage
+        </div>
+    }
+
+    @if (assignedCohorts.Count == 0)
+    {
+        <p class="text-muted">No cohorts are assigned to this event.</p>
+    }
+    else
+    {
+        <table class="table table-bordered align-middle">
+            <thead>
+                <tr>
+                    <th>Cohort</th>
+                    <th style="width: 140px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var assignment in assignedCohorts)
+                {
+                    <tr>
+                        <td>
+                            @GetCohortDisplayName(assignment.CohortId)
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger"
+                                    @onclick="() => RemoveCohortAsync(assignment.CohortId)">
+                                Remove
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h5 class="mt-4">Assign Cohort</h5>
+
+    <div class="row g-2 align-items-end">
+        <div class="col-md-8">
+            <label class="form-label">Cohort</label>
+
+            <select class="form-select"
+                    @bind="selectedCohortId">
+                <option value="0">-- Select cohort --</option>
+
+                @foreach (var cohort in GetAvailableCohorts())
+                {
+                    <option value="@cohort.CohortId">
+                        @cohort.Code - @cohort.Name
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <button class="btn btn-primary"
+                    disabled="@isSavingCohort"
+                    @onclick="AssignCohortAsync">
+                @(isSavingCohort ? "Assigning..." : "Assign Cohort")
+            </button>
+        </div>
+    </div>
+
     <button class="btn btn-secondary"
             @onclick="Back">
         Back
@@ -126,6 +203,15 @@ else
     private string termName = "";
     private string roomName = "";
 
+    private List<CohortDto> allCohorts = new();
+    private List<EventCohortDto> assignedCohorts = new();
+
+    private int selectedCohortId;
+    private string? cohortMessage;
+    private bool isSavingCohort;
+
+
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -133,22 +219,41 @@ else
             item = await TimetableEventService.GetByIdAsync(Id);
 
             if (item is not null)
-{
-    var module = await ModuleService.GetByIdAsync(item.ModuleId);
-    moduleName = module is null
-        ? "Unknown module"
-        : $"{module.Code} - {module.Title}";
+    {
+        var module = await ModuleService.GetByIdAsync(item.ModuleId);
+        moduleName = module is null
+            ? "Unknown module"
+            : $"{module.Code} - {module.Title}";
 
-    var term = await TermService.GetByIdAsync(item.TermId);
-    termName = term is null
-        ? "Unknown term"
-        : term.Name;
+        var term = await TermService.GetByIdAsync(item.TermId);
+        termName = term is null
+            ? "Unknown term"
+            : term.Name;
 
-    var room = await RoomService.GetByIdAsync(item.RoomId);
-    roomName = room is null
-        ? "Unknown room"
-        : $"{room.Code} - {room.Name}";
-}
+        var room = await RoomService.GetByIdAsync(item.RoomId);
+        roomName = room is null
+            ? "Unknown room"
+            : $"{room.Code} - {room.Name}";
+
+                var cohortsResult = await CohortService.GetAllAsync(
+            page: 1,
+            pageSize: 100);
+
+                allCohorts = cohortsResult?.Items?
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.Code)
+                    .ToList()
+                    ?? new List<CohortDto>();
+
+                var assignedResult = await EventCohortService.GetAllAsync(
+                    timetableEventId: item.TimetableEventId,
+                    page: 1,
+                    pageSize: 100);
+
+                assignedCohorts = assignedResult?.Items?.ToList()
+                    ?? new List<EventCohortDto>();
+
+    }
 
         }
         catch (Exception ex)
@@ -161,8 +266,84 @@ else
         }
     }
 
+    private string GetCohortDisplayName(int cohortId)
+    {
+        var cohort = allCohorts
+            .FirstOrDefault(c => c.CohortId == cohortId);
+
+        return cohort is null
+            ? $"Cohort {cohortId}"
+            : $"{cohort.Code} - {cohort.Name}";
+    }
+
+    private List<CohortDto> GetAvailableCohorts()
+    {
+        var assignedIds = assignedCohorts
+            .Select(x => x.CohortId)
+            .ToHashSet();
+
+        return allCohorts
+            .Where(c => !assignedIds.Contains(c.CohortId))
+            .OrderBy(c => c.Code)
+            .ToList();
+    }
+
     private void Back()
     {
         Navigation.NavigateTo("/admin/timetable-events");
     }
+
+    private async Task AssignCohortAsync()
+    {
+        cohortMessage = null;
+
+        if (selectedCohortId <= 0 || item is null)
+        {
+            cohortMessage = "Please select a cohort.";
+            return;
+        }
+
+        isSavingCohort = true;
+
+        var created = await EventCohortService.CreateAsync(
+            new EventCohortCreateDto
+            {
+                TimetableEventId = item.TimetableEventId,
+                CohortId = selectedCohortId
+            });
+
+        if (created is null)
+        {
+            cohortMessage = "The cohort could not be assigned.";
+            isSavingCohort = false;
+            return;
+        }
+
+        assignedCohorts.Add(created);
+        selectedCohortId = 0;
+        cohortMessage = "Cohort assigned successfully.";
+        isSavingCohort = false;
+    }
+
+    private async Task RemoveCohortAsync(int cohortId)
+    {
+        cohortMessage = null;
+
+        if (item is null)
+            return;
+
+        var deleted = await EventCohortService.DeleteAsync(
+            item.TimetableEventId,
+            cohortId);
+
+        if (!deleted)
+        {
+            cohortMessage = "The cohort could not be removed.";
+            return;
+        }
+
+        assignedCohorts.RemoveAll(x => x.CohortId == cohortId);
+        cohortMessage = "Cohort removed successfully.";
+    }
+
 }

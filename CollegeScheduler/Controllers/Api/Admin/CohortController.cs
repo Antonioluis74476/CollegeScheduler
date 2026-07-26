@@ -20,8 +20,50 @@ public sealed class CohortController : ControllerBase
 		_db = db;
 	}
 
-	// LIST cohorts for a program (nested)
-	[HttpGet("api/v1/admin/programs/{programId:int}/cohorts")]
+    // LIST (paged)
+
+    [HttpGet("api/v1/admin/cohorts")]
+    public async Task<ActionResult<PagedResult<CohortDto>>> GetAll(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 100)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 20;
+        if (pageSize > 100) pageSize = 100;
+
+        var query = _db.Set<Cohort>()
+            .AsNoTracking()
+            .OrderBy(c => c.Code);
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(c => new CohortDto
+            {
+                CohortId = c.CohortId,
+                ProgramId = c.ProgramId,
+                AcademicYearId = c.AcademicYearId,
+                YearOfStudy = c.YearOfStudy,
+                Code = c.Code,
+                Name = c.Name,
+                ExpectedSize = c.ExpectedSize,
+                IsActive = c.IsActive
+            })
+            .ToListAsync();
+
+        return Ok(new PagedResult<CohortDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
+    }
+
+    // LIST cohorts for a program (nested)
+    [HttpGet("api/v1/admin/programs/{programId:int}/cohorts")]
 	public async Task<ActionResult<PagedResult<CohortDto>>> GetForProgram(
 		int programId,
 		[FromQuery] CohortQuery q)
