@@ -14,6 +14,7 @@ using CollegeScheduler.Hubs;
 using CollegeScheduler.Messaging;
 using MassTransit;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // API clients // FrontEnd
@@ -158,6 +159,16 @@ builder.Services.AddHttpClient<
 builder.Services.AddHttpClient<
     IStudentCohortMembershipService,
     StudentCohortMembershipService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<ForwardAuthCookieHandler>();
+
+// Student Module Enrollment API client
+builder.Services.AddHttpClient<
+    IStudentModuleEnrollmentService,
+    StudentModuleEnrollmentService>(client =>
     {
         client.BaseAddress = new Uri(
             builder.Configuration["ApiBaseUrl"]!);
