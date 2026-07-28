@@ -25,7 +25,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Components\Account\Pages\Admin\Facilities\" />
     <Folder Include="logs\" />
   </ItemGroup>
 

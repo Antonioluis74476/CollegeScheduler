@@ -139,10 +139,17 @@ namespace CollegeScheduler.Services.Implementations
             );
         }
 
-        public async Task<PagedResult<ProgramDto>?> GetProgramsAsync()
+        public async Task<PagedResult<DepartmentDto>?> GetDepartmentsAsync()
+        {
+            return await _httpClient.GetFromJsonAsync<PagedResult<DepartmentDto>>(
+                "api/v1/admin/departments?page=1&pageSize=100"
+            );
+        }
+
+        public async Task<PagedResult<ProgramDto>?> GetProgramsByDepartmentAsync(int departmentId)
         {
             return await _httpClient.GetFromJsonAsync<PagedResult<ProgramDto>>(
-                "api/v1/admin/departments/1/programs?page=1&pageSize=100"
+                $"api/v1/admin/departments/{departmentId}/programs?page=1&pageSize=100"
             );
         }
 
@@ -197,5 +204,23 @@ namespace CollegeScheduler.Services.Implementations
             return await response.Content
                 .ReadFromJsonAsync<DecisionResultDto>();
         }
+
+        public async Task<PagedResult<CollegeScheduler.DTOs.Facilities.CampusDto>?> GetCampusesAsync()
+        {
+            return await _httpClient.GetFromJsonAsync<
+                PagedResult<CollegeScheduler.DTOs.Facilities.CampusDto>>(
+                "api/v1/admin/campuses?page=1&pageSize=100"
+            );
+        }
+
+        public async Task<PagedResult<CollegeScheduler.DTOs.Facilities.BuildingDto>?> GetBuildingsByCampusAsync(
+            int campusId)
+        {
+            return await _httpClient.GetFromJsonAsync<
+                PagedResult<CollegeScheduler.DTOs.Facilities.BuildingDto>>(
+                $"api/v1/admin/campuses/{campusId}/buildings?page=1&pageSize=100"
+            );
+        }
+
     }
 }

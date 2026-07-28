@@ -18,6 +18,8 @@
 @inject ITermService TermService
 @inject IRoomService RoomService
 
+@inject ICampusService CampusService
+
 @inject IBuildingService BuildingService
 
 <PageTitle>Timetable Events</PageTitle>
@@ -96,7 +98,7 @@ else
                                  @bind-Value="selectedRoomId">
                         <option value="">All Rooms</option>
 
-                        @foreach (var room in roomNames)
+                        @foreach (var room in FilteredRoomOptions)
                         {
                             <option value="@room.Key">@room.Value</option>
                         }
@@ -266,28 +268,38 @@ else
 
             for (int campusId = 1; campusId <= 1; campusId++)
             {
-                var buildingResult = await BuildingService.GetByCampusAsync(
-                    campusId,
+                var campusResult = await CampusService.GetAllAsync(
                     page: 1,
                     pageSize: 100);
 
-                if (buildingResult is null)
-                    continue;
-
-                foreach (var building in buildingResult.Items)
+                if (campusResult is not null)
                 {
-                    var roomResult = await RoomService.GetByBuildingAsync(
-                        building.BuildingId,
-                        page: 1,
-                        pageSize: 100);
-
-                    if (roomResult is null)
-                        continue;
-
-                    foreach (var room in roomResult.Items)
+                    foreach (var campus in campusResult.Items)
                     {
-                        roomNames[room.RoomId] =
-                            $"{room.Code} - {room.Name}";
+                        var buildingResult = await BuildingService.GetByCampusAsync(
+                            campus.CampusId,
+                            page: 1,
+                            pageSize: 100);
+
+                        if (buildingResult is null)
+                            continue;
+
+                        foreach (var building in buildingResult.Items)
+                        {
+                            var roomResult = await RoomService.GetByBuildingAsync(
+                                building.BuildingId,
+                                page: 1,
+                                pageSize: 100);
+
+                            if (roomResult is null)
+                                continue;
+
+                            foreach (var room in roomResult.Items)
+                            {
+                                roomNames[room.RoomId] =
+                                    $"{room.Code} - {room.Name}";
+                            }
+                        }
                     }
                 }
             }
@@ -366,5 +378,34 @@ else
         return roomNames.TryGetValue(roomId, out var name)
             ? name
             : $"Room {roomId}";
+    }
+
+    private IEnumerable<KeyValuePair<int, string>> FilteredRoomOptions
+    {
+        get
+        {
+            var relevantEvents = events.AsEnumerable();
+
+            if (selectedModuleId > 0)
+            {
+                relevantEvents = relevantEvents
+                    .Where(e => e.ModuleId == selectedModuleId);
+            }
+
+            if (selectedTermId > 0)
+            {
+                relevantEvents = relevantEvents
+                    .Where(e => e.TermId == selectedTermId);
+            }
+
+            var relevantRoomIds = relevantEvents
+                .Select(e => e.RoomId)
+                .Distinct()
+                .ToHashSet();
+
+            return roomNames
+                .Where(r => relevantRoomIds.Contains(r.Key))
+                .OrderBy(r => r.Value);
+        }
     }
 }
