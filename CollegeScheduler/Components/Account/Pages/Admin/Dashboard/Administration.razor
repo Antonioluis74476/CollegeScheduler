@@ -1,0 +1,48 @@
+﻿@page "/admin/administration"
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Administration</PageTitle>
+
+<div class="container-fluid py-4">
+
+    <div class="mb-4">
+        <h1 class="h3 mb-1">Administration</h1>
+        <p class="text-muted mb-0">
+            Access system administration and monitoring tools.
+        </p>
+    </div>
+
+    <div class="row g-4">
+
+        <div class="col-12 col-md-6 col-xl-4">
+            <NavLink href="/admin/audit-logs"
+                     class="text-decoration-none">
+                <div class="card h-100 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <div class="fs-2 mb-3">📋</div>
+                        <h2 class="h5">Audit Logs</h2>
+                        <p class="text-muted mb-0">
+                            View the history of changes performed throughout the system.
+                        </p>
+                    </div>
+                </div>
+            </NavLink>
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+    .dashboard-card {
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        color: inherit;
+    }
+
+        .dashboard-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important;
+        }
+</style>
