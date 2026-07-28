@@ -45,6 +45,7 @@ public sealed class SchedulingService : ISchedulingService
 				e.RoomId == roomId &&
 				e.StartUtc < endUtc &&
 				e.EndUtc > startUtc &&
+				e.EventStatus.Name != "Cancelled" &&
 				(!excludeEventId.HasValue || e.TimetableEventId != excludeEventId.Value))
 			.Select(e => new
 			{
@@ -93,6 +94,7 @@ public sealed class SchedulingService : ISchedulingService
 					cohortIdList.Contains(ec.CohortId) &&
 					ec.TimetableEvent.StartUtc < endUtc &&
 					ec.TimetableEvent.EndUtc > startUtc &&
+					ec.TimetableEvent.EventStatus.Name != "Cancelled" &&
 					(!excludeEventId.HasValue || ec.TimetableEventId != excludeEventId.Value))
 				.Select(ec => new
 				{
@@ -121,6 +123,7 @@ public sealed class SchedulingService : ISchedulingService
 					lecturerIdList.Contains(el.LecturerId) &&
 					el.TimetableEvent.StartUtc < endUtc &&
 					el.TimetableEvent.EndUtc > startUtc &&
+					el.TimetableEvent.EventStatus.Name != "Cancelled" &&
 					(!excludeEventId.HasValue || el.TimetableEventId != excludeEventId.Value))
 				.Select(el => new
 				{
@@ -197,10 +200,11 @@ public sealed class SchedulingService : ISchedulingService
 			.ToListAsync();
 
 		var bookedRoomIds = await _db.TimetableEvents
-			.AsNoTracking()
-			.Where(e =>
+	       .AsNoTracking()
+	       .Where(e =>
 				e.StartUtc < query.EndUtc &&
-				e.EndUtc > query.StartUtc)
+				e.EndUtc > query.StartUtc &&
+				e.EventStatus.Name != "Cancelled")
 			.Select(e => e.RoomId)
 			.Distinct()
 			.ToListAsync();
@@ -309,4 +313,209 @@ public sealed class SchedulingService : ISchedulingService
 
 		return events;
 	}
+	public async Task<List<TimetableEvent>> GetRecurringEventSeriesAsync(Guid recurrenceGroupId)
+	{
+		return await _db.TimetableEvents
+			.AsNoTracking()
+			.Where(te => te.RecurrenceGroupId == recurrenceGroupId)
+			.OrderBy(te => te.StartUtc)
+			.ToListAsync();
+	}
+
+	public async Task<RecurringEventUpdateResultDto> UpdateRecurringEventsAsync(
+		Guid recurrenceGroupId, UpdateRecurringEventDto dto, string updatedByUserId)
+	{
+		var events = await _db.TimetableEvents
+			.Include(te => te.EventCohorts)
+			.Include(te => te.EventLecturers)
+			.Where(te => te.RecurrenceGroupId == recurrenceGroupId)
+			.OrderBy(te => te.StartUtc)
+			.ToListAsync();
+
+		if (events.Count == 0)
+			throw new ArgumentException($"No recurring events found for group {recurrenceGroupId}.");
+
+		List<TimetableEvent> targetEvents = dto.Scope switch
+		{
+			RecurringEventUpdateScope.All => events,
+
+			RecurringEventUpdateScope.ThisOnly =>
+				events.Where(e => e.TimetableEventId == dto.AnchorEventId).ToList(),
+
+			RecurringEventUpdateScope.ThisAndFollowing =>
+				events.Where(e => e.StartUtc >= (events.FirstOrDefault(a => a.TimetableEventId == dto.AnchorEventId)
+					?? throw new ArgumentException($"AnchorEventId {dto.AnchorEventId} not found in this recurrence group.")).StartUtc)
+					.ToList(),
+
+			_ => throw new ArgumentException("Unknown scope.")
+		};
+
+		if (targetEvents.Count == 0)
+			throw new ArgumentException($"AnchorEventId {dto.AnchorEventId} not found in this recurrence group.");
+
+		var proposedTimes = new Dictionary<long, (DateTime NewStart, DateTime NewEnd)>();
+		foreach (var ev in targetEvents)
+		{
+			var newStart = ev.StartUtc;
+			var newEnd = ev.EndUtc;
+
+			if (dto.NewStartTime.HasValue && dto.NewEndTime.HasValue)
+			{
+				var date = DateOnly.FromDateTime(ev.StartUtc);
+				newStart = date.ToDateTime(TimeOnly.FromTimeSpan(dto.NewStartTime.Value));
+				newEnd = date.ToDateTime(TimeOnly.FromTimeSpan(dto.NewEndTime.Value));
+			}
+
+			proposedTimes[ev.TimetableEventId] = (newStart, newEnd);
+		}
+
+		var clashes = new List<OccurrenceClashDto>();
+		foreach (var ev in targetEvents)
+		{
+			var (newStart, newEnd) = proposedTimes[ev.TimetableEventId];
+			var cohortIdsForCheck = dto.CohortIds ?? ev.EventCohorts.Select(ec => ec.CohortId).ToList();
+			var lecturerIdsForCheck = dto.LecturerIds ?? ev.EventLecturers.Select(el => el.LecturerId).ToList();
+
+			var clashResult = await CheckClashesAsync(
+				excludeEventId: ev.TimetableEventId,
+				roomId: dto.RoomId ?? ev.RoomId,
+				startUtc: newStart,
+				endUtc: newEnd,
+				cohortIds: cohortIdsForCheck,
+				lecturerIds: lecturerIdsForCheck);
+
+			if (clashResult.HasClash)
+				clashes.Add(new OccurrenceClashDto { TimetableEventId = ev.TimetableEventId, Clash = clashResult });
+		}
+
+		if (clashes.Count > 0)
+		{
+			return new RecurringEventUpdateResultDto
+			{
+				Success = false,
+				UpdatedCount = 0,
+				EventIds = new List<long>(),
+				Clashes = clashes
+			};
+		}
+
+		foreach (var ev in targetEvents)
+		{
+			var (newStart, newEnd) = proposedTimes[ev.TimetableEventId];
+			var oldRoomId = ev.RoomId;
+			var oldStartUtc = ev.StartUtc;
+			var oldEndUtc = ev.EndUtc;
+
+			if (dto.RoomId.HasValue) ev.RoomId = dto.RoomId.Value;
+			ev.StartUtc = newStart;
+			ev.EndUtc = newEnd;
+			if (!string.IsNullOrWhiteSpace(dto.SessionType)) ev.SessionType = dto.SessionType;
+			if (dto.Notes is not null) ev.Notes = dto.Notes;
+			ev.UpdatedAtUtc = DateTime.UtcNow;
+
+			if (dto.CohortIds is not null)
+			{
+				_db.EventCohorts.RemoveRange(ev.EventCohorts);
+				foreach (var cohortId in dto.CohortIds.Distinct())
+					_db.EventCohorts.Add(new EventCohort { TimetableEventId = ev.TimetableEventId, CohortId = cohortId });
+			}
+
+			if (dto.LecturerIds is not null)
+			{
+				_db.EventLecturers.RemoveRange(ev.EventLecturers);
+				foreach (var lecturerId in dto.LecturerIds.Distinct())
+					_db.EventLecturers.Add(new EventLecturer { TimetableEventId = ev.TimetableEventId, LecturerId = lecturerId });
+			}
+
+			_db.TimetableEventChanges.Add(new TimetableEventChange
+			{
+				TimetableEventId = ev.TimetableEventId,
+				ChangeType = "AdminRecurringUpdate",
+				OldRoomId = oldRoomId,
+				NewRoomId = ev.RoomId,
+				OldStartUtc = oldStartUtc,
+				NewStartUtc = ev.StartUtc,
+				OldEndUtc = oldEndUtc,
+				NewEndUtc = ev.EndUtc,
+				Reason = string.IsNullOrWhiteSpace(dto.Reason) ? "Recurring series updated by admin." : dto.Reason,
+				ChangedByUserId = updatedByUserId,
+				ChangedAtUtc = DateTime.UtcNow,
+				NotificationSent = false
+			});
+		}
+
+		await _db.SaveChangesAsync();
+
+		return new RecurringEventUpdateResultDto
+		{
+			Success = true,
+			UpdatedCount = targetEvents.Count,
+			EventIds = targetEvents.Select(e => e.TimetableEventId).ToList()
+		};
+	}
+
+	public async Task<RecurringEventUpdateResultDto> CancelRecurringEventsAsync(
+		Guid recurrenceGroupId, CancelRecurringEventDto dto, string cancelledByUserId)
+	{
+		var events = await _db.TimetableEvents
+			.Where(te => te.RecurrenceGroupId == recurrenceGroupId)
+			.OrderBy(te => te.StartUtc)
+			.ToListAsync();
+
+		if (events.Count == 0)
+			throw new ArgumentException($"No recurring events found for group {recurrenceGroupId}.");
+
+		List<TimetableEvent> targetEvents = dto.Scope switch
+		{
+			RecurringEventUpdateScope.All => events,
+
+			RecurringEventUpdateScope.ThisOnly =>
+				events.Where(e => e.TimetableEventId == dto.AnchorEventId).ToList(),
+
+			RecurringEventUpdateScope.ThisAndFollowing =>
+				events.Where(e => e.StartUtc >= (events.FirstOrDefault(a => a.TimetableEventId == dto.AnchorEventId)
+					?? throw new ArgumentException($"AnchorEventId {dto.AnchorEventId} not found in this recurrence group.")).StartUtc)
+					.ToList(),
+
+			_ => throw new ArgumentException("Unknown scope.")
+		};
+
+		if (targetEvents.Count == 0)
+			throw new ArgumentException($"AnchorEventId {dto.AnchorEventId} not found in this recurrence group.");
+
+		var cancelledStatusId = await _db.EventStatuses
+			.Where(x => x.Name == "Cancelled")
+			.Select(x => x.EventStatusId)
+			.FirstOrDefaultAsync();
+
+		if (cancelledStatusId == 0)
+			throw new InvalidOperationException("EventStatus 'Cancelled' not found.");
+
+		foreach (var ev in targetEvents)
+		{
+			ev.EventStatusId = cancelledStatusId;
+			ev.UpdatedAtUtc = DateTime.UtcNow;
+
+			_db.TimetableEventChanges.Add(new TimetableEventChange
+			{
+				TimetableEventId = ev.TimetableEventId,
+				ChangeType = "AdminRecurringCancellation",
+				Reason = string.IsNullOrWhiteSpace(dto.Reason) ? "Recurring series cancelled by admin." : dto.Reason,
+				ChangedByUserId = cancelledByUserId,
+				ChangedAtUtc = DateTime.UtcNow,
+				NotificationSent = false
+			});
+		}
+
+		await _db.SaveChangesAsync();
+
+		return new RecurringEventUpdateResultDto
+		{
+			Success = true,
+			UpdatedCount = targetEvents.Count,
+			EventIds = targetEvents.Select(e => e.TimetableEventId).ToList()
+		};
+	}
+
 }
+

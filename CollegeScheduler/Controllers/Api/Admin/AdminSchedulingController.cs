@@ -158,6 +158,75 @@ public sealed class AdminSchedulingController : ControllerBase
 			return BadRequest(ex.Message);
 		}
 	}
+	[HttpGet("recurring-events/{recurrenceGroupId:guid}")]
+	public async Task<IActionResult> GetRecurringEvents(Guid recurrenceGroupId)
+	{
+		var events = await _schedulingService.GetRecurringEventSeriesAsync(recurrenceGroupId);
+
+		if (events.Count == 0)
+			return NotFound($"No recurring events found for group {recurrenceGroupId}.");
+
+		return Ok(new RecurringEventSeriesDto
+		{
+			RecurrenceGroupId = recurrenceGroupId,
+			Occurrences = events.Select(e => new TimetableEventDto
+			{
+				TimetableEventId = e.TimetableEventId,
+				TermId = e.TermId,
+				ModuleId = e.ModuleId,
+				RoomId = e.RoomId,
+				StartUtc = e.StartUtc,
+				EndUtc = e.EndUtc,
+				EventStatusId = e.EventStatusId,
+				SessionType = e.SessionType,
+				RecurrenceGroupId = e.RecurrenceGroupId,
+				Notes = e.Notes,
+				CreatedByUserId = e.CreatedByUserId,
+				CreatedAtUtc = e.CreatedAtUtc,
+				UpdatedAtUtc = e.UpdatedAtUtc
+			}).ToList()
+		});
+	}
+
+	[HttpPut("recurring-events/{recurrenceGroupId:guid}")]
+	public async Task<IActionResult> UpdateRecurringEvents(Guid recurrenceGroupId, [FromBody] UpdateRecurringEventDto dto)
+	{
+		try
+		{
+			var result = await _schedulingService.UpdateRecurringEventsAsync(recurrenceGroupId, dto, CurrentUserId);
+
+			if (!result.Success)
+				return Conflict(new
+				{
+					message = "Update cannot be applied because it creates one or more clashes.",
+					clashes = result.Clashes
+				});
+
+			return Ok(result);
+		}
+		catch (ArgumentException ex)
+		{
+			return BadRequest(ex.Message);
+		}
+	}
+
+	[HttpPatch("recurring-events/{recurrenceGroupId:guid}/cancel")]
+	public async Task<IActionResult> CancelRecurringEvents(Guid recurrenceGroupId, [FromBody] CancelRecurringEventDto dto)
+	{
+		try
+		{
+			var result = await _schedulingService.CancelRecurringEventsAsync(recurrenceGroupId, dto, CurrentUserId);
+			return Ok(result);
+		}
+		catch (ArgumentException ex)
+		{
+			return BadRequest(ex.Message);
+		}
+		catch (InvalidOperationException ex)
+		{
+			return Conflict(ex.Message);
+		}
+	}
 
 	[HttpGet("requests/pending")]
 	public async Task<IActionResult> GetPendingRequests()
