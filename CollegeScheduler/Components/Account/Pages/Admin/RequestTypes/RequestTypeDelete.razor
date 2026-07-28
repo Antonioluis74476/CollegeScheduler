@@ -1,0 +1,159 @@
+﻿@page "/admin/request-types/{Id:int}/delete"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Requests
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IRequestTypeService RequestTypeService
+@inject NavigationManager Navigation
+
+<PageTitle>Delete Request Type</PageTitle>
+
+<div class="container mt-4">
+    <h2>Delete Request Type</h2>
+
+    @if (isLoading)
+    {
+        <p>Loading request type...</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+
+        <button class="btn btn-secondary"
+                @onclick="GoBack">
+            Back
+        </button>
+    }
+    else if (requestType is not null)
+    {
+        <div class="alert alert-warning">
+            This will deactivate the request type rather than permanently
+            deleting it.
+        </div>
+
+        <table class="table table-bordered">
+            <tbody>
+                <tr>
+                    <th style="width: 220px;">Name</th>
+                    <td>@requestType.Name</td>
+                </tr>
+
+                <tr>
+                    <th>Current Status</th>
+                    <td>
+                        @if (requestType.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactive</span>
+                        }
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>
+            Are you sure you want to deactivate this request type?
+        </p>
+
+        <button class="btn btn-danger me-2"
+                @onclick="DeactivateAsync"
+                disabled="@isSaving">
+            @(isSaving ? "Deactivating..." : "Deactivate")
+        </button>
+
+        <button class="btn btn-secondary"
+                @onclick="GoBack"
+                disabled="@isSaving">
+            Cancel
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private RequestTypeDto? requestType;
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            requestType = await RequestTypeService.GetByIdAsync(Id);
+
+            if (requestType is null)
+            {
+                errorMessage = "Request type not found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load request type: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DeactivateAsync()
+    {
+        if (requestType is null)
+        {
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+
+            var updateDto = new RequestTypeUpdateDto
+            {
+                Name = requestType.Name,
+                IsActive = false
+            };
+
+            var success =
+                await RequestTypeService.UpdateAsync(Id, updateDto);
+
+            if (!success)
+            {
+                errorMessage =
+                    "The request type could not be deactivated.";
+                return;
+            }
+
+            Navigation.NavigateTo("/admin/request-types");
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to deactivate request type: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo($"/admin/request-types/{Id}");
+    }
+}

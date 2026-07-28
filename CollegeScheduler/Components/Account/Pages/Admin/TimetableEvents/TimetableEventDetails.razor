@@ -8,6 +8,9 @@
 
 @using CollegeScheduler.DTOs.Academic
 
+@using CollegeScheduler.DTOs.Profiles
+
+
 @inject ITimetableEventService TimetableEventService
 @inject NavigationManager Navigation
 
@@ -17,6 +20,9 @@
 
 @inject IEventCohortService EventCohortService
 @inject ICohortService CohortService
+@inject IEventLecturerService EventLecturerService
+@inject IAdminUserService AdminUserService
+
 
 <PageTitle>Timetable Event Details</PageTitle>
 
@@ -157,6 +163,78 @@ else
         </table>
     }
 
+    @if (!string.IsNullOrWhiteSpace(lecturerMessage))
+    {
+        <div class="alert alert-info">
+            @lecturerMessage
+        </div>
+    }
+
+    <div class="row g-2 align-items-end mb-3">
+        <div class="col-md-8">
+            <label class="form-label">Lecturer</label>
+
+            <select class="form-select" @bind="selectedLecturerId">
+                <option value="0">-- Select lecturer --</option>
+
+                @foreach (var lecturer in allLecturers)
+                {
+                    <option value="@lecturer.LecturerId">
+                        @lecturer.Name @lecturer.LastName
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <button class="btn btn-primary w-100"
+                    @onclick="AssignLecturerAsync"
+                    disabled="@isSavingLecturer">
+                Assign Lecturer
+            </button>
+        </div>
+    </div>
+
+    @if (assignedLecturers.Count == 0)
+    {
+        <p>No lecturers are assigned to this timetable event.</p>
+    }
+    else
+    {
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Lecturer</th>
+                    <th style="width: 130px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var assignment in assignedLecturers)
+                {
+                    var lecturer = allLecturers.FirstOrDefault(
+                    l => l.LecturerId == assignment.LecturerId);
+
+                    <tr>
+                        <td>
+                            @(lecturer is null
+                                            ? $"Lecturer {assignment.LecturerId}"
+                                            : $"{lecturer.Name} {lecturer.LastName}")
+            </td>
+
+                        <td>
+                            <button class="btn btn-danger btn-sm"
+                                    @onclick="() => RemoveLecturerAsync(
+                                                            assignment.LecturerId)"
+                        disabled="@isSavingLecturer">
+                    Remove
+                </button>
+            </td>
+        </tr>
+                }
+            </tbody>
+        </table>
+    }
+
     <h5 class="mt-4">Assign Cohort</h5>
 
     <div class="row g-2 align-items-end">
@@ -211,6 +289,12 @@ else
     private bool isSavingCohort;
 
 
+    private List<LecturerDto> allLecturers = new();
+    private List<EventLecturerDto> assignedLecturers = new();
+
+    private int selectedLecturerId;
+    private string? lecturerMessage;
+    private bool isSavingLecturer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -252,6 +336,20 @@ else
 
                 assignedCohorts = assignedResult?.Items?.ToList()
                     ?? new List<EventCohortDto>();
+
+                allLecturers = (await AdminUserService.GetLecturersAsync())
+                    .Where(l => l.IsActive)
+                    .OrderBy(l => l.Name)
+                    .ThenBy(l => l.LastName)
+                    .ToList();
+
+                var assignedLecturerResult =
+                    await EventLecturerService.GetAllAsync(
+                        timetableEventId: item.TimetableEventId,
+                        page: 1,
+                        pageSize: 100);
+
+                assignedLecturers = assignedLecturerResult.Items.ToList();
 
     }
 
@@ -344,6 +442,82 @@ else
 
         assignedCohorts.RemoveAll(x => x.CohortId == cohortId);
         cohortMessage = "Cohort removed successfully.";
+    }
+
+    private async Task AssignLecturerAsync()
+    {
+        lecturerMessage = null;
+
+        if (selectedLecturerId <= 0 || item is null)
+        {
+            lecturerMessage = "Please select a lecturer.";
+            return;
+        }
+
+        if (assignedLecturers.Any(
+            x => x.LecturerId == selectedLecturerId))
+        {
+            lecturerMessage =
+                "This lecturer is already assigned to the event.";
+            return;
+        }
+
+        try
+        {
+            isSavingLecturer = true;
+
+            var created = await EventLecturerService.CreateAsync(
+                new EventLecturerCreateDto
+                {
+                    TimetableEventId = item.TimetableEventId,
+                    LecturerId = selectedLecturerId
+                });
+
+            assignedLecturers.Add(created);
+
+            selectedLecturerId = 0;
+            lecturerMessage = "Lecturer assigned successfully.";
+        }
+        catch (Exception ex)
+        {
+            lecturerMessage =
+                $"The lecturer could not be assigned: {ex.Message}";
+        }
+        finally
+        {
+            isSavingLecturer = false;
+        }
+    }
+
+    private async Task RemoveLecturerAsync(int lecturerId)
+    {
+        lecturerMessage = null;
+
+        if (item is null)
+            return;
+
+        try
+        {
+            isSavingLecturer = true;
+
+            await EventLecturerService.DeleteAsync(
+                item.TimetableEventId,
+                lecturerId);
+
+            assignedLecturers.RemoveAll(
+                x => x.LecturerId == lecturerId);
+
+            lecturerMessage = "Lecturer removed successfully.";
+        }
+        catch (Exception ex)
+        {
+            lecturerMessage =
+                $"The lecturer could not be removed: {ex.Message}";
+        }
+        finally
+        {
+            isSavingLecturer = false;
+        }
     }
 
 }

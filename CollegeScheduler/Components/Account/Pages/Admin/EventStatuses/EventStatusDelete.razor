@@ -1,0 +1,90 @@
+﻿@page "/admin/event-statuses/delete/{Id:int}"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.Services.Admin
+
+@inject IEventStatusService EventStatusService
+@inject NavigationManager Navigation
+
+<PageTitle>Delete Event Status</PageTitle>
+
+<h3>Delete Event Status</h3>
+
+@if (_status is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="alert alert-warning">
+        Are you sure you want to delete this event status?
+    </div>
+
+    <table class="table table-bordered">
+        <tr>
+            <th style="width:200px;">Name</th>
+            <td>@_status.Name</td>
+        </tr>
+    </table>
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-danger">
+            @_errorMessage
+        </div>
+    }
+
+    <button class="btn btn-danger me-2"
+            disabled="@_isDeleting"
+            @onclick="DeleteStatus">
+        @(_isDeleting ? "Deleting..." : "Delete")
+    </button>
+
+    <button class="btn btn-secondary"
+            disabled="@_isDeleting"
+            @onclick="GoBack">
+        Cancel
+    </button>
+}
+
+@code
+{
+    [Parameter]
+    public int Id { get; set; }
+
+    private EventStatusDto? _status;
+    private string? _errorMessage;
+    private bool _isDeleting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _status = await EventStatusService.GetByIdAsync(Id);
+    }
+
+    private async Task DeleteStatus()
+    {
+        _errorMessage = null;
+        _isDeleting = true;
+
+        var success = await EventStatusService.DeleteAsync(Id);
+
+        _isDeleting = false;
+
+        if (success)
+        {
+            Navigation.NavigateTo("/admin/event-statuses");
+            return;
+        }
+
+        _errorMessage =
+            "The event status could not be deleted. It may already be in use.";
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin/event-statuses");
+    }
+}

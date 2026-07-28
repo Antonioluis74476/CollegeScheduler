@@ -1,0 +1,93 @@
+﻿@page "/admin/request-types/create"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Requests
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IRequestTypeService RequestTypeService
+@inject NavigationManager Navigation
+
+<PageTitle>Create Request Type</PageTitle>
+
+<div class="container mt-4">
+    <h2>Create Request Type</h2>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+    }
+
+    <EditForm Model="model"
+              OnValidSubmit="CreateAsync"
+              FormName="CreateRequestTypeForm">
+
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+
+            <InputText class="form-control"
+                       @bind-Value="model.Name" />
+
+            <ValidationMessage For="() => model.Name" />
+        </div>
+
+        <button type="submit"
+                class="btn btn-primary me-2"
+                disabled="@isSaving">
+            @(isSaving ? "Creating..." : "Create")
+        </button>
+
+        <button type="button"
+                class="btn btn-secondary"
+                @onclick="GoBack"
+                disabled="@isSaving">
+            Cancel
+        </button>
+    </EditForm>
+</div>
+
+@code {
+    private readonly RequestTypeCreateDto model = new();
+    private bool isSaving;
+    private string? errorMessage;
+
+    private async Task CreateAsync()
+    {
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+
+            model.Name = model.Name.Trim();
+
+            var success = await RequestTypeService.CreateAsync(model);
+
+            if (!success)
+            {
+                errorMessage = "The request type could not be created.";
+                return;
+            }
+
+            Navigation.NavigateTo("/admin/request-types");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to create request type: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin/request-types");
+    }
+}

@@ -1,0 +1,217 @@
+﻿@page "/admin/audit-logs/{Id:long}"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using CollegeScheduler.DTOs.Audit
+@using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
+
+@inject CollegeScheduler.Services.IAuditLogService AuditLogService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Audit Log Details</PageTitle>
+
+<h3>Audit Log Details</h3>
+
+@if (_loading)
+{
+    <p><em>Loading...</em></p>
+}
+else if (_auditLog is null)
+{
+    <div class="alert alert-danger">
+        Audit log record not found.
+    </div>
+
+    <button class="btn btn-secondary"
+            @onclick="GoBack">
+        Back
+    </button>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            General Information
+        </div>
+
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Audit Log ID</dt>
+                <dd class="col-sm-9">@_auditLog.AuditLogId</dd>
+
+                <dt class="col-sm-3">Date (UTC)</dt>
+                <dd class="col-sm-9">
+                    @_auditLog.PerformedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")
+                </dd>
+
+                <dt class="col-sm-3">Action</dt>
+                <dd class="col-sm-9">@_auditLog.Action</dd>
+
+                <dt class="col-sm-3">Entity</dt>
+                <dd class="col-sm-9">@_auditLog.EntityType</dd>
+
+                <dt class="col-sm-3">Entity ID</dt>
+                <dd class="col-sm-9">
+                    @DisplayValue(_auditLog.EntityId)
+                </dd>
+
+                <dt class="col-sm-3">User ID</dt>
+                <dd class="col-sm-9">
+                    @DisplayValue(_auditLog.UserId)
+                </dd>
+
+                <dt class="col-sm-3">IP Address</dt>
+                <dd class="col-sm-9">
+                    @DisplayValue(_auditLog.IpAddress)
+                </dd>
+
+                <dt class="col-sm-3">User Agent</dt>
+                <dd class="col-sm-9">
+                    @DisplayValue(_auditLog.UserAgent)
+                </dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            Old Values
+        </div>
+
+        <div class="card-body">
+            @if (GetJsonValues(_auditLog.OldValuesJson).Count == 0)
+            {
+                <p class="text-muted mb-0">No previous values recorded.</p>
+            }
+            else
+            {
+                <table class="table table-bordered table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%;">Field</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in GetJsonValues(_auditLog.OldValuesJson))
+                        {
+                            <tr>
+                                <td>@item.Key</td>
+                                <td>@item.Value</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            New Values
+        </div>
+
+        <div class="card-body">
+            @if (GetJsonValues(_auditLog.NewValuesJson).Count == 0)
+            {
+                <p class="text-muted mb-0">No new values recorded.</p>
+            }
+            else
+            {
+                <table class="table table-bordered table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%;">Field</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in GetJsonValues(_auditLog.NewValuesJson))
+                        {
+                            <tr>
+                                <td>@item.Key</td>
+                                <td>@item.Value</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+    <button class="btn btn-secondary"
+            @onclick="GoBack">
+        Back to Audit Logs
+    </button>
+}
+
+@code
+{
+    [Parameter]
+    public long Id { get; set; }
+
+    private AuditLogDto? _auditLog;
+    private bool _loading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            _auditLog = await AuditLogService.GetAuditLogByIdAsync(Id);
+        }
+        catch
+        {
+            _auditLog = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/admin/audit-logs");
+    }
+
+    private static string DisplayValue(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not recorded"
+            : value;
+    }
+
+    private static Dictionary<string, string> GetJsonValues(string? json)
+    {
+        var values = new Dictionary<string, string>();
+
+        if (string.IsNullOrWhiteSpace(json))
+            return values;
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                values[property.Name] = property.Value.ValueKind switch
+                {
+                    JsonValueKind.Null => "Not set",
+                    JsonValueKind.String => property.Value.GetString() ?? string.Empty,
+                    JsonValueKind.True => "Yes",
+                    JsonValueKind.False => "No",
+                    _ => property.Value.ToString()
+                };
+            }
+        }
+        catch
+        {
+            values["Raw value"] = json;
+        }
+
+        return values;
+    }
+}

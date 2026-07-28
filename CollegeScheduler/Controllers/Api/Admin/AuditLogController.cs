@@ -72,4 +72,32 @@ public sealed class AuditLogController : ControllerBase
 			PageSize = pageSize
 		});
 	}
+
+    [HttpGet("api/v1/admin/audit-logs/{id:long}")]
+    public async Task<ActionResult<AuditLogDto>> GetById(long id)
+    {
+        var auditLog = await _db.Set<AuditLog>()
+            .AsNoTracking()
+            .Where(x => x.AuditLogId == id)
+            .Select(x => new AuditLogDto
+            {
+                AuditLogId = x.AuditLogId,
+                UserId = x.UserId,
+                Action = x.Action,
+                EntityType = x.EntityType,
+                EntityId = x.EntityId,
+                OldValuesJson = x.OldValuesJson,
+                NewValuesJson = x.NewValuesJson,
+                IpAddress = x.IpAddress,
+                UserAgent = x.UserAgent,
+                PerformedAtUtc = x.PerformedAtUtc
+            })
+            .FirstOrDefaultAsync();
+
+        if (auditLog is null)
+            return NotFound();
+
+        return Ok(auditLog);
+    }
+
 }

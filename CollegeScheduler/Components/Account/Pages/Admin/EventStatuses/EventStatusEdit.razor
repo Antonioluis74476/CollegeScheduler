@@ -1,0 +1,97 @@
+﻿@page "/admin/event-statuses/edit/{Id:int}"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.Services.Admin
+
+@inject IEventStatusService EventStatusService
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Event Status</PageTitle>
+
+<h3>Edit Event Status</h3>
+
+@if (_model is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-danger">
+            @_errorMessage
+        </div>
+    }
+
+    <EditForm Model="_model"
+              OnValidSubmit="Save">
+
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+
+            <InputText class="form-control"
+                       @bind-Value="_model.Name" />
+        </div>
+
+        <button class="btn btn-primary me-2"
+                type="submit">
+            Save
+        </button>
+
+        <button class="btn btn-secondary"
+                type="button"
+                @onclick="GoBack">
+            Cancel
+        </button>
+
+    </EditForm>
+}
+
+@code
+{
+    [Parameter]
+    public int Id { get; set; }
+
+    private EventStatusUpdateDto? _model;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var dto = await EventStatusService.GetByIdAsync(Id);
+
+        if (dto is null)
+            return;
+
+        _model = new EventStatusUpdateDto
+        {
+            Name = dto.Name
+        };
+    }
+
+    private async Task Save()
+    {
+        if (_model is null)
+            return;
+
+        var success = await EventStatusService.UpdateAsync(Id, _model.Name);
+
+        if (success)
+        {
+            Navigation.NavigateTo("/admin/event-statuses");
+            return;
+        }
+
+        _errorMessage = "Unable to update the event status.";
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin/event-statuses");
+    }
+}
