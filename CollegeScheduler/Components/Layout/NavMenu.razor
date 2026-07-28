@@ -1,5 +1,7 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 
+@rendermode InteractiveServer
+
 @implements IDisposable
 
 @inject NavigationManager NavigationManager
@@ -14,8 +16,7 @@
        title="Navigation menu"
        class="navbar-toggler" />
 
-<div class="nav-scrollable"
-     onclick="document.querySelector('.navbar-toggler').click()">
+<div class="nav-scrollable">
 
     <nav class="flex-column">
 
@@ -34,119 +35,56 @@
 
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
-                             href="admin/campuses">
-                        <span class="oi oi-list-rich"
-                              aria-hidden="true"></span>
-                        Campuses
+                             href="admin/Academic">
+                        <span class="me-2">🎓</span>
+                        Academic
                     </NavLink>
                 </div>
 
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
-                             href="admin/buildings">
-                        <span class="oi oi-home"
-                              aria-hidden="true"></span>
-                        Buildings
+                             href="admin/facilities">
+                        <span class="me-2">🏢</span>
+                        Facilities
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/users">
+                        <span class="me-2">👥</span>
+                        Users
                     </NavLink>
                 </div>
 
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
-                             href="admin/rooms">
-                        <span class="bi bi-list-ul me-2"
-                              aria-hidden="true"></span>
-                        Rooms
+                             href="admin/timetable">
+                        <span class="me-2">📅</span>
+                        Timetable
                     </NavLink>
                 </div>
 
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
-                             href="admin/room-types">
-                        <span class="bi bi-list-ul me-2"
-                              aria-hidden="true"></span>
-                        Room Types
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link"
-                             href="admin/features">
-                        <span class="bi bi-list-ul me-2"
-                              aria-hidden="true"></span>
-                        Features
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link"
-                             href="admin/scheduling">
-                        <span class="oi oi-calendar"
-                              aria-hidden="true"></span>
-                        Scheduling
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link"
-                             href="admin">
-                        <span class="oi oi-dashboard"
-                              aria-hidden="true"></span>
-                        Admin Dashboard
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link"
-                             href="admin/departments">
-                        <span class="bi bi-diagram-3-fill-nav-menu"
-                              aria-hidden="true"></span>
-                        Departments
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link"
-                             href="admin/modules">
-                        <span class="bi bi-book-fill-nav-menu"
-                              aria-hidden="true"></span>
-                        Modules
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link"
-                             href="admin/academic-years">
-                        <span class="bi bi-calendar3-nav-menu"
-                              aria-hidden="true"></span>
-                        Academic Years
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link text-nowrap"
-                             href="admin/student-cohort-memberships">
-                        <span class="bi bi-people-fill-nav-menu"
-                              aria-hidden="true"></span>
-                        Student Cohort Memberships
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link"
-                             href="admin/requests/pending">
-                        <span class="bi bi-inbox-fill-nav-menu"
-                              aria-hidden="true">
-                        </span>
-                        Pending Requests
+                             href="admin/requests-dashboard">
+                        <span class="me-2">📝</span>
+                        Requests
                     </NavLink>
                 </div>
 
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="admin/notifications">
-                        <span class="bi bi-calendar3-nav-menu"
-                              aria-hidden="true"></span>
+                        <span class="me-2">🔔</span>
                         Notifications
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/administration">
+                        <span class="me-2">⚙️</span>
+                        Administration
                     </NavLink>
                 </div>
 
@@ -324,6 +262,13 @@
 
 @code {
     private string? currentUrl;
+
+    
+    private bool academicExpanded;
+    private bool timetableExpanded;
+    private bool requestsExpanded;
+    private bool usersExpanded;
+    private bool administrationExpanded;
 
     protected override void OnInitialized()
     {

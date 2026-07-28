@@ -1,0 +1,51 @@
+﻿@page "/admin/event-statuses/details/{Id:int}"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.Services.Admin
+
+@inject IEventStatusService EventStatusService
+@inject NavigationManager Navigation
+
+<PageTitle>Event Status Details</PageTitle>
+
+<h3>Event Status Details</h3>
+
+@if (_status is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table table-bordered">
+        <tr>
+            <th style="width:200px;">Name</th>
+            <td>@_status.Name</td>
+        </tr>
+    </table>
+
+    <button class="btn btn-secondary"
+            @onclick="GoBack">
+        Back
+    </button>
+}
+
+@code
+{
+    [Parameter]
+    public int Id { get; set; }
+
+    private EventStatusDto? _status;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _status = await EventStatusService.GetByIdAsync(Id);
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin/event-statuses");
+    }
+}

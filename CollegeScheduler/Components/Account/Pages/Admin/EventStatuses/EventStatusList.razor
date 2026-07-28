@@ -1,0 +1,98 @@
+﻿@page "/admin/event-statuses"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.Services.Admin
+
+@inject IEventStatusService EventStatusService
+@inject NavigationManager Navigation
+
+<PageTitle>Event Statuses</PageTitle>
+
+<h3>Event Statuses</h3>
+
+<div class="mb-3">
+    <button class="btn btn-primary"
+            @onclick="GoToCreate">
+        Create Event Status
+    </button>
+</div>
+
+@if (_statuses is null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (_statuses.Items.Count == 0)
+{
+    <div class="alert alert-info">
+        No event statuses were found.
+    </div>
+}
+else
+{
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th style="width: 230px;">Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var item in _statuses.Items)
+            {
+                <tr>
+                    <td>@item.Name</td>
+
+                    <td>
+                        <button class="btn btn-sm btn-info me-2"
+                                @onclick="() => GoToDetails(item.EventStatusId)">
+                            Details
+                        </button>
+
+                        <button class="btn btn-sm btn-warning me-2"
+                                @onclick="() => GoToEdit(item.EventStatusId)">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-danger"
+                                @onclick="() => GoToDelete(item.EventStatusId)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private CollegeScheduler.DTOs.Common.PagedResult<EventStatusDto>? _statuses;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _statuses = await EventStatusService.GetAllAsync();
+    }
+
+    private void GoToCreate()
+    {
+        Navigation.NavigateTo("/admin/event-statuses/create");
+    }
+
+    private void GoToDetails(int id)
+    {
+        Navigation.NavigateTo($"/admin/event-statuses/details/{id}");
+    }
+
+    private void GoToEdit(int id)
+    {
+        Navigation.NavigateTo($"/admin/event-statuses/edit/{id}");
+    }
+
+    private void GoToDelete(int id)
+    {
+        Navigation.NavigateTo($"/admin/event-statuses/delete/{id}");
+    }
+}

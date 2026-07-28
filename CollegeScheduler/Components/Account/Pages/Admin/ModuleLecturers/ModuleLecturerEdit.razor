@@ -1,0 +1,199 @@
+﻿@page "/admin/module-lecturers/edit/{ModuleId:int}/{LecturerId:int}/{TermId:int}"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IModuleLecturerService ModuleLecturerService
+@inject IModuleService ModuleService
+@inject IAdminUserService AdminUserService
+@inject ITermService TermService
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Module Lecturer Assignment</PageTitle>
+
+<h1>Edit Module Lecturer Assignment</h1>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+
+@if (isLoading)
+{
+    <p>Loading assignment...</p>
+}
+else if (assignment is null)
+{
+    <div class="alert alert-warning">
+        Assignment not found.
+    </div>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Module</dt>
+        <dd class="col-sm-9">@moduleName</dd>
+
+        <dt class="col-sm-3">Lecturer</dt>
+        <dd class="col-sm-9">@lecturerName</dd>
+
+        <dt class="col-sm-3">Term</dt>
+        <dd class="col-sm-9">@termName</dd>
+    </dl>
+
+    <EditForm Model="model"
+              OnValidSubmit="UpdateAssignmentAsync">
+
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label class="form-label">Role</label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="model.Role">
+                <option value="Lead">Lead</option>
+                <option value="Assistant">Assistant</option>
+                <option value="Substitute">Substitute</option>
+            </InputSelect>
+        </div>
+
+        <button class="btn btn-primary"
+                type="submit"
+                disabled="@isSaving">
+            @(isSaving ? "Saving..." : "Save Changes")
+        </button>
+
+        <button class="btn btn-secondary ms-2"
+                type="button"
+                @onclick="Cancel">
+            Cancel
+        </button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int ModuleId { get; set; }
+
+    [Parameter]
+    public int LecturerId { get; set; }
+
+    [Parameter]
+    public int TermId { get; set; }
+
+    private ModuleLecturerDto? assignment;
+
+    private ModuleLecturerUpdateDto model = new();
+
+    private string moduleName = "";
+    private string lecturerName = "";
+    private string termName = "";
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            assignment =
+                await ModuleLecturerService.GetByIdAsync(
+                    ModuleId,
+                    LecturerId,
+                    TermId);
+
+            if (assignment is null)
+            {
+                return;
+            }
+
+            model.Role = assignment.Role;
+
+            var module =
+                await ModuleService.GetByIdAsync(ModuleId);
+
+            moduleName = module is null
+                ? $"Module {ModuleId}"
+                : $"{module.Code} - {module.Title}";
+
+            var lecturers =
+                await AdminUserService.GetLecturersAsync();
+
+            var lecturer = lecturers.FirstOrDefault(
+                x => x.LecturerId == LecturerId);
+
+            lecturerName = lecturer is null
+                ? $"Lecturer {LecturerId}"
+                : $"{lecturer.Name} {lecturer.LastName} ({lecturer.StaffNumber})";
+
+            var term =
+                await TermService.GetByIdAsync(TermId);
+
+            termName = term is null
+                ? $"Term {TermId}"
+                : term.Name;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task UpdateAssignmentAsync()
+    {
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+
+            var updated =
+                await ModuleLecturerService.UpdateAsync(
+                    ModuleId,
+                    LecturerId,
+                    TermId,
+                    model);
+
+            if (!updated)
+            {
+                errorMessage =
+                    "The assignment could not be updated.";
+                return;
+            }
+
+            Navigation.NavigateTo(
+                "/admin/module-lecturers");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo(
+            "/admin/module-lecturers");
+    }
+}

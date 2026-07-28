@@ -13,5 +13,9 @@ namespace CollegeScheduler.Services.Interfaces
         Task<CohortDto?> GetByIdAsync(int cohortId);
         Task<bool> CreateAsync(int programId, CohortCreateDto dto);
         Task<bool> UpdateAsync(int cohortId, CohortUpdateDto dto);
+
+        Task<CollegeScheduler.DTOs.Common.PagedResult<CohortDto>?> GetAllAsync(
+            int page = 1,
+            int pageSize = 100);
     }
 }

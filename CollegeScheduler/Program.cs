@@ -14,6 +14,11 @@ using CollegeScheduler.Hubs;
 using CollegeScheduler.Messaging;
 using MassTransit;
 
+using CollegeScheduler.Services.Admin;
+
+
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // API clients // FrontEnd
@@ -131,10 +136,109 @@ builder.Services.AddHttpClient<ICohortModuleService, CohortModuleService>(client
 })
 .AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
 
+// ModuleLecturer API client
+builder.Services.AddHttpClient<
+    IModuleLecturerService,
+    ModuleLecturerService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// EventLecturer API client
+builder.Services.AddHttpClient<
+    IEventLecturerService,
+    EventLecturerService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// TimetableEvent API client
+
+builder.Services.AddHttpClient<
+    ITimetableEventService,
+    TimetableEventService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// EventCohort API client
+builder.Services.AddHttpClient<
+    IEventCohortService,
+    EventCohortService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+    .AddHttpMessageHandler<
+        CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// EventStatus API client
+builder.Services.AddHttpClient<
+    IEventStatusService,
+    EventStatusService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// RequestStatus API client
+builder.Services.AddHttpClient<
+    IRequestStatusService,
+    RequestStatusService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// RequestType API client
+builder.Services.AddHttpClient<
+    IRequestTypeService,
+    RequestTypeService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Audit Log API client
+builder.Services.AddHttpClient<
+    IAuditLogService,
+    AuditLogService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
 // Student Cohort Membership API client
 builder.Services.AddHttpClient<
     IStudentCohortMembershipService,
     StudentCohortMembershipService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<ForwardAuthCookieHandler>();
+
+// Student Module Enrollment API client
+builder.Services.AddHttpClient<
+    IStudentModuleEnrollmentService,
+    StudentModuleEnrollmentService>(client =>
     {
         client.BaseAddress = new Uri(
             builder.Configuration["ApiBaseUrl"]!);
@@ -172,6 +276,8 @@ builder.Services.AddHttpClient<ILecturerService, LecturerService>(client =>
 	client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
 })
 .AddHttpMessageHandler<ForwardAuthCookieHandler>();
+
+
 
 // UI (Blazor)
 builder.Services.AddRazorComponents()

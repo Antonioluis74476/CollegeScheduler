@@ -1,0 +1,258 @@
+﻿@page "/admin/student-module-enrollments/edit/{StudentId:int}/{ModuleId:int}/{TermId:int}"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using CollegeScheduler.DTOs.Membership
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@using CollegeScheduler.DTOs.Academic
+
+@inject IStudentModuleEnrollmentService EnrollmentService
+@inject IAdminUserService AdminUserService
+@inject IModuleService ModuleService
+@inject ITermService TermService
+@inject ICohortService CohortService
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Student Module Enrolment</PageTitle>
+
+<h1>Edit Student Module Enrolment</h1>
+
+@if (isLoading)
+{
+    <p>Loading enrolment...</p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+else if (model is null)
+{
+    <div class="alert alert-warning">
+        The enrolment could not be found.
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+
+            <div class="row g-3">
+
+                <div class="col-md-6">
+                    <label class="form-label">Student</label>
+                    <input class="form-control"
+                           value="@studentDisplay"
+                           disabled />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Module</label>
+                    <input class="form-control"
+                           value="@moduleDisplay"
+                           disabled />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Term</label>
+                    <input class="form-control"
+                           value="@termDisplay"
+                           disabled />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Enrolment Type</label>
+
+                    <InputSelect class="form-select"
+                                 @bind-Value="model.EnrollmentType">
+                        <option value="Regular">Regular</option>
+                        <option value="Repeat">Repeat</option>
+                        <option value="Resit">Resit</option>
+                        <option value="Additional">Additional</option>
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Attend With Cohort</label>
+
+                    <InputSelect class="form-select"
+                                 @bind-Value="model.AttendWithCohortId">
+                        <option value="">No specific cohort</option>
+
+                        @foreach (var cohort in cohorts)
+                        {
+                            <option value="@cohort.CohortId">
+                                @cohort.Code - @cohort.Name
+                            </option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Status</label>
+
+                    <InputSelect class="form-select"
+                                 @bind-Value="model.Status">
+                        <option value="Enrolled">Enrolled</option>
+                        <option value="Withdrawn">Withdrawn</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Failed">Failed</option>
+                    </InputSelect>
+                </div>
+
+            </div>
+
+            <div class="mt-4">
+                <button type="button"
+                        class="btn btn-primary me-2"
+                        disabled="@isSaving"
+                        @onclick="SaveAsync">
+                    @(isSaving ? "Saving..." : "Save Changes")
+                </button>
+
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        disabled="@isSaving"
+                        @onclick="Cancel">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int StudentId { get; set; }
+
+    [Parameter]
+    public int ModuleId { get; set; }
+
+    [Parameter]
+    public int TermId { get; set; }
+
+    private StudentModuleEnrollmentUpdateDto? model;
+    private List<CohortDto> cohorts = [];
+
+    private string studentDisplay = "Loading...";
+    private string moduleDisplay = "Loading...";
+    private string termDisplay = "Loading...";
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            var enrollment = await EnrollmentService.GetAsync(
+                StudentId,
+                ModuleId,
+                TermId);
+
+            if (enrollment is null)
+            {
+                return;
+            }
+
+            model = new StudentModuleEnrollmentUpdateDto
+            {
+                EnrollmentType = enrollment.EnrollmentType,
+                AttendWithCohortId = enrollment.AttendWithCohortId,
+                Status = enrollment.Status
+            };
+
+            var students = await AdminUserService.GetStudentsAsync();
+
+            var student = students.FirstOrDefault(
+                item => item.StudentId == enrollment.StudentId);
+
+            studentDisplay = student is null
+                ? "Student not found"
+                : $"{student.StudentNumber} - {student.Name} {student.LastName}";
+
+            var module = await ModuleService.GetByIdAsync(
+                enrollment.ModuleId);
+
+            moduleDisplay = module is null
+                ? "Module not found"
+                : $"{module.Code} - {module.Title}";
+
+            var term = await TermService.GetByIdAsync(
+                enrollment.TermId);
+
+            termDisplay = term is null
+                ? "Term not found"
+                : term.Name;
+
+            if (enrollment.AttendWithCohortId.HasValue)
+            {
+                var currentCohort = await CohortService.GetByIdAsync(
+                    enrollment.AttendWithCohortId.Value);
+
+                if (currentCohort is not null)
+                {
+                    cohorts.Add(currentCohort);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load the enrolment: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (model is null)
+        {
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+
+            var updated = await EnrollmentService.UpdateAsync(
+                StudentId,
+                ModuleId,
+                TermId,
+                model);
+
+            if (!updated)
+            {
+                errorMessage =
+                    "The enrolment could not be updated.";
+                return;
+            }
+
+            Navigation.NavigateTo(
+                "/admin/student-module-enrollments");
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to update the enrolment: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo(
+            "/admin/student-module-enrollments");
+    }
+}

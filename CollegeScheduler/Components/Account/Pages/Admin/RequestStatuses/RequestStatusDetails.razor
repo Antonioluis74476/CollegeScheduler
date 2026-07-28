@@ -1,0 +1,91 @@
+﻿@page "/admin/request-statuses/details/{Id:int}"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using CollegeScheduler.DTOs.Requests
+@using CollegeScheduler.Services.Admin
+
+@inject IRequestStatusService RequestStatusService
+@inject NavigationManager Navigation
+
+<PageTitle>Request Status Details</PageTitle>
+
+<h3>Request Status Details</h3>
+
+@if (_isLoading)
+{
+    <p><em>Loading...</em></p>
+}
+else if (_status is null)
+{
+    <div class="alert alert-warning">
+        Request status not found.
+    </div>
+
+    <button class="btn btn-secondary"
+            @onclick="GoBack">
+        Back
+    </button>
+}
+else
+{
+    <table class="table table-bordered">
+        <tbody>
+            <tr>
+                <th style="width: 200px;">Name</th>
+                <td>@_status.Name</td>
+            </tr>
+
+            <tr>
+                <th>Status</th>
+                <td>
+                    @if (_status.IsActive)
+                    {
+                        <span class="badge bg-success">Active</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">Inactive</span>
+                    }
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <button class="btn btn-warning me-2"
+            @onclick="GoToEdit">
+        Edit
+    </button>
+
+    <button class="btn btn-secondary"
+            @onclick="GoBack">
+        Back
+    </button>
+}
+
+@code
+{
+    [Parameter]
+    public int Id { get; set; }
+
+    private RequestStatusDto? _status;
+    private bool _isLoading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _status = await RequestStatusService.GetByIdAsync(Id);
+        _isLoading = false;
+    }
+
+    private void GoToEdit()
+    {
+        Navigation.NavigateTo($"/admin/request-statuses/edit/{Id}");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin/request-statuses");
+    }
+}

@@ -1,28 +1,29 @@
-﻿@using Microsoft.AspNetCore.Authorization
-@page "/admin/scheduling"
+﻿@page "/admin/timetable"
 @attribute [Authorize(Roles = "Admin")]
 
-<PageTitle>Scheduling</PageTitle>
+@using Microsoft.AspNetCore.Authorization
 
-<div class="scheduling-page">
+<PageTitle>Timetable</PageTitle>
+
+<div class="container-fluid py-4">
+
     <div class="mb-4">
-        <h1 class="h3 mb-1">Scheduling</h1>
+        <h1 class="h3 mb-1">Timetable</h1>
         <p class="text-muted mb-0">
-            Choose an admin scheduling tool to continue.
+            Manage timetable events and their lecturer and cohort assignments.
         </p>
     </div>
 
     <div class="row g-4">
 
         <div class="col-12 col-md-6 col-xl-4">
-            <NavLink href="/admin/scheduling/available-rooms"
-                     class="text-decoration-none">
+            <NavLink href="/admin/timetable-events" class="text-decoration-none">
                 <div class="card h-100 shadow-sm dashboard-card">
                     <div class="card-body">
-                        <div class="fs-2 mb-3">🔎</div>
-                        <h2 class="h5">Available Room Finder</h2>
+                        <div class="fs-2 mb-3">📅</div>
+                        <h2 class="h5">Timetable Events</h2>
                         <p class="text-muted mb-0">
-                            Search for available rooms by time slot, campus, building, and capacity.
+                            Create and manage scheduled classes.
                         </p>
                     </div>
                 </div>
@@ -30,14 +31,13 @@
         </div>
 
         <div class="col-12 col-md-6 col-xl-4">
-            <NavLink href="/admin/scheduling/clash-checker"
-                     class="text-decoration-none">
+            <NavLink href="/admin/event-statuses" class="text-decoration-none">
                 <div class="card h-100 shadow-sm dashboard-card">
                     <div class="card-body">
-                        <div class="fs-2 mb-3">⚠️</div>
-                        <h2 class="h5">Clash Checker</h2>
+                        <div class="fs-2 mb-3">🏷️</div>
+                        <h2 class="h5">Event Statuses</h2>
                         <p class="text-muted mb-0">
-                            Check for lecturer, cohort, or room conflicts before creating an event.
+                            Manage statuses such as scheduled, cancelled, and completed.
                         </p>
                     </div>
                 </div>
@@ -45,14 +45,13 @@
         </div>
 
         <div class="col-12 col-md-6 col-xl-4">
-            <NavLink href="/admin/scheduling/recurring-events"
-                     class="text-decoration-none">
+            <NavLink href="/admin/scheduling" class="text-decoration-none">
                 <div class="card h-100 shadow-sm dashboard-card">
                     <div class="card-body">
-                        <div class="fs-2 mb-3">🔁</div>
-                        <h2 class="h5">Recurring Events Creator</h2>
+                        <div class="fs-2 mb-3">🛠️</div>
+                        <h2 class="h5">Scheduling Tools</h2>
                         <p class="text-muted mb-0">
-                            Generate recurring timetable events for a term from one scheduling form.
+                            Find available rooms, check clashes, and create recurring events.
                         </p>
                     </div>
                 </div>
@@ -60,6 +59,8 @@
         </div>
 
     </div>
+
+   
 
 </div>
 

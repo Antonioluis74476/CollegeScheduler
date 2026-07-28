@@ -1,0 +1,107 @@
+﻿@page "/admin/facilities"
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Facilities</PageTitle>
+
+<div class="container-fluid py-4">
+
+    <div class="mb-4">
+        <h1 class="h3 mb-1">Facilities</h1>
+        <p class="text-muted mb-0">
+            Manage campuses, buildings, rooms, room types, and room features.
+        </p>
+    </div>
+
+    <div class="row g-4">
+
+        <div class="col-12 col-md-6 col-xl-4">
+            <NavLink href="/admin/campuses"
+                     class="text-decoration-none">
+                <div class="card h-100 shadow-sm facility-card">
+                    <div class="card-body">
+                        <div class="fs-2 mb-3">🏫</div>
+                        <h2 class="h5">Campuses</h2>
+                        <p class="text-muted mb-0">
+                            Manage college campus locations.
+                        </p>
+                    </div>
+                </div>
+            </NavLink>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-4">
+            <NavLink href="/admin/buildings"
+                     class="text-decoration-none">
+                <div class="card h-100 shadow-sm facility-card">
+                    <div class="card-body">
+                        <div class="fs-2 mb-3">🏢</div>
+                        <h2 class="h5">Buildings</h2>
+                        <p class="text-muted mb-0">
+                            Manage buildings within each campus.
+                        </p>
+                    </div>
+                </div>
+            </NavLink>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-4">
+            <NavLink href="/admin/rooms"
+                     class="text-decoration-none">
+                <div class="card h-100 shadow-sm facility-card">
+                    <div class="card-body">
+                        <div class="fs-2 mb-3">🚪</div>
+                        <h2 class="h5">Rooms</h2>
+                        <p class="text-muted mb-0">
+                            Manage teaching rooms and room details.
+                        </p>
+                    </div>
+                </div>
+            </NavLink>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-4">
+            <NavLink href="/admin/room-types"
+                     class="text-decoration-none">
+                <div class="card h-100 shadow-sm facility-card">
+                    <div class="card-body">
+                        <div class="fs-2 mb-3">🗂️</div>
+                        <h2 class="h5">Room Types</h2>
+                        <p class="text-muted mb-0">
+                            Manage categories such as labs and lecture rooms.
+                        </p>
+                    </div>
+                </div>
+            </NavLink>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-4">
+            <NavLink href="/admin/features"
+                     class="text-decoration-none">
+                <div class="card h-100 shadow-sm facility-card">
+                    <div class="card-body">
+                        <div class="fs-2 mb-3">🖥️</div>
+                        <h2 class="h5">Features</h2>
+                        <p class="text-muted mb-0">
+                            Manage projectors, computers, and other room features.
+                        </p>
+                    </div>
+                </div>
+            </NavLink>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .facility-card {
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        color: inherit;
+    }
+
+        .facility-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15) !important;
+        }
+</style>

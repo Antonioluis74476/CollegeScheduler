@@ -1,0 +1,158 @@
+﻿@page "/admin/request-types/{Id:int}/edit"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Requests
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IRequestTypeService RequestTypeService
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Request Type</PageTitle>
+
+<div class="container mt-4">
+    <h2>Edit Request Type</h2>
+
+    @if (isLoading)
+    {
+        <p>Loading request type...</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(loadErrorMessage))
+    {
+        <div class="alert alert-danger">
+            @loadErrorMessage
+        </div>
+
+        <button class="btn btn-secondary"
+                @onclick="GoBack">
+            Back
+        </button>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(saveErrorMessage))
+        {
+            <div class="alert alert-danger">
+                @saveErrorMessage
+            </div>
+        }
+
+        <EditForm Model="model"
+                  OnValidSubmit="UpdateAsync"
+                  FormName="EditRequestTypeForm">
+
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">Name</label>
+
+                <InputText class="form-control"
+                           @bind-Value="model.Name" />
+
+                <ValidationMessage For="() => model.Name" />
+            </div>
+
+            <div class="form-check mb-3">
+                <InputCheckbox class="form-check-input"
+                               @bind-Value="model.IsActive" />
+
+                <label class="form-check-label">
+                    Active
+                </label>
+            </div>
+
+            <button type="submit"
+                    class="btn btn-primary me-2"
+                    disabled="@isSaving">
+                @(isSaving ? "Saving..." : "Save Changes")
+            </button>
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    @onclick="GoBack"
+                    disabled="@isSaving">
+                Cancel
+            </button>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private readonly RequestTypeUpdateDto model = new();
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? loadErrorMessage;
+    private string? saveErrorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            isLoading = true;
+            loadErrorMessage = null;
+
+            var requestType =
+                await RequestTypeService.GetByIdAsync(Id);
+
+            if (requestType is null)
+            {
+                loadErrorMessage = "Request type not found.";
+                return;
+            }
+
+            model.Name = requestType.Name;
+            model.IsActive = requestType.IsActive;
+        }
+        catch (Exception ex)
+        {
+            loadErrorMessage =
+                $"Unable to load request type: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task UpdateAsync()
+    {
+        try
+        {
+            isSaving = true;
+            saveErrorMessage = null;
+
+            model.Name = model.Name.Trim();
+
+            var success =
+                await RequestTypeService.UpdateAsync(Id, model);
+
+            if (!success)
+            {
+                saveErrorMessage =
+                    "The request type could not be updated.";
+                return;
+            }
+
+            Navigation.NavigateTo($"/admin/request-types/{Id}");
+        }
+        catch (Exception ex)
+        {
+            saveErrorMessage =
+                $"Unable to update request type: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo($"/admin/request-types/{Id}");
+    }
+}
