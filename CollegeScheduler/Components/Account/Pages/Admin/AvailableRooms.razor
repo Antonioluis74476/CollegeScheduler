@@ -35,13 +35,19 @@
 
                 <div class="mb-3">
                     <label class="form-label">Campus</label>
-                    <InputSelect @bind-Value="selectedCampusId" class="form-select" @onchange="OnCampusChanged">
+                    <select class="form-select"
+                            value="@selectedCampusId"
+                            @onchange="OnCampusChanged">
+
                         <option value="">All Campuses</option>
+
                         @foreach (var campus in campuses)
                         {
-                            <option value="@campus.CampusId">@campus.Name</option>
+                            <option value="@campus.CampusId">
+                                @campus.Name
+                            </option>
                         }
-                    </InputSelect>
+                    </select>
                 </div>
 
                 <div class="mb-3">

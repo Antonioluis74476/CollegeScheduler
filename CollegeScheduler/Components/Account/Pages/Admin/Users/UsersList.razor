@@ -1,11 +1,13 @@
 ﻿@using CollegeScheduler.DTOs.Profiles
 @using CollegeScheduler.Services.Interfaces
+@using CollegeScheduler.DTOs.Academic
 
 @page "/admin/users"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 
 @inject IAdminUserService UserService
+@inject IAdminSchedulingService SchedulingService
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
@@ -262,8 +264,20 @@
             </div>
 
             <div class="mb-2">
-                <label>Department ID</label>
-                <InputNumber class="form-control" @bind-Value="editLecturer.DepartmentId" />
+                <label>Department</label>
+                <InputSelect @bind-Value="editLecturer.DepartmentId" class="form-select">
+                    <option value="">-- Select Department --</option>
+
+                    @if (departmentsResult?.Items != null)
+                    {
+                        @foreach (var department in departmentsResult.Items)
+                        {
+                            <option value="@department.DepartmentId">
+                                @department.Code - @department.Name
+                            </option>
+                        }
+                    }
+                </InputSelect>
             </div>
 
             <div class="mb-2">
@@ -524,6 +538,8 @@ else
 
     private string selectedTable = "Students";
 
+    private CollegeScheduler.Services.PagedResult<DepartmentDto>? departmentsResult;
+
     private void ShowStudentForm()
     {
         showStudentForm = true;
@@ -681,6 +697,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        departmentsResult = await SchedulingService.GetDepartmentsAsync();
+
         await LoadUsers();
     }
 

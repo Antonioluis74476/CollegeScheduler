@@ -8,6 +8,8 @@
 @inject ICohortService CohortService
 @inject IProgramService ProgramService
 
+@inject IAcademicYearService AcademicYearService
+
 <h3>Cohorts</h3>
 
 @if (program is not null)
@@ -92,8 +94,23 @@ else
         </div>
 
         <div class="mb-2">
-            <label>Academic Year Id</label>
-            <InputNumber class="form-control" @bind-Value="createModel.AcademicYearId" />
+            <label>Academic Year</label>
+            <InputSelect class="form-select"
+                         @bind-Value="createModel.AcademicYearId">
+
+                <option value="0">-- Select Academic Year --</option>
+
+                @if (academicYearsResult?.Items != null)
+                {
+                    @foreach (var year in academicYearsResult.Items)
+                    {
+                        <option value="@year.AcademicYearId">
+                            @year.Label
+                        </option>
+                    }
+                }
+
+            </InputSelect>
         </div>
 
         <button type="submit" class="btn btn-success">Save</button>
@@ -155,6 +172,8 @@ else
     private CollegeScheduler.DTOs.Common.PagedResult<CohortDto>? cohorts;
     private ProgramDto? program;
 
+    private CollegeScheduler.Services.PagedResult<AcademicYearDto>? academicYearsResult;
+
     private bool showCreate = false;
     private CohortCreateDto createModel = new();
 
@@ -163,6 +182,8 @@ else
     private CohortUpdateDto editModel = new();
 
     private int departmentId;
+
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -173,6 +194,10 @@ else
     {
         program = await ProgramService.GetByIdAsync(ProgramId);
         cohorts = await CohortService.GetByProgramAsync(ProgramId);
+
+        academicYearsResult = await AcademicYearService.GetAllAsync(
+            page: 1,
+            pageSize: 100);
 
         if (program is not null)
         {

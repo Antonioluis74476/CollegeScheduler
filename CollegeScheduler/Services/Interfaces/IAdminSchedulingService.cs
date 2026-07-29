@@ -17,7 +17,9 @@ namespace CollegeScheduler.Services.Interfaces
         Task<ModuleDtoPagedResult?> GetModulesAsync();
         Task<TermDtoPagedResult?> GetTermsByAcademicYearAsync(int academicYearId);
         Task<PagedResult<CohortDto>?> GetCohortsByProgramAsync(int programId);
-        Task<PagedResult<ProgramDto>?> GetProgramsAsync();
+        Task<PagedResult<DepartmentDto>?> GetDepartmentsAsync();
+
+        Task<PagedResult<ProgramDto>?> GetProgramsByDepartmentAsync(int departmentId);
         Task<PagedResult<LecturerDto>?> GetLecturersAsync();
 
         Task<List<PendingRequestDto>?> GetPendingRequestsAsync();
@@ -25,6 +27,10 @@ namespace CollegeScheduler.Services.Interfaces
         Task<DecisionResultDto?> DecideRequestAsync(
             long requestId,
             DecideRequestDto request);
+
+        Task<PagedResult<CollegeScheduler.DTOs.Facilities.CampusDto>?> GetCampusesAsync();
+
+        Task<PagedResult<CollegeScheduler.DTOs.Facilities.BuildingDto>?> GetBuildingsByCampusAsync(int campusId);
 
     }
 }
