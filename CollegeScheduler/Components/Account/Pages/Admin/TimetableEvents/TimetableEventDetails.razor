@@ -263,10 +263,22 @@ else
         </div>
     </div>
 
-    <button class="btn btn-secondary"
-            @onclick="Back">
-        Back
-    </button>
+    <div class="d-flex gap-2">
+
+        @if (item?.RecurrenceGroupId is not null)
+        {
+            <button class="btn btn-outline-primary"
+                    @onclick="ViewRecurringSeries">
+                View Recurring Series
+            </button>
+        }
+
+        <button class="btn btn-secondary"
+                @onclick="Back">
+            Back
+        </button>
+
+    </div>
 }
 
 @code {
@@ -518,6 +530,15 @@ else
         {
             isSavingLecturer = false;
         }
+    }
+
+    private void ViewRecurringSeries()
+    {
+        if (item?.RecurrenceGroupId is null)
+            return;
+
+        Navigation.NavigateTo(
+            $"/admin/scheduling/recurring-series/{item.RecurrenceGroupId}");
     }
 
 }

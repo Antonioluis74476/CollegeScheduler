@@ -222,5 +222,64 @@ namespace CollegeScheduler.Services.Implementations
             );
         }
 
+
+        public async Task<RecurringEventSeriesDto?> GetRecurringEventSeriesAsync(Guid recurrenceGroupId)
+        {
+            var response = await _httpClient.GetAsync(
+                $"api/v1/admin/scheduling/recurring-events/{recurrenceGroupId}");
+
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception(
+                    $"Unable to load recurring series. " +
+                    $"Status: {response.StatusCode}. Response: {body}");
+            }
+
+            return await response.Content.ReadFromJsonAsync<RecurringEventSeriesDto>();
+        }
+
+        public async Task CancelRecurringSeriesAsync(
+    Guid recurrenceGroupId,
+    CancelRecurringEventDto request)
+        {
+            using var httpRequest = new HttpRequestMessage(
+                HttpMethod.Patch,
+                $"api/v1/admin/scheduling/recurring-events/{recurrenceGroupId}/cancel")
+            {
+                Content = JsonContent.Create(request)
+            };
+
+            var response = await _httpClient.SendAsync(httpRequest);
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception(
+                    $"Unable to cancel recurring series. " +
+                    $"Status: {response.StatusCode}. Response: {body}");
+            }
+        }
+
+        public async Task UpdateRecurringSeriesAsync(
+            Guid recurrenceGroupId,
+            UpdateRecurringEventDto request)
+            {
+                var response = await _httpClient.PutAsJsonAsync(
+                    $"api/v1/admin/scheduling/recurring-events/{recurrenceGroupId}",
+                    request);
+
+                var body = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception(
+                        $"Unable to update recurring series. " +
+                        $"Status: {response.StatusCode}. Response: {body}");
+                }
+        }
+
     }
+
 }

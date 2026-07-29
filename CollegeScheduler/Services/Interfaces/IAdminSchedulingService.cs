@@ -32,5 +32,15 @@ namespace CollegeScheduler.Services.Interfaces
 
         Task<PagedResult<CollegeScheduler.DTOs.Facilities.BuildingDto>?> GetBuildingsByCampusAsync(int campusId);
 
+        Task<RecurringEventSeriesDto?> GetRecurringEventSeriesAsync(Guid recurrenceGroupId);
+
+        Task UpdateRecurringSeriesAsync(
+            Guid recurrenceGroupId,
+            UpdateRecurringEventDto request);
+
+        Task CancelRecurringSeriesAsync(
+            Guid recurrenceGroupId,
+            CancelRecurringEventDto request);
+
     }
 }
