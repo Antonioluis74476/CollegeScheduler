@@ -158,6 +158,75 @@ public sealed class AdminSchedulingController : ControllerBase
 			return BadRequest(ex.Message);
 		}
 	}
+	[HttpGet("recurring-events/{recurrenceGroupId:guid}")]
+	public async Task<IActionResult> GetRecurringEvents(Guid recurrenceGroupId)
+	{
+		var events = await _schedulingService.GetRecurringEventSeriesAsync(recurrenceGroupId);
+
+		if (events.Count == 0)
+			return NotFound($"No recurring events found for group {recurrenceGroupId}.");
+
+		return Ok(new RecurringEventSeriesDto
+		{
+			RecurrenceGroupId = recurrenceGroupId,
+			Occurrences = events.Select(e => new TimetableEventDto
+			{
+				TimetableEventId = e.TimetableEventId,
+				TermId = e.TermId,
+				ModuleId = e.ModuleId,
+				RoomId = e.RoomId,
+				StartUtc = e.StartUtc,
+				EndUtc = e.EndUtc,
+				EventStatusId = e.EventStatusId,
+				SessionType = e.SessionType,
+				RecurrenceGroupId = e.RecurrenceGroupId,
+				Notes = e.Notes,
+				CreatedByUserId = e.CreatedByUserId,
+				CreatedAtUtc = e.CreatedAtUtc,
+				UpdatedAtUtc = e.UpdatedAtUtc
+			}).ToList()
+		});
+	}
+
+	[HttpPut("recurring-events/{recurrenceGroupId:guid}")]
+	public async Task<IActionResult> UpdateRecurringEvents(Guid recurrenceGroupId, [FromBody] UpdateRecurringEventDto dto)
+	{
+		try
+		{
+			var result = await _schedulingService.UpdateRecurringEventsAsync(recurrenceGroupId, dto, CurrentUserId);
+
+			if (!result.Success)
+				return Conflict(new
+				{
+					message = "Update cannot be applied because it creates one or more clashes.",
+					clashes = result.Clashes
+				});
+
+			return Ok(result);
+		}
+		catch (ArgumentException ex)
+		{
+			return BadRequest(ex.Message);
+		}
+	}
+
+	[HttpPatch("recurring-events/{recurrenceGroupId:guid}/cancel")]
+	public async Task<IActionResult> CancelRecurringEvents(Guid recurrenceGroupId, [FromBody] CancelRecurringEventDto dto)
+	{
+		try
+		{
+			var result = await _schedulingService.CancelRecurringEventsAsync(recurrenceGroupId, dto, CurrentUserId);
+			return Ok(result);
+		}
+		catch (ArgumentException ex)
+		{
+			return BadRequest(ex.Message);
+		}
+		catch (InvalidOperationException ex)
+		{
+			return Conflict(ex.Message);
+		}
+	}
 
 	[HttpGet("requests/pending")]
 	public async Task<IActionResult> GetPendingRequests()
@@ -315,6 +384,71 @@ public sealed class AdminSchedulingController : ControllerBase
 		{
 			return Conflict(ex.Message);
 		}
+	}
+
+	[HttpGet("events")]
+	public async Task<IActionResult> GetEvents([FromQuery] TimetableEventListQuery query)
+	{
+		var eventsQuery = _db.TimetableEvents.AsNoTracking().AsQueryable();
+
+		if (query.TermId.HasValue)
+			eventsQuery = eventsQuery.Where(e => e.TermId == query.TermId.Value);
+
+		if (query.ModuleId.HasValue)
+			eventsQuery = eventsQuery.Where(e => e.ModuleId == query.ModuleId.Value);
+
+		if (query.RoomId.HasValue)
+			eventsQuery = eventsQuery.Where(e => e.RoomId == query.RoomId.Value);
+
+		if (query.CohortId.HasValue)
+			eventsQuery = eventsQuery.Where(e => e.EventCohorts.Any(ec => ec.CohortId == query.CohortId.Value));
+
+		if (query.LecturerId.HasValue)
+			eventsQuery = eventsQuery.Where(e => e.EventLecturers.Any(el => el.LecturerId == query.LecturerId.Value));
+
+		if (query.FromUtc.HasValue)
+			eventsQuery = eventsQuery.Where(e => e.EndUtc >= query.FromUtc.Value);
+
+		if (query.ToUtc.HasValue)
+			eventsQuery = eventsQuery.Where(e => e.StartUtc <= query.ToUtc.Value);
+
+		if (!query.IncludeCancelled)
+			eventsQuery = eventsQuery.Where(e => e.EventStatus.Name != "Cancelled");
+
+		var results = await eventsQuery
+			.OrderBy(e => e.StartUtc)
+			.Select(e => new TimetableEventListItemDto
+			{
+				TimetableEventId = e.TimetableEventId,
+				RecurrenceGroupId = e.RecurrenceGroupId,
+				ModuleCode = e.Module.Code,
+				ModuleTitle = e.Module.Title,
+				RoomCode = e.Room.Code,
+				RoomName = e.Room.Name,
+				StartUtc = e.StartUtc,
+				EndUtc = e.EndUtc,
+				SessionType = e.SessionType,
+				EventStatus = e.EventStatus.Name,
+				CohortCodes = e.EventCohorts.Select(ec => ec.Cohort.Code).ToList(),
+				LecturerNames = e.EventLecturers.Select(el => el.Lecturer.Name + " " + el.Lecturer.LastName).ToList()
+			})
+			.ToListAsync();
+
+		return Ok(results);
+	}
+	[HttpGet("events/{id:long}/recurrence-group")]
+	public async Task<IActionResult> GetRecurrenceGroupForEvent(long id)
+	{
+		var groupId = await _db.TimetableEvents
+			.AsNoTracking()
+			.Where(te => te.TimetableEventId == id)
+			.Select(te => te.RecurrenceGroupId)
+			.FirstOrDefaultAsync();
+
+		if (groupId is null)
+			return NotFound($"Event {id} not found or is not part of a recurring series.");
+
+		return Ok(new { recurrenceGroupId = groupId });
 	}
 
 	[HttpPost("events/{id:long}/reschedule")]
