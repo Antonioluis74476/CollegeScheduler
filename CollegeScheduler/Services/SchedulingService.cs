@@ -430,7 +430,7 @@ public sealed class SchedulingService : ISchedulingService
 			_db.TimetableEventChanges.Add(new TimetableEventChange
 			{
 				TimetableEventId = ev.TimetableEventId,
-				ChangeType = "AdminRecurringUpdate",
+				ChangeType = "RecurringUpdate",
 				OldRoomId = oldRoomId,
 				NewRoomId = ev.RoomId,
 				OldStartUtc = oldStartUtc,
@@ -499,7 +499,7 @@ public sealed class SchedulingService : ISchedulingService
 			_db.TimetableEventChanges.Add(new TimetableEventChange
 			{
 				TimetableEventId = ev.TimetableEventId,
-				ChangeType = "AdminRecurringCancellation",
+				ChangeType = "RecurringCancel",
 				Reason = string.IsNullOrWhiteSpace(dto.Reason) ? "Recurring series cancelled by admin." : dto.Reason,
 				ChangedByUserId = cancelledByUserId,
 				ChangedAtUtc = DateTime.UtcNow,
