@@ -20,15 +20,43 @@
 
     <nav class="flex-column">
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link"
-                     href=""
-                     Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu"
-                      aria-hidden="true"></span>
-                Home
-            </NavLink>
-        </div>
+        <AuthorizeView Roles="Student">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/dashboard">
+                        <span class="bi bi-house-door-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        Home
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Lecturer">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="lecturer/dashboard">
+                        <span class="bi bi-house-door-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        Home
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"href="admin/dashboard">
+                        <span class="bi bi-house-door-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        Home
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
 
         <AuthorizeView Roles="Admin">
             <Authorized>
@@ -97,8 +125,7 @@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="student/profile">
-                        <span class="bi bi-person-fill-nav-menu"
-                              aria-hidden="true"></span>
+                        <span class="me-2">👤</span>
                         Profile
                     </NavLink>
                 </div>
@@ -106,8 +133,7 @@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="student/timetable">
-                        <span class="bi bi-calendar3-nav-menu"
-                              aria-hidden="true"></span>
+                        <span class="me-2">📅</span>
                         My Timetable
                     </NavLink>
                 </div>
@@ -115,8 +141,7 @@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="student/notifications">
-                        <span class="bi bi-bell-fill-nav-menu"
-                              aria-hidden="true"></span>
+                        <span class="me-2">🔔</span>
                         Notifications
                     </NavLink>
                 </div>
@@ -124,31 +149,30 @@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="student/room-booking">
-                        <span class="bi bi-door-open-fill-nav-menu"
-                              aria-hidden="true"></span>
-                        Book a Room
+                        <span class="me-2">🏢</span>
+                        Room Booking
                     </NavLink>
                 </div>
 
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="student/requests">
-                        <span class="bi bi-list-check"
-                              aria-hidden="true"></span>
+                        <span class="me-2">📝</span>
                         My Requests
                     </NavLink>
                 </div>
 
             </Authorized>
         </AuthorizeView>
+
+
         <AuthorizeView Roles="Lecturer">
             <Authorized>
 
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="lecturer/profile">
-                        <span class="bi bi-person-fill-nav-menu"
-                              aria-hidden="true"></span>
+                        <span class="me-2">👤</span>
                         Profile
                     </NavLink>
                 </div>
@@ -156,8 +180,7 @@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="lecturer/timetable">
-                        <span class="bi bi-calendar3-nav-menu"
-                              aria-hidden="true"></span>
+                        <span class="me-2">📅</span>
                         My Timetable
                     </NavLink>
                 </div>
@@ -165,8 +188,7 @@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="lecturer/notifications">
-                        <span class="bi bi-bell-fill-nav-menu"
-                              aria-hidden="true"></span>
+                        <span class="me-2">🔔</span>
                         Notifications
                     </NavLink>
                 </div>
@@ -174,8 +196,7 @@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="lecturer/manage-class-changes">
-                        <span class="bi bi-calendar-event"
-                              aria-hidden="true"></span>
+                        <span class="me-2">📖</span>
                         Manage Class Changes
                     </NavLink>
                 </div>
@@ -183,8 +204,7 @@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="lecturer/room-booking">
-                        <span class="bi bi-door-open-fill-nav-menu"
-                              aria-hidden="true"></span>
+                        <span class="me-2">🏢</span>
                         Book a Room
                     </NavLink>
                 </div>
@@ -192,8 +212,7 @@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link"
                              href="lecturer/requests">
-                        <span class="bi bi-list-check"
-                              aria-hidden="true"></span>
+                        <span class="me-2">📝</span>
                         My Requests
                     </NavLink>
                 </div>

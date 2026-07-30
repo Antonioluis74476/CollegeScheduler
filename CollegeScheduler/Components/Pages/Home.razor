@@ -1,7 +1,38 @@
 ﻿@page "/"
 
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<p>Redirecting...</p>
 
-Welcome to your new app.
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+
+        if (!(user.Identity?.IsAuthenticated ?? false))
+        {
+            Navigation.NavigateTo("/Account/Login", true);
+            return;
+        }
+
+        if (user.IsInRole("Admin"))
+        {
+            Navigation.NavigateTo("/admin/dashboard", true);
+        }
+        else if (user.IsInRole("Lecturer"))
+        {
+            Navigation.NavigateTo("/lecturer/dashboard", true);
+        }
+        else if (user.IsInRole("Student"))
+        {
+            Navigation.NavigateTo("/student/dashboard", true);
+        }
+    }
+}
