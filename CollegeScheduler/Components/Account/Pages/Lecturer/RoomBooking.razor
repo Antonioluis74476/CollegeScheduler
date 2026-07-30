@@ -69,6 +69,21 @@
 
                 <div class="row g-3">
 
+                    <div class="col-12">
+                        <label class="form-label">Booking type</label>
+
+                        <InputSelect class="form-select"
+                                     @bind-Value="_bookingType">
+                            <option value="Single">Single booking</option>
+                            <option value="Recurring">Recurring booking</option>
+                        </InputSelect>
+
+
+                        <div class="form-text">
+                            Choose whether you want to book a room once or for recurring weekly sessions.
+                        </div>
+                    </div>
+
                     <div class="form-text mb-2">
                         Select the expected attendees, date and time first, then click
                         <strong>Search available rooms</strong>.
@@ -110,28 +125,47 @@
 
                     </div>
 
-                    <div class="col-md-6">
+                    @if (_bookingType == "Recurring")
+                    {
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                Duration in hours
+                            </label>
 
-                        <label class="form-label">
-                            End date
-                        </label>
+                            <InputNumber class="form-control"
+                                         @bind-Value="_form.DurationHours" />
+                        </div>
 
-                        <InputDate class="form-control"
-                                   @bind-Value="_form.EndDate" />
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                Number of weeks
+                            </label>
 
-                    </div>
+                            <InputNumber class="form-control"
+                                         @bind-Value="_form.NumberOfWeeks" />
+                        </div>
+                    }
 
-                    <div class="col-md-6">
+                    @if (_bookingType == "Single")
+                    {
+                        <div class="col-md-6">
+                            <label class="form-label">End date</label>
 
-                        <label class="form-label">
-                            End time
-                        </label>
+                            <InputDate class="form-control"
+                                       @bind-Value="_form.EndDate" />
+                        </div>
+                    }
 
-                        <InputText type="time"
-                                   class="form-control"
-                                   @bind-Value="_form.EndTime" />
+                    @if (_bookingType == "Single")
+                    {
+                        <div class="col-md-6">
+                            <label class="form-label">End time</label>
 
-                    </div>
+                            <InputText class="form-control"
+                                       @bind-Value="_form.EndTime"
+                                       type="time" />
+                        </div>
+                    }
 
                     <div class="col-12">
                         <button type="button"
@@ -162,16 +196,77 @@
 
                             <option value="0">Select a room</option>
 
-                            @foreach (var room in _availableRooms)
+                            @if (_bookingType == "Recurring")
                             {
-                                <option value="@room.RoomId">
-                                    @($"{room.Code} - {room.Name} - {room.BuildingName}")
-                                </option>
+                                @foreach (var room in _recurringAvailableRooms)
+                                {
+                                    <option value="@room.RoomId">
+                                        @room.RoomCode - @room.RoomName
+                                        (@room.AvailableOccurrences/@room.TotalOccurrences available)
+                                    </option>
+                                }
+                            }
+                            else
+                            {
+                                @foreach (var room in _availableRooms)
+                                {
+                                    <option value="@room.RoomId">
+                                        @room.Code - @room.Name
+                                    </option>
+                                }
                             }
 
                         </InputSelect>
 
                         <ValidationMessage For="@(() => _form.RoomId)" />
+
+                        @if (_bookingType == "Recurring" && _form.RoomId > 0)
+                        {
+                            var selectedRoom = _recurringAvailableRooms
+                            .FirstOrDefault(r => r.RoomId == _form.RoomId);
+
+                            if (selectedRoom is not null)
+                            {
+                                <div class="alert alert-info mt-3">
+
+                                    <strong>
+                                        Availability:
+                                        @selectedRoom.AvailableOccurrences /
+                                        @selectedRoom.TotalOccurrences
+                                        occurrences available
+                                    </strong>
+
+                                    @if (selectedRoom.UnavailableOccurrences.Any())
+                                    {
+                                        <hr />
+
+                                        <strong>Unavailable occurrences</strong>
+
+                                        <ul class="mb-0 mt-2">
+                                            @foreach (var occurrence in selectedRoom.UnavailableOccurrences)
+                                            {
+                                                <li>
+                                                    @occurrence.StartUtc.ToLocalTime():dd MMM yyyy
+                                                    (@occurrence.StartUtc.ToLocalTime():HH:mm -
+                                                    @occurrence.EndUtc.ToLocalTime():HH:mm)
+
+                                                    <br />
+
+                                                    <small>@occurrence.Reason</small>
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <div class="mt-2 text-success">
+                                            ✓ This room is available for every selected week.
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+
                     </div>
 
                     <div class="col-12">
@@ -228,7 +323,11 @@
     private string? _errorMessage;
 
     private List<AvailableRoomDto> _availableRooms = new();
+    private List<RecurringAvailableRoomDto> _recurringAvailableRooms = new();
+
     private bool _isLoadingRooms;
+
+    private string _bookingType = "Single";
 
     private async Task SubmitRequestAsync()
     {
@@ -348,6 +447,12 @@
         [Required]
         public string EndTime { get; set; } = "";
 
+        [Range(1, 12, ErrorMessage = "Duration must be between 1 and 12 hours.")]
+        public int DurationHours { get; set; } = 1;
+
+        [Range(1, 52, ErrorMessage = "Number of weeks must be between 1 and 52.")]
+        public int NumberOfWeeks { get; set; } = 12;
+
         [Required(ErrorMessage = "Please provide a purpose.")]
         [StringLength(500, MinimumLength = 3)]
         public string Purpose { get; set; } = "";
@@ -364,29 +469,70 @@
     {
         _isLoadingRooms = true;
         _availableRooms.Clear();
+        _recurringAvailableRooms.Clear();
         _form.RoomId = 0;
+        _errorMessage = null;
 
         try
         {
-            var startDateTime = _form.StartDate.Date
-                .Add(TimeSpan.Parse(_form.StartTime));
-
-            var endDateTime = _form.EndDate.Date
-                .Add(TimeSpan.Parse(_form.EndTime));
-
-            var query = new RoomSearchQuery
+            if (_bookingType == "Recurring")
             {
-                StartUtc = DateTime.SpecifyKind(startDateTime, DateTimeKind.Utc),
-                EndUtc = DateTime.SpecifyKind(endDateTime, DateTimeKind.Utc),
-                MinCapacity = _form.ExpectedAttendees
-            };
+                var recurringQuery = new RecurringRoomSearchQuery
+                {
+                    StartDate = DateOnly.FromDateTime(_form.StartDate),
 
-            _availableRooms =
-                await LecturerService.GetAvailableRoomsAsync(query);
+                    StartTime = TimeOnly.Parse(_form.StartTime),
+
+                    DurationMinutes = _form.DurationHours * 60,
+
+                    NumberOfWeeks = _form.NumberOfWeeks,
+
+                    MinimumCapacity = _form.ExpectedAttendees
+                };
+
+                _recurringAvailableRooms =
+                    await LecturerService.GetRecurringAvailableRoomsAsync(
+                        recurringQuery);
+
+            }
+            else
+            {
+                var startDateTime = _form.StartDate.Date
+                    .Add(TimeSpan.Parse(_form.StartTime));
+
+                var endDateTime = _form.EndDate.Date
+                    .Add(TimeSpan.Parse(_form.EndTime));
+
+                var query = new RoomSearchQuery
+                {
+                    StartUtc = DateTime.SpecifyKind(
+                        startDateTime,
+                        DateTimeKind.Local)
+                        .ToUniversalTime(),
+
+                    EndUtc = DateTime.SpecifyKind(
+                        endDateTime,
+                        DateTimeKind.Local)
+                        .ToUniversalTime(),
+
+                    MinCapacity = _form.ExpectedAttendees
+                };
+
+                _availableRooms =
+                    await LecturerService.GetAvailableRoomsAsync(query);
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = CleanErrorMessage(ex.Message);
         }
         finally
         {
             _isLoadingRooms = false;
         }
+
+
+
+
     }
 }

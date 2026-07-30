@@ -16,7 +16,10 @@ public interface ISchedulingService
 
 	Task<List<AvailableRoomDto>> FindAvailableRoomsAsync(RoomSearchQuery query);
 
-	Task<List<TimetableEvent>> GenerateRecurringEventsAsync(
+    Task<List<RecurringAvailableRoomDto>> FindRecurringAvailableRoomsAsync(
+    RecurringRoomSearchQuery query);
+
+    Task<List<TimetableEvent>> GenerateRecurringEventsAsync(
 		RecurringEventCreateDto dto,
 		string createdByUserId);
 

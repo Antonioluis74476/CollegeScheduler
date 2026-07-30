@@ -85,6 +85,20 @@
 
                     <div class="row g-3">
 
+                        <div class="col-12">
+                            <label class="form-label">Booking type</label>
+
+                            <InputSelect class="form-select"
+                                         @bind-Value="_bookingType">
+                                <option value="Single">Single booking</option>
+                                <option value="Recurring">Recurring booking</option>
+                            </InputSelect>
+
+                            <div class="form-text">
+                                Choose whether you want to book a room once or for recurring weekly sessions.
+                            </div>
+                        </div>
+
                         <div class="form-text mb-2">
                             Select the expected attendees, date and time first, then click
                             <strong>Search available rooms</strong>.
@@ -278,6 +292,8 @@
     private string? _errorMessage;
 
     private List<AvailableRoomDto> _availableRooms = new();
+
+    private string _bookingType = "Single";
     
 
     private async Task SubmitRequestAsync()

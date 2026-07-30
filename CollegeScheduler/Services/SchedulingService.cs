@@ -247,7 +247,194 @@ public sealed class SchedulingService : ISchedulingService
 		return availableRooms;
 	}
 
-	public async Task<List<TimetableEvent>> GenerateRecurringEventsAsync(
+    public async Task<List<RecurringAvailableRoomDto>> FindRecurringAvailableRoomsAsync(
+    RecurringRoomSearchQuery query)
+    {
+        if (query.DurationMinutes <= 0)
+            throw new ArgumentException("DurationMinutes must be greater than zero.");
+
+        if (query.NumberOfWeeks <= 0)
+            throw new ArgumentException("NumberOfWeeks must be greater than zero.");
+
+        if (query.NumberOfWeeks > 52)
+            throw new ArgumentException("NumberOfWeeks cannot be greater than 52.");
+
+        if (query.MinimumCapacity < 0)
+            throw new ArgumentException("MinimumCapacity cannot be negative.");
+
+        var occurrences = new List<(DateTime StartUtc, DateTime EndUtc)>();
+
+        for (var week = 0; week < query.NumberOfWeeks; week++)
+        {
+            var occurrenceDate = query.StartDate.AddDays(week * 7);
+
+            var localStart = DateTime.SpecifyKind(
+				occurrenceDate.ToDateTime(query.StartTime),
+				DateTimeKind.Local);
+
+            var startUtc = localStart.ToUniversalTime();
+
+            var endUtc = startUtc.AddMinutes(query.DurationMinutes);
+
+            occurrences.Add((startUtc, endUtc));
+        }
+
+        var roomsQuery = _db.Rooms
+            .AsNoTracking()
+            .Where(r =>
+                r.IsActive &&
+                r.Capacity >= query.MinimumCapacity);
+
+        if (query.RoomTypeId.HasValue)
+        {
+            roomsQuery = roomsQuery.Where(r =>
+                r.RoomTypeId == query.RoomTypeId.Value);
+        }
+
+        if (query.BuildingId.HasValue)
+        {
+            roomsQuery = roomsQuery.Where(r =>
+                r.BuildingId == query.BuildingId.Value);
+        }
+
+        if (query.CampusId.HasValue)
+        {
+            roomsQuery = roomsQuery.Where(r =>
+                r.Building!.CampusId == query.CampusId.Value);
+        }
+
+        if (query.RequiredFeatureIds is { Count: > 0 })
+        {
+            foreach (var featureId in query.RequiredFeatureIds.Distinct())
+            {
+                roomsQuery = roomsQuery.Where(r =>
+                    r.RoomFeatures.Any(rf =>
+                        rf.FeatureId == featureId));
+            }
+        }
+
+        var candidateRooms = await roomsQuery
+            .Select(r => new
+            {
+                r.RoomId,
+                RoomCode = r.Code,
+                RoomName = r.Name,
+                r.Capacity,
+                BuildingName = r.Building!.Name,
+                CampusName = r.Building.Campus!.Name,
+                RoomTypeName = r.RoomType!.Name,
+
+                Features = r.RoomFeatures
+                    .Select(rf => rf.Feature!.Name)
+                    .ToList()
+            })
+            .ToListAsync();
+
+        if (candidateRooms.Count == 0)
+            return new List<RecurringAvailableRoomDto>();
+
+        var candidateRoomIds = candidateRooms
+            .Select(r => r.RoomId)
+            .ToList();
+
+        var searchStartUtc = occurrences.Min(o => o.StartUtc);
+        var searchEndUtc = occurrences.Max(o => o.EndUtc);
+
+        var bookings = await _db.TimetableEvents
+            .AsNoTracking()
+            .Where(e =>
+                candidateRoomIds.Contains(e.RoomId) &&
+                e.StartUtc < searchEndUtc &&
+                e.EndUtc > searchStartUtc &&
+                e.EventStatus.Name != "Cancelled")
+            .Select(e => new
+            {
+                e.RoomId,
+                e.StartUtc,
+                e.EndUtc
+            })
+            .ToListAsync();
+
+        var roomUnavailabilities = await _db.RoomUnavailabilities
+            .AsNoTracking()
+            .Where(u =>
+                candidateRoomIds.Contains(u.RoomId) &&
+                u.StartUtc < searchEndUtc &&
+                u.EndUtc > searchStartUtc)
+            .Select(u => new
+            {
+                u.RoomId,
+                u.StartUtc,
+                u.EndUtc
+            })
+            .ToListAsync();
+
+        var results = new List<RecurringAvailableRoomDto>();
+
+        foreach (var room in candidateRooms)
+        {
+            var unavailableOccurrences = new List<UnavailableOccurrenceDto>();
+
+            foreach (var occurrence in occurrences)
+            {
+                var hasBookingClash = bookings.Any(b =>
+                    b.RoomId == room.RoomId &&
+                    b.StartUtc < occurrence.EndUtc &&
+                    b.EndUtc > occurrence.StartUtc);
+
+                var hasUnavailabilityClash = roomUnavailabilities.Any(u =>
+                    u.RoomId == room.RoomId &&
+                    u.StartUtc < occurrence.EndUtc &&
+                    u.EndUtc > occurrence.StartUtc);
+
+                if (hasBookingClash || hasUnavailabilityClash)
+                {
+                    unavailableOccurrences.Add(new UnavailableOccurrenceDto
+                    {
+                        StartUtc = occurrence.StartUtc,
+                        EndUtc = occurrence.EndUtc,
+                        Reason = hasBookingClash
+                            ? "Already booked"
+                            : "Room unavailable"
+                    });
+                }
+            }
+
+            var availableOccurrences =
+                occurrences.Count - unavailableOccurrences.Count;
+
+            results.Add(new RecurringAvailableRoomDto
+            {
+                RoomId = room.RoomId,
+                RoomCode = room.RoomCode,
+                RoomName = room.RoomName,
+                BuildingName = room.BuildingName,
+                CampusName = room.CampusName,
+                Capacity = room.Capacity,
+                RoomType = room.RoomTypeName,
+                Features = room.Features,
+                AvailableOccurrences = availableOccurrences,
+                TotalOccurrences = occurrences.Count,
+                UnavailableOccurrences = unavailableOccurrences
+            });
+        }
+
+        _logger.LogInformation(
+            "Recurring room search completed. Start={StartDate}, Weeks={NumberOfWeeks}, DurationMinutes={DurationMinutes}, Candidates={CandidateCount}, Available={AvailableCount}",
+            query.StartDate,
+            query.NumberOfWeeks,
+            query.DurationMinutes,
+            candidateRooms.Count,
+            results.Count);
+
+        return results
+            .OrderBy(r => r.Capacity)
+            .ThenBy(r => r.RoomCode)
+            .ToList();
+    }
+
+
+    public async Task<List<TimetableEvent>> GenerateRecurringEventsAsync(
 		RecurringEventCreateDto dto,
 		string createdByUserId)
 	{

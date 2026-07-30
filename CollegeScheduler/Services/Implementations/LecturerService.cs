@@ -195,6 +195,21 @@ public sealed class LecturerService : ILecturerService
             ?? [];
     }
 
+    public async Task<List<RecurringAvailableRoomDto>>
+    GetRecurringAvailableRoomsAsync(
+        RecurringRoomSearchQuery query)
+    {
+        using var response = await _httpClient.PostAsJsonAsync(
+            "api/v1/rooms/recurring-available",
+            query);
+
+        await EnsureSuccessAsync(response);
+
+        return await response.Content
+            .ReadFromJsonAsync<List<RecurringAvailableRoomDto>>()
+            ?? [];
+    }
+
     public async Task<ApiMessageResponseDto?> ChangePasswordAsync(
 		ChangePasswordDto dto)
 	{

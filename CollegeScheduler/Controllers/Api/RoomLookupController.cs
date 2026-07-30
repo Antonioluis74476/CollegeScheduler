@@ -44,4 +44,27 @@ public class RoomLookupController : ControllerBase
 
         return Ok(rooms);
     }
+
+    [HttpPost("recurring-available")]
+    public async Task<ActionResult<List<RecurringAvailableRoomDto>>> GetRecurringAvailableRooms(
+        [FromBody] RecurringRoomSearchQuery query)
+    {
+        var rooms = await _schedulingService.FindRecurringAvailableRoomsAsync(query);
+
+        if (User.IsInRole("Student"))
+        {
+            var allowedIds = await _db.Rooms
+                .Where(r => r.IsBookableByStudents)
+                .Select(r => r.RoomId)
+                .ToListAsync();
+
+            rooms = rooms
+                .Where(r => allowedIds.Contains(r.RoomId))
+                .ToList();
+        }
+
+        return Ok(rooms);
+    }
+
+
 }

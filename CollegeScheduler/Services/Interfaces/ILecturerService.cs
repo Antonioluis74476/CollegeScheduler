@@ -32,6 +32,9 @@ public interface ILecturerService
     Task<List<AvailableRoomDto>> GetAvailableRoomsAsync(
     RoomSearchQuery query);
 
+    Task<List<RecurringAvailableRoomDto>> GetRecurringAvailableRoomsAsync(
+    RecurringRoomSearchQuery query);
+
     Task<ApiMessageResponseDto?> ChangePasswordAsync(
 		ChangePasswordDto dto);
 }

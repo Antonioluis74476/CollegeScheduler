@@ -72,7 +72,24 @@ public sealed class AdminSchedulingController : ControllerBase
 		}
 	}
 
-	[HttpPost("check-clashes")]
+    [HttpPost("rooms/recurring-available")]
+    public async Task<IActionResult> FindRecurringAvailableRooms(
+    [FromBody] RecurringRoomSearchQuery query)
+    {
+        try
+        {
+            var rooms = await _schedulingService
+                .FindRecurringAvailableRoomsAsync(query);
+
+            return Ok(rooms);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("check-clashes")]
 	public async Task<IActionResult> CheckClashes([FromBody] ClashCheckRequest dto)
 	{
 		try
