@@ -24,6 +24,9 @@ public interface IStudentService
     Task<List<AvailableRoomDto>> GetAvailableRoomsAsync(
     RoomSearchQuery query);
 
+    Task<List<RecurringAvailableRoomDto>> GetRecurringAvailableRoomsAsync(
+    RecurringRoomSearchQuery query);
+
     Task<IReadOnlyList<StudentRequestDto>> GetRequestsAsync();
 
 	Task<ApiMessageResponseDto?> ChangePasswordAsync(

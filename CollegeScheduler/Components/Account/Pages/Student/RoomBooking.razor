@@ -145,32 +145,63 @@
                             <ValidationMessage For="@(() => _formModel.StartTime)" />
                         </div>
 
-                        <div class="col-md-6">
-                            <label for="endDate"
-                                   class="form-label">
-                                End date
-                            </label>
+                        @if (_bookingType == "Single")
+                        {
+                            <div class="col-md-6">
+                                <label for="endDate"
+                                       class="form-label">
+                                    End date
+                                </label>
 
-                            <InputDate id="endDate"
-                                       class="form-control"
-                                       @bind-Value="_formModel.EndDate" />
+                                <InputDate id="endDate"
+                                           class="form-control"
+                                           @bind-Value="_formModel.EndDate" />
 
-                            <ValidationMessage For="@(() => _formModel.EndDate)" />
-                        </div>
+                                <ValidationMessage For="@(() => _formModel.EndDate)" />
+                            </div>
 
-                        <div class="col-md-6">
-                            <label for="endTime"
-                                   class="form-label">
-                                End time
-                            </label>
+                            <div class="col-md-6">
+                                <label for="endTime"
+                                       class="form-label">
+                                    End time
+                                </label>
 
-                            <InputText id="endTime"
-                                       type="time"
-                                       class="form-control"
-                                       @bind-Value="_formModel.EndTime" />
+                                <InputText id="endTime"
+                                           type="time"
+                                           class="form-control"
+                                           @bind-Value="_formModel.EndTime" />
 
-                            <ValidationMessage For="@(() => _formModel.EndTime)" />
-                        </div>
+                                <ValidationMessage For="@(() => _formModel.EndTime)" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="col-md-6">
+                                <label for="durationHours"
+                                       class="form-label">
+                                    Duration in hours
+                                </label>
+
+                                <InputNumber id="durationHours"
+                                             class="form-control"
+                                             @bind-Value="_formModel.DurationHours" />
+
+                                <ValidationMessage For="@(() => _formModel.DurationHours)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="numberOfWeeks"
+                                       class="form-label">
+                                    Number of weeks
+                                </label>
+
+                                <InputNumber id="numberOfWeeks"
+                                             class="form-control"
+                                             @bind-Value="_formModel.NumberOfWeeks" />
+
+                                <ValidationMessage For="@(() => _formModel.NumberOfWeeks)" />
+                            </div>
+                        }
 
                         <div class="col-12">
                             <button type="button"
@@ -203,11 +234,24 @@
 
                                 <option value="0">Select a room</option>
 
-                                @foreach (var room in _availableRooms)
+                                @if (_bookingType == "Recurring")
                                 {
-                                    <option value="@room.RoomId">
-                                        @($"{room.Code} - {room.Name} - {room.BuildingName}")
-                                    </option>
+                                    @foreach (var room in _recurringAvailableRooms)
+                                    {
+                                        <option value="@room.RoomId">
+                                            @room.RoomCode - @room.RoomName
+                                            (@room.AvailableOccurrences/@room.TotalOccurrences available)
+                                        </option>
+                                    }
+                                }
+                                else
+                                {
+                                    @foreach (var room in _availableRooms)
+                                    {
+                                        <option value="@room.RoomId">
+                                            @room.Code - @room.Name
+                                        </option>
+                                    }
                                 }
 
                             </InputSelect>
@@ -292,6 +336,9 @@
     private string? _errorMessage;
 
     private List<AvailableRoomDto> _availableRooms = new();
+
+    private List<RecurringAvailableRoomDto>
+    _recurringAvailableRooms = new();
 
     private string _bookingType = "Single";
     
@@ -405,32 +452,81 @@
             EndDate = nextHour.Date,
             EndTime = nextHour.AddHours(1).ToString("HH:mm"),
             ExpectedAttendees = 1
+
+
+
         };
     }
 
     private async Task LoadAvailableRoomsAsync()
     {
         _isLoadingRooms = true;
+
         _availableRooms.Clear();
+        _recurringAvailableRooms.Clear();
+
         _formModel.RoomId = 0;
+        _errorMessage = null;
 
         try
         {
-            var startDateTime = _formModel.StartDate.Date
-                .Add(TimeSpan.Parse(_formModel.StartTime));
-
-            var endDateTime = _formModel.EndDate.Date
-                .Add(TimeSpan.Parse(_formModel.EndTime));
-
-            var query = new RoomSearchQuery
+            if (_bookingType == "Recurring")
             {
-                StartUtc = DateTime.SpecifyKind(startDateTime, DateTimeKind.Utc),
-                EndUtc = DateTime.SpecifyKind(endDateTime, DateTimeKind.Utc),
-                MinCapacity = _formModel.ExpectedAttendees
-            };
+                var recurringQuery = new RecurringRoomSearchQuery
+                {
+                    StartDate = DateOnly.FromDateTime(
+                        _formModel.StartDate),
 
-            _availableRooms =
-                await StudentService.GetAvailableRoomsAsync(query);
+                    StartTime = TimeOnly.Parse(
+                        _formModel.StartTime),
+
+                    DurationMinutes =
+                        _formModel.DurationHours * 60,
+
+                    NumberOfWeeks =
+                        _formModel.NumberOfWeeks,
+
+                    MinimumCapacity =
+                        _formModel.ExpectedAttendees
+                };
+
+                _recurringAvailableRooms =
+                    await StudentService
+                        .GetRecurringAvailableRoomsAsync(
+                            recurringQuery);
+            }
+            else
+            {
+                var startDateTime =
+                    _formModel.StartDate.Date.Add(
+                        TimeSpan.Parse(_formModel.StartTime));
+
+                var endDateTime =
+                    _formModel.EndDate.Date.Add(
+                        TimeSpan.Parse(_formModel.EndTime));
+
+                var query = new RoomSearchQuery
+                {
+                    StartUtc = DateTime.SpecifyKind(
+                        startDateTime,
+                        DateTimeKind.Utc),
+
+                    EndUtc = DateTime.SpecifyKind(
+                        endDateTime,
+                        DateTimeKind.Utc),
+
+                    MinCapacity =
+                        _formModel.ExpectedAttendees
+                };
+
+                _availableRooms =
+                    await StudentService
+                        .GetAvailableRoomsAsync(query);
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = CleanErrorMessage(ex.Message);
         }
         finally
         {
@@ -466,12 +562,14 @@
         [Required(ErrorMessage = "An end time is required.")]
         public string EndTime { get; set; } = "";
 
+        [Range(1, 12, ErrorMessage = "Duration must be between 1 and 12 hours.")]
+        public int DurationHours { get; set; } = 1;
+
+        [Range(1, 52, ErrorMessage = "Number of weeks must be between 1 and 52.")]
+        public int NumberOfWeeks { get; set; } = 12;
+
         [Required(ErrorMessage = "Please provide a purpose.")]
-        [StringLength(
-            500,
-            MinimumLength = 3,
-            ErrorMessage =
-                "The purpose must be between 3 and 500 characters.")]
+        [StringLength(500, MinimumLength = 3, ErrorMessage = "The purpose must be between 3 and 500 characters.")]
         public string Purpose { get; set; } = "";
 
         [Range(
