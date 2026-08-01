@@ -19,4 +19,7 @@ public class RecurringRoomSearchQuery
     public int? RoomTypeId { get; set; }
 
     public List<int> RequiredFeatureIds { get; set; } = [];
+
+    public List<DayOfWeek> DaysOfWeek { get; set; } = [];
+
 }

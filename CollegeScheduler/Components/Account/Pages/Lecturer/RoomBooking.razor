@@ -144,7 +144,51 @@
                             <InputNumber class="form-control"
                                          @bind-Value="_form.NumberOfWeeks" />
                         </div>
+
+                        <div class="col-12">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="customWeekdays"
+                                       @bind="_useCustomDays" />
+
+                                <label class="form-check-label" for="customWeekdays">
+                                    Choose custom weekdays
+                                </label>
+                            </div>
+
+                            @if (_useCustomDays)
+                            {
+                                <label class="form-label">Repeat on</label>
+
+                                <div class="d-flex flex-wrap gap-3">
+                                    @foreach (DayOfWeek day in Enum.GetValues<DayOfWeek>())
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input"
+                                                   type="checkbox"
+                                                   id="@day"
+                                                   checked="@_selectedDays.Contains(day)"
+                                                   @onchange="e => ToggleDay(day, (bool)e.Value!)" />
+
+                                            <label class="form-check-label" for="@day">
+                                                @day
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="form-text">
+                                    Repeats every @_form.StartDate.DayOfWeek based on the selected start date.
+                                </div>
+                            }
+                        </div>
+
                     }
+
+
 
                     @if (_bookingType == "Single")
                     {
@@ -329,6 +373,10 @@
 
     private string _bookingType = "Single";
 
+    private readonly HashSet<DayOfWeek> _selectedDays = [];
+
+    private bool _useCustomDays;
+
     private async Task SubmitRequestAsync()
     {
         _successMessage = null;
@@ -465,6 +513,18 @@
         public int ExpectedAttendees { get; set; }
     }
 
+    private void ToggleDay(DayOfWeek day, bool isSelected)
+    {
+        if (isSelected)
+        {
+            _selectedDays.Add(day);
+        }
+        else
+        {
+            _selectedDays.Remove(day);
+        }
+    }
+
     private async Task LoadAvailableRoomsAsync()
     {
         _isLoadingRooms = true;
@@ -487,7 +547,10 @@
 
                     NumberOfWeeks = _form.NumberOfWeeks,
 
-                    MinimumCapacity = _form.ExpectedAttendees
+                    MinimumCapacity = _form.ExpectedAttendees,
+
+                    DaysOfWeek = _selectedDays.ToList(),
+
                 };
 
                 _recurringAvailableRooms =

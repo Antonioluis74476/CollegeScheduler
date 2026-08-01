@@ -264,20 +264,39 @@ public sealed class SchedulingService : ISchedulingService
 
         var occurrences = new List<(DateTime StartUtc, DateTime EndUtc)>();
 
-        for (var week = 0; week < query.NumberOfWeeks; week++)
+        var selectedDays = query.DaysOfWeek.Any()
+			? query.DaysOfWeek.Distinct().OrderBy(d => d).ToList()
+			: new List<DayOfWeek> { query.StartDate.DayOfWeek };
+
+        foreach (var day in selectedDays)
         {
-            var occurrenceDate = query.StartDate.AddDays(week * 7);
+            var firstOccurrence = query.StartDate;
 
-            var localStart = DateTime.SpecifyKind(
-				occurrenceDate.ToDateTime(query.StartTime),
-				DateTimeKind.Local);
+            while (firstOccurrence.DayOfWeek != day)
+            {
+                firstOccurrence = firstOccurrence.AddDays(1);
+            }
 
-            var startUtc = localStart.ToUniversalTime();
+            for (var week = 0; week < query.NumberOfWeeks; week++)
+            {
+                var occurrenceDate = firstOccurrence.AddDays(week * 7);
 
-            var endUtc = startUtc.AddMinutes(query.DurationMinutes);
+                var localStart = DateTime.SpecifyKind(
+                    occurrenceDate.ToDateTime(query.StartTime),
+                    DateTimeKind.Local);
 
-            occurrences.Add((startUtc, endUtc));
+                var startUtc = localStart.ToUniversalTime();
+
+                var endUtc = startUtc.AddMinutes(query.DurationMinutes);
+
+                occurrences.Add((startUtc, endUtc));
+            }
         }
+
+        occurrences = occurrences
+            .OrderBy(o => o.StartUtc)
+            .Distinct()
+            .ToList();
 
         var roomsQuery = _db.Rooms
             .AsNoTracking()
