@@ -5,6 +5,8 @@ using CollegeScheduler.DTOs.Requests;
 using CollegeScheduler.Services.Interfaces;
 using CollegeScheduler.DTOs.Scheduling;
 
+using CollegeScheduler.DTOs.Facilities;
+
 namespace CollegeScheduler.Services.Implementations;
 
 public sealed class LecturerService : ILecturerService
@@ -223,7 +225,20 @@ public sealed class LecturerService : ILecturerService
 			.ReadFromJsonAsync<ApiMessageResponseDto>();
 	}
 
-	private static async Task EnsureSuccessAsync(
+    public async Task<List<CampusDto>> GetCampusesAsync()
+    {
+        using var response = await _httpClient.GetAsync(
+            "api/v1/rooms/campuses");
+
+		await EnsureSuccessAsync(response);
+
+        var result = await response.Content.ReadFromJsonAsync<
+            CollegeScheduler.DTOs.Common.PagedResult<CampusDto>>();
+
+        return result?.Items.ToList() ?? [];
+    }
+
+    private static async Task EnsureSuccessAsync(
 		HttpResponseMessage response)
 	{
 		if (response.IsSuccessStatusCode)
@@ -242,4 +257,21 @@ public sealed class LecturerService : ILecturerService
 
 		throw new HttpRequestException(error);
 	}
+
+    public async Task<List<CollegeScheduler.DTOs.Facilities.BuildingDto>>
+    GetBuildingsByCampusAsync(int campusId)
+    {
+        using var response = await _httpClient.GetAsync(
+            $"api/v1/rooms/campuses/{campusId}/buildings");
+
+        await EnsureSuccessAsync(response);
+
+        var result = await response.Content.ReadFromJsonAsync<
+            CollegeScheduler.DTOs.Common.PagedResult<
+                CollegeScheduler.DTOs.Facilities.BuildingDto>>();
+
+        return result?.Items.ToList() ?? [];
+    }
+
+
 }

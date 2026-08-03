@@ -5,6 +5,8 @@ using CollegeScheduler.DTOs.Student;
 using CollegeScheduler.Services.Interfaces;
 using CollegeScheduler.DTOs.Scheduling;
 
+using CollegeScheduler.DTOs.Facilities;
+
 namespace CollegeScheduler.Services.Implementations;
 
 public sealed class StudentService : IStudentService
@@ -184,7 +186,35 @@ public sealed class StudentService : IStudentService
 			?? [];
 	}
 
-	public async Task<ApiMessageResponseDto?> ChangePasswordAsync(
+    public async Task<List<CampusDto>> GetCampusesAsync()
+    {
+        using var response = await _httpClient.GetAsync(
+            "api/v1/rooms/campuses");
+
+        await EnsureSuccessAsync(response);
+
+        var result = await response.Content.ReadFromJsonAsync<
+            CollegeScheduler.DTOs.Common.PagedResult<CampusDto>>();
+
+        return result?.Items.ToList() ?? [];
+    }
+
+    public async Task<List<CollegeScheduler.DTOs.Facilities.BuildingDto>>
+        GetBuildingsByCampusAsync(int campusId)
+    {
+        using var response = await _httpClient.GetAsync(
+            $"api/v1/rooms/campuses/{campusId}/buildings");
+
+        await EnsureSuccessAsync(response);
+
+        var result = await response.Content.ReadFromJsonAsync<
+            CollegeScheduler.DTOs.Common.PagedResult<
+                CollegeScheduler.DTOs.Facilities.BuildingDto>>();
+
+        return result?.Items.ToList() ?? [];
+    }
+
+    public async Task<ApiMessageResponseDto?> ChangePasswordAsync(
 		ChangePasswordDto dto)
 	{
 		using var response = await _httpClient.PostAsJsonAsync(

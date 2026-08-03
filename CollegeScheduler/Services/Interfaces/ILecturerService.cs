@@ -3,6 +3,8 @@ using CollegeScheduler.DTOs.Profiles;
 using CollegeScheduler.DTOs.Requests;
 using CollegeScheduler.DTOs.Scheduling;
 
+using CollegeScheduler.DTOs.Facilities;
+
 namespace CollegeScheduler.Services.Interfaces;
 
 public interface ILecturerService
@@ -35,6 +37,10 @@ public interface ILecturerService
     Task<List<RecurringAvailableRoomDto>> GetRecurringAvailableRoomsAsync(
     RecurringRoomSearchQuery query);
 
+    Task<List<CampusDto>> GetCampusesAsync();
+
     Task<ApiMessageResponseDto?> ChangePasswordAsync(
 		ChangePasswordDto dto);
+
+    Task<List<CollegeScheduler.DTOs.Facilities.BuildingDto>>GetBuildingsByCampusAsync(int campusId);
 }

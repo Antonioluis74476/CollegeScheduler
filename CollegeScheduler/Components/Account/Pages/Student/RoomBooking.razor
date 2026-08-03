@@ -10,6 +10,8 @@
 @using CollegeScheduler.DTOs.Scheduling
 
 
+@using CollegeScheduler.DTOs.Facilities
+
 
 @inject IStudentService StudentService
 
@@ -246,6 +248,42 @@
 
                         }
 
+
+                        <div class="col-md-6">
+                            <label class="form-label">Campus</label>
+
+                            <InputSelect TValue="int?"
+                                         class="form-select"
+                                         Value="_selectedCampusId"
+                                         ValueChanged="@((int? campusId) => OnCampusChangedAsync(campusId))"
+                                         ValueExpression="@(() => _selectedCampusId)">
+                                <option value="">All campuses</option>
+
+                                @foreach (var campus in _campuses)
+                                {
+                                    <option value="@campus.CampusId">
+                                        @campus.Name
+                                    </option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Building</label>
+
+                            <InputSelect class="form-select"
+                                         @bind-Value="_selectedBuildingId">
+                                <option value="">All buildings</option>
+
+                                @foreach (var building in _buildings)
+                                {
+                                    <option value="@building.BuildingId">
+                                        @building.Name
+                                    </option>
+                                }
+                            </InputSelect>
+                        </div>
+
                         <div class="col-12">
                             <button type="button"
                                     class="btn btn-outline-primary"
@@ -387,6 +425,18 @@
 
     private bool _useCustomDays;
     private readonly HashSet<DayOfWeek> _selectedDays = [];
+
+    private List<CampusDto> _campuses = [];
+
+    private List<CollegeScheduler.DTOs.Facilities.BuildingDto> _buildings = [];
+
+    private int? _selectedCampusId;
+    private int? _selectedBuildingId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _campuses = await StudentService.GetCampusesAsync();
+    }
     
 
     private async Task SubmitRequestAsync()
@@ -543,25 +593,18 @@
             {
                 var recurringQuery = new RecurringRoomSearchQuery
                 {
-                    StartDate = DateOnly.FromDateTime(
-                        _formModel.StartDate),
+                    StartDate = DateOnly.FromDateTime(_formModel.StartDate),
+                    StartTime = TimeOnly.Parse(_formModel.StartTime),
+                    DurationMinutes = _formModel.DurationHours * 60,
+                    NumberOfWeeks = _formModel.NumberOfWeeks,
+                    MinimumCapacity = _formModel.ExpectedAttendees,
 
-                    StartTime = TimeOnly.Parse(
-                        _formModel.StartTime),
-
-                    DurationMinutes =
-                        _formModel.DurationHours * 60,
-
-                    NumberOfWeeks =
-                        _formModel.NumberOfWeeks,
-
-                    MinimumCapacity =
-                        _formModel.ExpectedAttendees,
+                    CampusId = _selectedCampusId,
+                    BuildingId = _selectedBuildingId,
 
                     DaysOfWeek = _useCustomDays
                         ? _selectedDays.ToList()
                         : [],
-
                 };
 
                 _recurringAvailableRooms =
@@ -581,16 +624,13 @@
 
                 var query = new RoomSearchQuery
                 {
-                    StartUtc = DateTime.SpecifyKind(
-                        startDateTime,
-                        DateTimeKind.Utc),
+                    StartUtc = DateTime.SpecifyKind(startDateTime, DateTimeKind.Utc),
+                    EndUtc = DateTime.SpecifyKind(endDateTime, DateTimeKind.Utc),
 
-                    EndUtc = DateTime.SpecifyKind(
-                        endDateTime,
-                        DateTimeKind.Utc),
+                    MinCapacity = _formModel.ExpectedAttendees,
 
-                    MinCapacity =
-                        _formModel.ExpectedAttendees
+                    CampusId = _selectedCampusId,
+                    BuildingId = _selectedBuildingId
                 };
 
                 _availableRooms =
@@ -652,6 +692,23 @@
             ErrorMessage =
                 "Expected attendees must be between 1 and 1000.")]
         public int ExpectedAttendees { get; set; }
+    }
+
+    private async Task OnCampusChangedAsync(int? campusId)
+    {
+        _selectedCampusId = campusId;
+        _selectedBuildingId = null;
+        _buildings.Clear();
+
+        _availableRooms.Clear();
+        _recurringAvailableRooms.Clear();
+        _formModel.RoomId = 0;
+
+        if (campusId.HasValue)
+        {
+            _buildings = await StudentService
+                .GetBuildingsByCampusAsync(campusId.Value);
+        }
     }
 
 }
