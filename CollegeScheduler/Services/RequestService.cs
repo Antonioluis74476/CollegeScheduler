@@ -464,14 +464,20 @@ public sealed class RequestService : IRequestService
 
 	private async Task ApplyApprovedCancellationAsync(long requestId, string changedByUserId)
 	{
-		var detail = await _db.RequestScheduleChanges
+        var detail = await _db.RequestScheduleChanges
+			.Include(x => x.TimetableEvent)
+				.ThenInclude(te => te.Module)
+			.Include(x => x.TimetableEvent)
+				.ThenInclude(te => te.Room)
+					.ThenInclude(r => r.Building)
 			.Include(x => x.TimetableEvent)
 				.ThenInclude(te => te.EventCohorts)
+					.ThenInclude(ec => ec.Cohort)
 			.Include(x => x.TimetableEvent)
 				.ThenInclude(te => te.EventLecturers)
 			.FirstOrDefaultAsync(x => x.RequestId == requestId);
 
-		if (detail is null)
+        if (detail is null)
 			throw new InvalidOperationException($"RequestScheduleChange for request {requestId} not found.");
 
 		var timetableEvent = detail.TimetableEvent;
@@ -524,18 +530,43 @@ public sealed class RequestService : IRequestService
 
 		recipientUserIds.AddRange(lecturerUserIds);
 
-		if (recipientUserIds.Count > 0)
-		{
-			await _notificationService.CreateAsync(
-				notificationTypeName: "EventCancelled",
-				title: "Class cancelled",
-				message: $"Timetable event #{timetableEvent.TimetableEventId} has been cancelled.",
-				recipientUserIds: recipientUserIds.Distinct(),
-				relatedTimetableEventId: timetableEvent.TimetableEventId,
-				relatedRequestId: requestId);
-		}
+        if (recipientUserIds.Count > 0)
+        {
+            var cohortNames = timetableEvent.EventCohorts
+                .Select(ec => ec.Cohort.Name)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct()
+                .ToList();
 
-		await _hubNotifier.PushEventCancelledAsync(
+            var cohortsText = cohortNames.Count > 0
+                ? string.Join(", ", cohortNames)
+                : "Not specified";
+
+            var roomText = string.IsNullOrWhiteSpace(timetableEvent.Room.Name)
+                ? timetableEvent.Room.Code
+                : $"{timetableEvent.Room.Code} - {timetableEvent.Room.Name}";
+
+            var buildingText = timetableEvent.Room.Building?.Name ?? "Not specified";
+
+            var cancellationMessage =
+                $"Module: {timetableEvent.Module.Code} - {timetableEvent.Module.Title}\n" +
+                $"Date: {timetableEvent.StartUtc:dddd, dd MMMM yyyy}\n" +
+                $"Time: {timetableEvent.StartUtc:HH:mm} - {timetableEvent.EndUtc:HH:mm}\n" +
+                $"Room: {roomText}\n" +
+                $"Building: {buildingText}\n" +
+                $"Cohorts: {cohortsText}\n" +
+                $"Reason: {detail.Reason}";
+
+            await _notificationService.CreateAsync(
+                notificationTypeName: "EventCancelled",
+                title: $"Class cancelled - {timetableEvent.Module.Code}",
+                message: cancellationMessage,
+                recipientUserIds: recipientUserIds.Distinct(),
+                relatedTimetableEventId: timetableEvent.TimetableEventId,
+                relatedRequestId: requestId);
+        }
+
+        await _hubNotifier.PushEventCancelledAsync(
 			timetableEventId: timetableEvent.TimetableEventId,
 			cohortIds: cohortIds,
 			lecturerUserIds: lecturerUserIds,

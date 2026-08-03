@@ -587,12 +587,16 @@ public sealed class AdminSchedulingController : ControllerBase
 	[HttpPost("events/{id:long}/cancel")]
 	public async Task<IActionResult> CancelEvent(long id, [FromBody] AdminCancelEventDto dto)
 	{
-		var timetableEvent = await _db.TimetableEvents
+        var timetableEvent = await _db.TimetableEvents
+			.Include(te => te.Module)
+			.Include(te => te.Room)
+				.ThenInclude(r => r.Building)
 			.Include(te => te.EventCohorts)
+				.ThenInclude(ec => ec.Cohort)
 			.Include(te => te.EventLecturers)
 			.FirstOrDefaultAsync(te => te.TimetableEventId == id);
 
-		if (timetableEvent is null)
+        if (timetableEvent is null)
 			return NotFound($"TimetableEvent {id} not found.");
 
 		var cancelledStatusId = await _db.EventStatuses
@@ -641,17 +645,46 @@ public sealed class AdminSchedulingController : ControllerBase
 
 		recipientUserIds.AddRange(lecturerUserIds);
 
-		if (recipientUserIds.Count > 0)
-		{
-			await _notificationService.CreateAsync(
-				notificationTypeName: "EventCancelled",
-				title: "Class cancelled",
-				message: $"Timetable event #{timetableEvent.TimetableEventId} has been cancelled by admin.",
-				recipientUserIds: recipientUserIds.Distinct(),
-				relatedTimetableEventId: timetableEvent.TimetableEventId);
-		}
+        if (recipientUserIds.Count > 0)
+        {
+            var cohortNames = timetableEvent.EventCohorts
+                .Select(ec => ec.Cohort.Name)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct()
+                .ToList();
 
-		await _hubNotifier.PushEventCancelledAsync(
+            var cohortsText = cohortNames.Count > 0
+                ? string.Join(", ", cohortNames)
+                : "Not specified";
+
+            var roomText = string.IsNullOrWhiteSpace(timetableEvent.Room.Name)
+                ? timetableEvent.Room.Code
+                : $"{timetableEvent.Room.Code} - {timetableEvent.Room.Name}";
+
+            var buildingText = timetableEvent.Room.Building?.Name ?? "Not specified";
+
+            var cancellationReason = string.IsNullOrWhiteSpace(dto.Reason)
+                ? "Cancelled by admin."
+                : dto.Reason;
+
+            var cancellationMessage =
+                $"Module: {timetableEvent.Module.Code} - {timetableEvent.Module.Title}\n" +
+                $"Date: {timetableEvent.StartUtc:dddd, dd MMMM yyyy}\n" +
+                $"Time: {timetableEvent.StartUtc:HH:mm} - {timetableEvent.EndUtc:HH:mm}\n" +
+                $"Room: {roomText}\n" +
+                $"Building: {buildingText}\n" +
+                $"Cohorts: {cohortsText}\n" +
+                $"Reason: {cancellationReason}";
+
+            await _notificationService.CreateAsync(
+                notificationTypeName: "EventCancelled",
+                title: $"Class cancelled - {timetableEvent.Module.Code}",
+                message: cancellationMessage,
+                recipientUserIds: recipientUserIds.Distinct(),
+                relatedTimetableEventId: timetableEvent.TimetableEventId);
+        }
+
+        await _hubNotifier.PushEventCancelledAsync(
 			timetableEventId: timetableEvent.TimetableEventId,
 			cohortIds: cohortIds,
 			lecturerUserIds: lecturerUserIds,

@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
+using CollegeScheduler.Services.Interfaces;
+
 namespace CollegeScheduler.Controllers.Api.Admin;
 
 [ApiController]
@@ -17,14 +19,18 @@ namespace CollegeScheduler.Controllers.Api.Admin;
 [Authorize(Roles = RoleNames.Admin)]
 public sealed class TimetableEventController : ControllerBase
 {
-	private readonly ApplicationDbContext _db;
+    private readonly ApplicationDbContext _db;
+    private readonly INotificationService _notificationService;
 
-	public TimetableEventController(ApplicationDbContext db)
-	{
-		_db = db;
-	}
+    public TimetableEventController(
+    ApplicationDbContext db,
+    INotificationService notificationService)
+    {
+        _db = db;
+        _notificationService = notificationService;
+    }
 
-	[HttpGet]
+    [HttpGet]
 	public async Task<ActionResult<PagedResult<TimetableEventDto>>> GetAll([FromQuery] TimetableEventQuery q)
 	{
 		var query = _db.TimetableEvents.AsNoTracking();
@@ -180,10 +186,23 @@ public sealed class TimetableEventController : ControllerBase
 		if (dto.EndUtc <= dto.StartUtc)
 			return BadRequest("EndUtc must be greater than StartUtc.");
 
-		var entity = await _db.TimetableEvents.FirstOrDefaultAsync(x => x.TimetableEventId == id);
-		if (entity is null) return NotFound();
+		
+        var entity = await _db.TimetableEvents
+			.Include(x => x.Module)
+			.Include(x => x.Room)
+				.ThenInclude(r => r.Building)
+			.Include(x => x.EventCohorts)
+				.ThenInclude(ec => ec.Cohort)
+			.Include(x => x.EventLecturers)
+			.FirstOrDefaultAsync(x => x.TimetableEventId == id);
 
-		var termExists = await _db.Terms.AnyAsync(t => t.TermId == dto.TermId);
+        if (entity is null)
+            return NotFound();
+
+        var previousStatusId = entity.EventStatusId;
+
+
+        var termExists = await _db.Terms.AnyAsync(t => t.TermId == dto.TermId);
 		if (!termExists) return NotFound($"Term {dto.TermId} not found.");
 
 		var moduleExists = await _db.Modules.AnyAsync(m => m.ModuleId == dto.ModuleId);
@@ -192,10 +211,18 @@ public sealed class TimetableEventController : ControllerBase
 		var roomExists = await _db.Rooms.AnyAsync(r => r.RoomId == dto.RoomId);
 		if (!roomExists) return NotFound($"Room {dto.RoomId} not found.");
 
-		var statusExists = await _db.EventStatuses.AnyAsync(s => s.EventStatusId == dto.EventStatusId);
-		if (!statusExists) return NotFound($"EventStatus {dto.EventStatusId} not found.");
+        var newStatus = await _db.EventStatuses
+			.AsNoTracking()
+			.FirstOrDefaultAsync(s => s.EventStatusId == dto.EventStatusId);
 
-		entity.TermId = dto.TermId;
+        if (newStatus is null)
+            return NotFound($"EventStatus {dto.EventStatusId} not found.");
+
+        var isNewCancellation =
+            newStatus.Name == "Cancelled" &&
+            previousStatusId != dto.EventStatusId;
+
+        entity.TermId = dto.TermId;
 		entity.ModuleId = dto.ModuleId;
 		entity.RoomId = dto.RoomId;
 		entity.StartUtc = dto.StartUtc;
@@ -215,7 +242,86 @@ public sealed class TimetableEventController : ControllerBase
 			return Conflict("Could not update TimetableEvent. A conflicting record may already exist.");
 		}
 
-		return NoContent();
+        if (isNewCancellation)
+        {
+    
+            var lecturerIds = entity.EventLecturers
+                .Select(el => el.LecturerId)
+                .Distinct()
+                .ToList();
+
+            var lecturerUserIds = await _db.LecturerProfiles
+                .Where(lp =>
+                    lecturerIds.Contains(lp.LecturerId) &&
+                    lp.UserId != null)
+                .Select(lp => lp.UserId!)
+                .Distinct()
+                .ToListAsync();
+
+            var cohortIds = entity.EventCohorts
+				.Select(ec => ec.CohortId)
+				.Distinct()
+				.ToList();
+
+            var studentUserIds = await (
+                from membership in _db.StudentCohortMemberships
+                join student in _db.StudentProfiles
+                    on membership.StudentId equals student.StudentId
+                where cohortIds.Contains(membership.CohortId)
+                      && student.UserId != null
+                select student.UserId!
+            )
+            .Distinct()
+            .ToListAsync();
+
+            var recipientUserIds = lecturerUserIds
+				.Concat(studentUserIds)
+				.Distinct()
+				.ToList();
+
+            if (recipientUserIds.Count > 0)
+            {
+                var cohortNames = entity.EventCohorts
+                    .Select(ec => ec.Cohort.Name)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct()
+                    .ToList();
+
+                var cohortsText = cohortNames.Count > 0
+                    ? string.Join(", ", cohortNames)
+                    : "Not specified";
+
+                var roomText = string.IsNullOrWhiteSpace(entity.Room.Name)
+                    ? entity.Room.Code
+                    : $"{entity.Room.Code} - {entity.Room.Name}";
+
+                var buildingText =
+                    entity.Room.Building?.Name ?? "Not specified";
+
+                var reason = string.IsNullOrWhiteSpace(dto.Notes)
+                    ? "Cancelled by admin."
+                    : dto.Notes;
+
+                var lecturerMessage =
+                    $"Module: {entity.Module.Code} - {entity.Module.Title}\n" +
+                    $"Cohorts: {cohortsText}\n" +
+                    $"Date: {entity.StartUtc:dddd, dd MMMM yyyy}\n" +
+                    $"Time: {entity.StartUtc:HH:mm} - {entity.EndUtc:HH:mm}\n" +
+                    $"Room: {roomText}\n" +
+                    $"Building: {buildingText}\n" +
+                    $"Reason: {reason}";
+
+                await _notificationService.CreateAsync(
+                    notificationTypeName: "EventCancelled",
+                    title: $"Class cancelled - {entity.Module.Code}",
+                    message: lecturerMessage,
+                    recipientUserIds: recipientUserIds,
+                    relatedTimetableEventId: entity.TimetableEventId);
+            }
+
+        }
+
+        return NoContent();
 	}
 
 	[HttpDelete("{id:long}")]

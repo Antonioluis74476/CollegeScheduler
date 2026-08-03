@@ -9,6 +9,8 @@
 @using CollegeScheduler.DTOs.Academic
 @using CollegeScheduler.DTOs.Facilities
 
+@using System.Diagnostics
+
 @inject ITimetableEventService TimetableEventService
 @inject NavigationManager Navigation
 
@@ -282,18 +284,20 @@ else
     private int? selectedStatusId;
     private DateTime? fromDate;
     private DateTime? toDate;
-    
 
+    
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            var eventResult = await TimetableEventService.GetAllAsync();
+            
+            var eventResult = await TimetableEventService.GetAllAsync(page: 1, pageSize: 50);
 
             if (eventResult is not null)
             {
                 events = eventResult.Items.ToList();
-            }
+                }
+            
 
             var moduleResult = await ModuleService.GetAllAsync();
             if (moduleResult is not null)
@@ -329,7 +333,7 @@ else
                 }
             }
 
-            for (int campusId = 1; campusId <= 1; campusId++)
+           for (int campusId = 1; campusId <= 1; campusId++)
             {
                 var campusResult = await CampusService.GetAllAsync(
                     page: 1,
@@ -366,6 +370,7 @@ else
                     }
                 }
             }
+              
 
         }
 
@@ -378,7 +383,7 @@ else
         {
             isLoading = false;
         }
-    }
+    } 
 
     private void CreateEvent()
     {
