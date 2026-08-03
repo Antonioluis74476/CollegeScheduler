@@ -9,6 +9,10 @@
 @using Microsoft.AspNetCore.Authorization
 @using System.ComponentModel.DataAnnotations
 
+@using CollegeScheduler.DTOs.Scheduling
+
+@using CollegeScheduler.DTOs.Facilities
+
 @inject ILecturerService LecturerService
 
 <PageTitle>Manage Class Changes</PageTitle>
@@ -104,16 +108,62 @@
                             </div>
 
                             <div class="mb-3">
+                                <label class="form-label">Campus</label>
 
-                                <label class="form-label">
-                                    Proposed room ID
-                                </label>
+                                <select class="form-select"
+                                        @onchange="@(async e => await OnCampusChangedAsync(
+                                        int.TryParse(e.Value?.ToString(), out var id) ? id : null))">
 
-                                <InputNumber class="form-control"
-                                             @bind-Value="_scheduleForm.ProposedRoomId" />
+                                    <option value="">Select a campus</option>
+
+                                    @foreach (var campus in _campuses)
+                                    {
+                                        <option value="@campus.CampusId">
+                                            @campus.Name
+                                        </option>
+                                    }
+
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Building</label>
+
+                                <select class="form-select"
+                                        @onchange="OnBuildingChanged"
+                                        disabled="@(_selectedCampusId is null)">
+
+                                    <option value="">Select a building</option>
+
+                                    @foreach (var building in _buildings)
+                                    {
+                                        <option value="@building.BuildingId">
+                                            @building.Name
+                                        </option>
+                                    }
+
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Proposed room</label>
+
+                                <InputSelect class="form-select"
+                                             @bind-Value="_scheduleForm.ProposedRoomId"
+                                             disabled="@(_selectedBuildingId is null)">
+
+                                    <option value="0">Select a room</option>
+
+                                    @foreach (var room in _rooms)
+                                    {
+                                        <option value="@room.RoomId">
+                                            @room.Code - @room.Name
+                                        </option>
+                                    }
+
+                                </InputSelect>
 
                                 <ValidationMessage For="@(() => _scheduleForm.ProposedRoomId)" />
-
                             </div>
 
                             <div class="row g-3">
@@ -328,8 +378,16 @@
     private string? _cancelSuccessMessage;
     private string? _cancelErrorMessage;
 
+    private List<CampusDto> _campuses = [];
+    private List<BuildingDto> _buildings = [];
+    private List<AvailableRoomDto> _rooms = [];
+
+    private int? _selectedCampusId;
+    private int? _selectedBuildingId;
+
     protected override async Task OnInitializedAsync()
     {
+        await LoadCampusesAsync();
         await LoadEventsAsync();
     }
 
@@ -448,6 +506,56 @@
         }
     }
 
+    private async Task LoadCampusesAsync()
+    {
+        _campuses = await LecturerService.GetCampusesAsync();
+    }
+
+    private async Task OnCampusChangedAsync(int? campusId)
+    {
+        _selectedCampusId = campusId;
+        _selectedBuildingId = null;
+
+        _buildings.Clear();
+        _rooms.Clear();
+
+        if (campusId.HasValue)
+        {
+            _buildings = await LecturerService
+                .GetBuildingsByCampusAsync(campusId.Value);
+        }
+    }
+
+    private async Task OnBuildingChanged(ChangeEventArgs e)
+    {
+        _selectedBuildingId = int.TryParse(e.Value?.ToString(), out var id)
+            ? id
+            : null;
+
+        _rooms.Clear();
+
+        if (_selectedBuildingId is null)
+            return;
+
+        var startLocal = DateTime.Parse(
+            $"{_scheduleForm.StartDate:yyyy-MM-dd} {_scheduleForm.StartTime}");
+
+        var endLocal = DateTime.Parse(
+            $"{_scheduleForm.EndDate:yyyy-MM-dd} {_scheduleForm.EndTime}");
+
+        var startUtc = startLocal.ToUniversalTime();
+        var endUtc = endLocal.ToUniversalTime();
+
+        _rooms = await LecturerService.GetAvailableRoomsAsync(
+            new RoomSearchQuery
+            {
+                StartUtc = startUtc,
+                EndUtc = endUtc,
+                CampusId = _selectedCampusId,
+                BuildingId = _selectedBuildingId
+            });
+    }
+
     private async Task SubmitCancellationAsync()
     {
         _cancelSuccessMessage = null;
@@ -524,14 +632,13 @@
         return true;
     }
 
-    private static string GetEventDescription(
-        LecturerTimetableItemDto item)
+    private static string GetEventDescription(LecturerTimetableItemDto item)
     {
         var localStart = item.StartUtc.ToLocalTime();
 
         return
             $"{localStart:dd MMM yyyy HH:mm} - " +
-            $"{item.SessionType} - Event {item.TimetableEventId}";
+            $"{item.ModuleCode} - {item.ModuleTitle} ({item.SessionType})";
     }
 
     private static string CleanErrorMessage(string message)
@@ -552,7 +659,7 @@
         [Range(
             1,
             int.MaxValue,
-            ErrorMessage = "Please enter a valid room ID.")]
+            ErrorMessage = "Please select a room.")]
         public int ProposedRoomId { get; set; }
 
         public DateTime StartDate { get; set; }

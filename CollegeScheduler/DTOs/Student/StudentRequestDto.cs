@@ -15,4 +15,23 @@ public sealed class StudentRequestDto
 	public DateTime CreatedAtUtc { get; set; }
 
 	public DateTime? UpdatedAtUtc { get; set; }
+
+    public int? RoomId { get; set; }
+
+    public string? RoomCode { get; set; }
+
+    public string? RoomName { get; set; }
+
+    public string? BuildingName { get; set; }
+
+    public string? CampusName { get; set; }
+
+    public DateTime? StartUtc { get; set; }
+
+    public DateTime? EndUtc { get; set; }
+
+    public int? ExpectedAttendees { get; set; }
+
+    public string? Purpose { get; set; }
+
 }

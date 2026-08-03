@@ -39,7 +39,7 @@
 
             <button type="button"
                     class="btn btn-outline-secondary"
-                    @onclick="LoadRequestsAsync"
+                    @onclick="LoadPageAsync"
                     disabled="@_isLoading">
                 Refresh
             </button>
@@ -113,10 +113,6 @@
                                         </div>
                                     }
 
-                                    <div class="text-muted small mt-1">
-                                        Request #@request.RequestId
-                                    </div>
-
                                 </td>
 
                                 <td>
@@ -172,9 +168,11 @@
     private bool _isLoading = true;
     private string? _errorMessage;
 
+    private readonly List<LecturerTimetableItemDto> _timetable = [];
+
     protected override async Task OnInitializedAsync()
     {
-        await LoadRequestsAsync();
+        await LoadPageAsync();
     }
 
     private async Task LoadRequestsAsync()
@@ -230,5 +228,38 @@
         return string.IsNullOrWhiteSpace(message)
             ? "The requests could not be loaded."
             : message.Trim('"');
+    }
+
+    private async Task LoadPageAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var requestsTask = LecturerService.GetRequestsAsync();
+            var timetableTask = LecturerService.GetTimetableAsync();
+
+            await Task.WhenAll(requestsTask, timetableTask);
+
+            _requests.Clear();
+            _requests.AddRange(await requestsTask);
+
+            _timetable.Clear();
+            _timetable.AddRange(await timetableTask);
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = CleanErrorMessage(ex.Message);
+        }
+        catch (Exception)
+        {
+            _errorMessage =
+                "An unexpected error occurred while loading requests.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 }

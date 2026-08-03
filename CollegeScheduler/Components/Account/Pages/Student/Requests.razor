@@ -105,19 +105,58 @@
 
                                 <td>
                                     <div class="fw-semibold">
-                                        @GetTitle(request)
+                                        Room booking request
                                     </div>
 
-                                    @if (!string.IsNullOrWhiteSpace(request.Notes))
+                                    @if (!string.IsNullOrWhiteSpace(request.RoomCode))
                                     {
-                                        <div class="text-muted small mt-1">
-                                            @request.Notes
+                                        <div class="small mt-1">
+                                            <strong>Room:</strong>
+                                            @request.RoomCode
+                                            @if (!string.IsNullOrWhiteSpace(request.RoomName))
+                                            {
+                                                <span> - @request.RoomName</span>
+                                            }
                                         </div>
                                     }
 
-                                    <div class="text-muted small mt-1">
-                                        Request #@request.RequestId
-                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(request.BuildingName))
+                                    {
+                                        <div class="text-muted small">
+                                            @request.BuildingName
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(request.CampusName))
+                                    {
+                                        <div class="text-muted small">
+                                            @request.CampusName
+                                        </div>
+                                    }
+
+                                    @if (request.StartUtc.HasValue && request.EndUtc.HasValue)
+                                    {
+                                        <div class="small mt-1">
+                                            <strong>Booking:</strong>
+                                            @request.StartUtc.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")
+                                            -
+                                            @request.EndUtc.Value.ToLocalTime().ToString("HH:mm")
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(request.Purpose))
+                                    {
+                                        <div class="small mt-1">
+                                            <strong>Purpose:</strong> @request.Purpose
+                                        </div>
+                                    }
+
+                                    @if (request.ExpectedAttendees.HasValue)
+                                    {
+                                        <div class="small">
+                                            <strong>Expected attendees:</strong> @request.ExpectedAttendees
+                                        </div>
+                                    }
                                 </td>
 
                                 <td>

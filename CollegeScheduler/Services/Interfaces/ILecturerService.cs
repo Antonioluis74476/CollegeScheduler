@@ -1,11 +1,12 @@
-﻿using CollegeScheduler.DTOs.Lecturer;
+﻿using CollegeScheduler.DTOs.Facilities;
+using CollegeScheduler.DTOs.Lecturer;
 using CollegeScheduler.DTOs.Profiles;
 using CollegeScheduler.DTOs.Requests;
 using CollegeScheduler.DTOs.Scheduling;
-
-using CollegeScheduler.DTOs.Facilities;
+using CollegeScheduler.Services.Implementations;
 
 namespace CollegeScheduler.Services.Interfaces;
+
 
 public interface ILecturerService
 {

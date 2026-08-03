@@ -279,16 +279,20 @@ public sealed class LecturerTimetableController : ControllerBase
 		var profile = await _db.LecturerProfiles
 			.AsNoTracking()
 			.Where(lp => lp.UserId == CurrentUserId)
-			.Select(lp => new
-			{
-				lp.LecturerId,
-				lp.StaffNumber,
-				lp.Name,
-				lp.LastName,
-				lp.Email,
-				lp.DepartmentId
-			})
-			.FirstOrDefaultAsync();
+            .Select(lp => new
+            {
+                lp.LecturerId,
+                lp.StaffNumber,
+                lp.Name,
+                lp.LastName,
+                lp.Email,
+                lp.DepartmentId,
+                DepartmentName = _db.Departments
+					.Where(d => d.DepartmentId == lp.DepartmentId)
+					.Select(d => d.Name)
+					.FirstOrDefault()
+            })
+            .FirstOrDefaultAsync();
 
 		if (profile is null)
 			return NotFound("No lecturer profile found for the current user.");

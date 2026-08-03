@@ -75,11 +75,11 @@
 
                     <div class="col-md-6">
                         <label class="form-label text-muted">
-                            Department ID
+                            Department
                         </label>
 
                         <div class="fw-semibold">
-                            @GetDepartmentDisplay()
+                            @(_profile.DepartmentName ?? "Not assigned")
                         </div>
                     </div>
 

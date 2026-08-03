@@ -175,29 +175,58 @@ public sealed class StudentTimetableController : ControllerBase
 		}
 	}
 
-	[HttpGet("requests")]
-	public async Task<IActionResult> GetMyRequests()
-	{
-		var requests = await _db.Requests
-			.AsNoTracking()
-			.Where(r => r.RequestedByUserId == CurrentUserId)
-			.OrderByDescending(r => r.CreatedAtUtc)
-			.Select(r => new
-			{
-				r.RequestId,
-				r.Title,
-				r.Notes,
-				RequestType = r.RequestType.Name,
-				RequestStatus = r.RequestStatus.Name,
-				r.CreatedAtUtc,
-				r.UpdatedAtUtc
-			})
-			.ToListAsync();
+    [HttpGet("requests")]
+    public async Task<IActionResult> GetMyRequests()
+    {
+        var requests = await (
+            from request in _db.Requests.AsNoTracking()
 
-		return Ok(requests);
-	}
+            join booking in _db.RequestRoomBookings.AsNoTracking()
+                on request.RequestId equals booking.RequestId
 
-	[HttpGet("profile")]
+            join room in _db.Rooms.AsNoTracking()
+                on booking.RoomId equals room.RoomId
+
+            join building in _db.Buildings.AsNoTracking()
+                on room.BuildingId equals building.BuildingId
+
+            join campus in _db.Campuses.AsNoTracking()
+                on building.CampusId equals campus.CampusId
+
+            where request.RequestedByUserId == CurrentUserId
+
+            orderby request.CreatedAtUtc descending
+
+            select new
+            {
+                request.RequestId,
+                request.Title,
+                request.Notes,
+
+                RequestType = request.RequestType.Name,
+                RequestStatus = request.RequestStatus.Name,
+
+                request.CreatedAtUtc,
+                request.UpdatedAtUtc,
+
+                booking.RoomId,
+                RoomCode = room.Code,
+                RoomName = room.Name,
+
+                BuildingName = building.Name,
+                CampusName = campus.Name,
+
+                booking.StartUtc,
+                booking.EndUtc,
+                booking.ExpectedAttendees,
+                booking.Purpose
+            })
+            .ToListAsync();
+
+        return Ok(requests);
+    }
+
+    [HttpGet("profile")]
 	public async Task<IActionResult> GetMyProfile()
 	{
 		var profile = await _db.StudentProfiles

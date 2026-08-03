@@ -13,4 +13,7 @@ public sealed class LecturerProfileDto
 	public string Email { get; set; } = "";
 
 	public int? DepartmentId { get; set; }
+
+    public string? DepartmentName { get; set; }
+
 }
