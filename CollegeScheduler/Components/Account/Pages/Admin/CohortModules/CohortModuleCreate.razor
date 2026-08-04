@@ -75,15 +75,22 @@ else
     {
         cohort = await CohortService.GetByIdAsync(CohortId);
 
-        var moduleResult = await ModuleService.GetAllAsync();
+        var moduleResult = await ModuleService.GetAllAsync(
+            page: 1,
+            pageSize: 100);
+
         if (moduleResult != null)
         {
-            modules = moduleResult.Items.ToList();
+            modules = moduleResult.Items
+                .OrderBy(m => m.Title)
+                .ToList();
         }
 
         if (cohort != null)
         {
-            var termResult = await TermService.GetByAcademicYearAsync(cohort.AcademicYearId);
+            var termResult = await TermService.GetByAcademicYearAsync(
+                cohort.AcademicYearId);
+
             if (termResult != null)
             {
                 terms = termResult.Items.ToList();

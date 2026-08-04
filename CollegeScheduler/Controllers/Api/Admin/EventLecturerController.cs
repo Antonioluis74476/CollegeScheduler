@@ -4,6 +4,7 @@ using CollegeScheduler.Data.Entities.Scheduling;
 using CollegeScheduler.Data.Identity;
 using CollegeScheduler.DTOs.Common;
 using CollegeScheduler.DTOs.Scheduling;
+using CollegeScheduler.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +15,18 @@ namespace CollegeScheduler.Controllers.Api.Admin;
 [Authorize(Roles = RoleNames.Admin)]
 public sealed class EventLecturerController : ControllerBase
 {
-	private readonly ApplicationDbContext _db;
-	public EventLecturerController(ApplicationDbContext db) => _db = db;
+    private readonly ApplicationDbContext _db;
+    private readonly INotificationService _notificationService;
 
-	[HttpGet("api/v1/admin/event-lecturers")]
+    public EventLecturerController(
+        ApplicationDbContext db,
+        INotificationService notificationService)
+    {
+        _db = db;
+        _notificationService = notificationService;
+    }
+
+    [HttpGet("api/v1/admin/event-lecturers")]
 	public async Task<ActionResult<PagedResult<EventLecturerDto>>> GetAll([FromQuery] EventLecturerQuery q)
 	{
 		var query = _db.Set<EventLecturer>().AsNoTracking();
@@ -51,31 +60,130 @@ public sealed class EventLecturerController : ControllerBase
 	[HttpPost("api/v1/admin/event-lecturers")]
 	public async Task<ActionResult<EventLecturerDto>> Create([FromBody] EventLecturerCreateDto dto)
 	{
-		var eventExists = await _db.Set<TimetableEvent>().AnyAsync(e => e.TimetableEventId == dto.TimetableEventId);
-		if (!eventExists) return NotFound($"TimetableEvent {dto.TimetableEventId} not found.");
+        var timetableEvent = await _db.TimetableEvents
+			.AsNoTracking()
+			.Include(e => e.Module)
+			.Include(e => e.Room)
+				.ThenInclude(r => r.Building)
+			.FirstOrDefaultAsync(e =>
+				e.TimetableEventId == dto.TimetableEventId);
 
-		var lecturerExists = await _db.Set<LecturerProfile>().AnyAsync(l => l.LecturerId == dto.LecturerId);
-		if (!lecturerExists) return NotFound($"Lecturer {dto.LecturerId} not found.");
+        if (timetableEvent is null)
+            return NotFound(
+                $"TimetableEvent {dto.TimetableEventId} not found.");
 
-		var entity = new EventLecturer { TimetableEventId = dto.TimetableEventId, LecturerId = dto.LecturerId };
+        var lecturer = await _db.LecturerProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(l =>
+                l.LecturerId == dto.LecturerId);
+
+        if (lecturer is null)
+            return NotFound(
+                $"Lecturer {dto.LecturerId} not found.");
+
+        var entity = new EventLecturer { TimetableEventId = dto.TimetableEventId, LecturerId = dto.LecturerId };
 		_db.Add(entity);
 
-		try { await _db.SaveChangesAsync(); }
-		catch (DbUpdateException) { return Conflict("Could not save EventLecturer. (TimetableEventId, LecturerId) must be unique."); }
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(
+                "Could not save EventLecturer. (TimetableEventId, LecturerId) must be unique.");
+        }
 
-		return Ok(new EventLecturerDto { TimetableEventId = entity.TimetableEventId, LecturerId = entity.LecturerId });
-	}
+        if (!string.IsNullOrWhiteSpace(lecturer.UserId))
+        {
+            var roomText = string.IsNullOrWhiteSpace(timetableEvent.Room.Name)
+                ? timetableEvent.Room.Code
+                : $"{timetableEvent.Room.Code} - {timetableEvent.Room.Name}";
 
-	[HttpDelete("api/v1/admin/event-lecturers/{timetableEventId:long}/{lecturerId:int}")]
-	public async Task<IActionResult> Delete(long timetableEventId, int lecturerId)
-	{
-		var entity = await _db.Set<EventLecturer>()
-			.FirstOrDefaultAsync(x => x.TimetableEventId == timetableEventId && x.LecturerId == lecturerId);
+            var buildingText =
+                timetableEvent.Room.Building?.Name ?? "Not specified";
 
-		if (entity is null) return NotFound();
+            var message =
+                $"Module: {timetableEvent.Module.Code} - {timetableEvent.Module.Title}\n" +
+                $"Date: {timetableEvent.StartUtc:dddd, dd MMMM yyyy}\n" +
+                $"Time: {timetableEvent.StartUtc:HH:mm} - {timetableEvent.EndUtc:HH:mm}\n" +
+                $"Room: {roomText}\n" +
+                $"Building: {buildingText}\n" +
+                $"Details: You have been assigned to this timetable event.";
 
-		_db.Remove(entity);
-		await _db.SaveChangesAsync();
-		return NoContent();
-	}
+            await _notificationService.CreateAsync(
+                notificationTypeName: "EventChanged",
+                title: $"Class assigned - {timetableEvent.Module.Code}",
+                message: message,
+                recipientUserIds: new List<string> { lecturer.UserId },
+                relatedTimetableEventId: timetableEvent.TimetableEventId);
+        }
+
+        return Ok(new EventLecturerDto
+        {
+            TimetableEventId = entity.TimetableEventId,
+            LecturerId = entity.LecturerId
+        });
+    }
+
+    [HttpDelete("api/v1/admin/event-lecturers/{timetableEventId:long}/{lecturerId:int}")]
+    public async Task<IActionResult> Delete(long timetableEventId, int lecturerId)
+    {
+        var entity = await _db.Set<EventLecturer>()
+            .FirstOrDefaultAsync(x =>
+                x.TimetableEventId == timetableEventId &&
+                x.LecturerId == lecturerId);
+
+        if (entity is null)
+            return NotFound();
+
+        var timetableEvent = await _db.TimetableEvents
+            .AsNoTracking()
+            .Include(e => e.Module)
+            .Include(e => e.Room)
+                .ThenInclude(r => r.Building)
+            .FirstOrDefaultAsync(e =>
+                e.TimetableEventId == timetableEventId);
+
+        if (timetableEvent is null)
+            return NotFound($"TimetableEvent {timetableEventId} not found.");
+
+        var lecturer = await _db.LecturerProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(l =>
+                l.LecturerId == lecturerId);
+
+        if (lecturer is null)
+            return NotFound($"Lecturer {lecturerId} not found.");
+
+        _db.Remove(entity);
+        await _db.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(lecturer.UserId))
+        {
+            var roomText = string.IsNullOrWhiteSpace(timetableEvent.Room.Name)
+                ? timetableEvent.Room.Code
+                : $"{timetableEvent.Room.Code} - {timetableEvent.Room.Name}";
+
+            var buildingText =
+                timetableEvent.Room.Building?.Name ?? "Not specified";
+
+            var message =
+                $"Module: {timetableEvent.Module.Code} - {timetableEvent.Module.Title}\n" +
+                $"Date: {timetableEvent.StartUtc:dddd, dd MMMM yyyy}\n" +
+                $"Time: {timetableEvent.StartUtc:HH:mm} - {timetableEvent.EndUtc:HH:mm}\n" +
+                $"Room: {roomText}\n" +
+                $"Building: {buildingText}\n" +
+                $"Details: You have been removed from this timetable event.";
+
+            await _notificationService.CreateAsync(
+                notificationTypeName: "EventChanged",
+                title: $"Class assignment removed - {timetableEvent.Module.Code}",
+                message: message,
+                recipientUserIds: new List<string> { lecturer.UserId },
+                relatedTimetableEventId: timetableEvent.TimetableEventId);
+        }
+
+        return NoContent();
+    }
 }

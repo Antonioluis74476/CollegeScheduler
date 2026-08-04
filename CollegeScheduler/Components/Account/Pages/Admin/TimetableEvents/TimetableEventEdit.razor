@@ -166,7 +166,9 @@ else
             isLoading = false;
         }
 
-        var moduleResult = await ModuleService.GetAllAsync();
+        var moduleResult = await ModuleService.GetAllAsync(
+            page: 1,
+            pageSize: 80);
 
         if (moduleResult is not null)
         {

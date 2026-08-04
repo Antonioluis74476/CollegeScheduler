@@ -201,6 +201,11 @@ public sealed class TimetableEventController : ControllerBase
 
         var previousStatusId = entity.EventStatusId;
 
+        var previousStartUtc = entity.StartUtc;
+        var previousEndUtc = entity.EndUtc;
+        var previousRoomId = entity.RoomId;
+        var previousModuleId = entity.ModuleId;
+
 
         var termExists = await _db.Terms.AnyAsync(t => t.TermId == dto.TermId);
 		if (!termExists) return NotFound($"Term {dto.TermId} not found.");
@@ -221,6 +226,12 @@ public sealed class TimetableEventController : ControllerBase
         var isNewCancellation =
             newStatus.Name == "Cancelled" &&
             previousStatusId != dto.EventStatusId;
+
+        var isTimetableChanged =
+			previousStartUtc != dto.StartUtc ||
+			previousEndUtc != dto.EndUtc ||
+			previousRoomId != dto.RoomId ||
+			previousModuleId != dto.ModuleId;
 
         entity.TermId = dto.TermId;
 		entity.ModuleId = dto.ModuleId;
@@ -319,6 +330,79 @@ public sealed class TimetableEventController : ControllerBase
                     relatedTimetableEventId: entity.TimetableEventId);
             }
 
+        }
+
+        if (isTimetableChanged && !isNewCancellation)
+        {
+            var lecturerIds = entity.EventLecturers
+                .Select(el => el.LecturerId)
+                .Distinct()
+                .ToList();
+
+            var lecturerUserIds = await _db.LecturerProfiles
+                .Where(lp =>
+                    lecturerIds.Contains(lp.LecturerId) &&
+                    lp.UserId != null)
+                .Select(lp => lp.UserId!)
+                .Distinct()
+                .ToListAsync();
+
+            var cohortIds = entity.EventCohorts
+                .Select(ec => ec.CohortId)
+                .Distinct()
+                .ToList();
+
+            var studentUserIds = await (
+                from membership in _db.StudentCohortMemberships
+                join student in _db.StudentProfiles
+                    on membership.StudentId equals student.StudentId
+                where cohortIds.Contains(membership.CohortId)
+                      && student.UserId != null
+                select student.UserId!
+            )
+            .Distinct()
+            .ToListAsync();
+
+            var recipientUserIds = lecturerUserIds
+                .Concat(studentUserIds)
+                .Distinct()
+                .ToList();
+
+            if (recipientUserIds.Count > 0)
+            {
+                var cohortNames = entity.EventCohorts
+                    .Select(ec => ec.Cohort.Name)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct()
+                    .ToList();
+
+                var cohortsText = cohortNames.Count > 0
+                    ? string.Join(", ", cohortNames)
+                    : "Not specified";
+
+                var roomText = string.IsNullOrWhiteSpace(entity.Room.Name)
+                    ? entity.Room.Code
+                    : $"{entity.Room.Code} - {entity.Room.Name}";
+
+                var buildingText =
+                    entity.Room.Building?.Name ?? "Not specified";
+
+                var message =
+                    $"Module: {entity.Module.Code} - {entity.Module.Title}\n" +
+                    $"Cohorts: {cohortsText}\n" +
+                    $"New date: {entity.StartUtc:dddd, dd MMMM yyyy}\n" +
+                    $"New time: {entity.StartUtc:HH:mm} - {entity.EndUtc:HH:mm}\n" +
+                    $"Room: {roomText}\n" +
+                    $"Building: {buildingText}\n" +
+                    $"Details: The timetable event was updated by an administrator.";
+
+                await _notificationService.CreateAsync(
+                    notificationTypeName: "EventChanged",
+                    title: $"Class updated - {entity.Module.Code}",
+                    message: message,
+                    recipientUserIds: recipientUserIds,
+                    relatedTimetableEventId: entity.TimetableEventId);
+            }
         }
 
         return NoContent();

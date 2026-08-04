@@ -5,6 +5,7 @@ using CollegeScheduler.Data.Entities.Profiles;
 using CollegeScheduler.Data.Identity;
 using CollegeScheduler.DTOs.Common;
 using CollegeScheduler.DTOs.Membership;
+using CollegeScheduler.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,15 +16,19 @@ namespace CollegeScheduler.Controllers.Api.Admin;
 [Authorize(Roles = RoleNames.Admin)]
 public sealed class StudentCohortMembershipsController : ControllerBase
 {
-	private readonly ApplicationDbContext _db;
+    private readonly ApplicationDbContext _db;
+    private readonly INotificationService _notificationService;
 
-	public StudentCohortMembershipsController(ApplicationDbContext db)
-	{
-		_db = db;
-	}
+    public StudentCohortMembershipsController(
+        ApplicationDbContext db,
+        INotificationService notificationService)
+    {
+        _db = db;
+        _notificationService = notificationService;
+    }
 
-	// LIST (flat)
-	[HttpGet("api/v1/admin/student-cohort-memberships")]
+    // LIST (flat)
+    [HttpGet("api/v1/admin/student-cohort-memberships")]
 	public async Task<ActionResult<PagedResult<StudentCohortMembershipDto>>> GetAll([FromQuery] StudentCohortMembershipQuery q)
 	{
 		var query = _db.Set<StudentCohortMembership>().AsNoTracking();
@@ -119,16 +124,28 @@ public sealed class StudentCohortMembershipsController : ControllerBase
 		if (string.IsNullOrWhiteSpace(dto.MembershipType))
 			return BadRequest("MembershipType is required.");
 
-		var studentExists = await _db.Set<StudentProfile>().AnyAsync(s => s.StudentId == dto.StudentId);
-		if (!studentExists) return NotFound($"Student {dto.StudentId} not found.");
+        var student = await _db.StudentProfiles
+			.AsNoTracking()
+			.FirstOrDefaultAsync(s => s.StudentId == dto.StudentId);
 
-		var cohortExists = await _db.Set<Cohort>().AnyAsync(c => c.CohortId == dto.CohortId);
-		if (!cohortExists) return NotFound($"Cohort {dto.CohortId} not found.");
+        if (student is null)
+            return NotFound($"Student {dto.StudentId} not found.");
 
-		var yearExists = await _db.Set<AcademicYear>().AnyAsync(y => y.AcademicYearId == dto.AcademicYearId);
-		if (!yearExists) return NotFound($"AcademicYear {dto.AcademicYearId} not found.");
+        var cohort = await _db.Cohorts
+            .AsNoTracking()
+            .Include(c => c.Program)
+            .FirstOrDefaultAsync(c => c.CohortId == dto.CohortId);
 
-		var entity = new StudentCohortMembership
+        if (cohort is null)
+            return NotFound($"Cohort {dto.CohortId} not found.");
+
+        var yearExists = await _db.Set<AcademicYear>()
+			.AnyAsync(y => y.AcademicYearId == dto.AcademicYearId);
+
+        if (!yearExists)
+            return NotFound($"AcademicYear {dto.AcademicYearId} not found.");
+
+        var entity = new StudentCohortMembership
 		{
 			StudentId = dto.StudentId,
 			CohortId = dto.CohortId,
@@ -146,10 +163,33 @@ public sealed class StudentCohortMembershipsController : ControllerBase
 		}
 		catch (DbUpdateException)
 		{
-			return Conflict("Could not save StudentCohortMembership. The combination (StudentId, CohortId, AcademicYearId) must be unique.");
+			return Conflict("" +
+				"Could not save StudentCohortMembership. The combination (StudentId, CohortId, AcademicYearId) must be unique.");
+
 		}
 
-		return CreatedAtAction(nameof(GetById),
+        if (!string.IsNullOrWhiteSpace(student.UserId))
+        {
+            var programText = cohort.Program is null
+                ? "Not specified"
+                : $"{cohort.Program.Code} - {cohort.Program.Name}";
+
+            var message =
+                $"Cohort: {cohort.Code} - {cohort.Name}\n" +
+                $"Program: {programText}\n" +
+                $"Membership type: {entity.MembershipType}\n" +
+                $"Start date: {(entity.StartDate.HasValue ? entity.StartDate.Value.ToString("dd MMMM yyyy") : "Not specified")}\n" +
+                $"End date: {(entity.EndDate.HasValue ? entity.EndDate.Value.ToString("dd MMMM yyyy") : "Not specified")}\n" +
+                $"Details: You have been added to this cohort. Your timetable may have changed.";
+
+            await _notificationService.CreateAsync(
+                notificationTypeName: "EventChanged",
+                title: $"Added to cohort - {cohort.Code}",
+                message: message,
+                recipientUserIds: new List<string> { student.UserId });
+        }
+
+        return CreatedAtAction(nameof(GetById),
 			new { studentId = entity.StudentId, cohortId = entity.CohortId, academicYearId = entity.AcademicYearId },
 			new StudentCohortMembershipDto
 			{

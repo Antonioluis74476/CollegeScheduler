@@ -299,7 +299,9 @@ else
                 }
             
 
-            var moduleResult = await ModuleService.GetAllAsync();
+            var moduleResult = await ModuleService.GetAllAsync(
+                page: 1,
+                pageSize: 80);
             if (moduleResult is not null)
             {
                 moduleNames = moduleResult.Items.ToDictionary(
@@ -313,22 +315,35 @@ else
 
             if (academicYearResult is not null)
             {
-                foreach (var academicYear in academicYearResult.Items)
-                {
-                    var termResult = await TermService.GetByAcademicYearAsync(
-                        academicYear.AcademicYearId,
-                        page: 1,
-                        pageSize: 100);
+                var academicYears = academicYearResult.Items.ToList();
 
-                    if (termResult is null)
+                var termTasks = academicYears
+                    .Select(async academicYear =>
                     {
-                        continue;
-                    }
+                        var result = await TermService.GetByAcademicYearAsync(
+                            academicYear.AcademicYearId,
+                            page: 1,
+                            pageSize: 100);
 
-                    foreach (var term in termResult.Items)
+                        return new
+                        {
+                            AcademicYear = academicYear,
+                            Result = result
+                        };
+                    })
+                    .ToList();
+
+                var termResults = await Task.WhenAll(termTasks);
+
+                foreach (var item in termResults)
+                {
+                    if (item.Result is null)
+                        continue;
+
+                    foreach (var term in item.Result.Items)
                     {
                         termNames[term.TermId] =
-                            $"{academicYear.Label} - {term.Name}";
+                            $"{item.AcademicYear.Label} - {term.Name}";
                     }
                 }
             }
@@ -341,35 +356,43 @@ else
 
                 if (campusResult is not null)
                 {
-                    foreach (var campus in campusResult.Items)
-                    {
-                        var buildingResult = await BuildingService.GetByCampusAsync(
+                    var buildingTasks = campusResult.Items
+                        .Select(campus => BuildingService.GetByCampusAsync(
                             campus.CampusId,
                             page: 1,
-                            pageSize: 100);
+                            pageSize: 100))
+                        .ToList();
 
-                        if (buildingResult is null)
+                    var buildingResults = await Task.WhenAll(buildingTasks);
+
+                    var buildings = buildingResults
+                        .Where(result => result is not null)
+                        .SelectMany(result => result!.Items)
+                        .ToList();
+
+                    var roomTasks = buildings
+                        .Select(building => RoomService.GetByBuildingAsync(
+                            building.BuildingId,
+                            page: 1,
+                            pageSize: 100))
+                        .ToList();
+
+                    var roomResults = await Task.WhenAll(roomTasks);
+
+                    foreach (var roomResult in roomResults)
+                    {
+                        if (roomResult is null)
                             continue;
 
-                        foreach (var building in buildingResult.Items)
+                        foreach (var room in roomResult.Items)
                         {
-                            var roomResult = await RoomService.GetByBuildingAsync(
-                                building.BuildingId,
-                                page: 1,
-                                pageSize: 100);
-
-                            if (roomResult is null)
-                                continue;
-
-                            foreach (var room in roomResult.Items)
-                            {
-                                roomNames[room.RoomId] =
-                                    $"{room.Code} - {room.Name}";
-                            }
+                            roomNames[room.RoomId] =
+                                $"{room.Code} - {room.Name}";
                         }
                     }
                 }
-            }
+                }
+            
               
 
         }
