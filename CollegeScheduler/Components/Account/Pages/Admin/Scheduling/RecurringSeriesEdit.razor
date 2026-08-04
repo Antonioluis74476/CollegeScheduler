@@ -1,0 +1,335 @@
+﻿@page "/admin/scheduling/recurring-series/{RecurrenceGroupId:guid}/edit"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.Services.Interfaces
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Profiles
+
+@using CollegeScheduler.DTOs.Facilities
+@inject IRoomService RoomService
+
+@inject IAdminSchedulingService SchedulingService
+
+<PageTitle>Edit Recurring Series</PageTitle>
+
+<h3>Edit Recurring Series</h3>
+
+@if (isLoading)
+{
+    <p>Loading recurring series...</p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+
+    <button class="btn btn-secondary" @onclick="GoBack">
+        Back
+    </button>
+}
+else if (series is null)
+{
+    <div class="alert alert-warning">
+        Recurring series not found.
+    </div>
+
+    <button class="btn btn-secondary" @onclick="GoBack">
+        Back
+    </button>
+}
+else
+{
+    <div class="alert alert-info">
+        <strong>Recurrence Group ID:</strong>
+        @RecurrenceGroupId
+    </div>
+
+    <p>
+        <strong>Total occurrences:</strong>
+        @series.Occurrences.Count
+    </p>
+
+    <EditForm Model="editRequest">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="row g-3">
+
+            <div class="col-md-6">
+                <label class="form-label">Update Scope</label>
+
+                <InputSelect class="form-select"
+                             @bind-Value="editRequest.Scope">
+
+                    <option value="@RecurringEventUpdateScope.All">
+                        Entire Series
+                    </option>
+
+                    <option value="@RecurringEventUpdateScope.ThisOnly">
+                        This Event Only
+                    </option>
+
+                    <option value="@RecurringEventUpdateScope.ThisAndFollowing">
+                        This Event and Following
+                    </option>
+
+                </InputSelect>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Room</label>
+
+                <InputSelect class="form-select"
+                             @bind-Value="selectedRoomId">
+
+                    <option value="0">-- Select Room --</option>
+
+                    @foreach (var room in rooms)
+                    {
+                        <option value="@room.RoomId">
+                            @room.Code - @room.Name
+                        </option>
+                    }
+
+                </InputSelect>
+
+            </div>
+
+        </div>
+
+        <div class="row g-3 mt-1">
+
+            <div class="col-md-6">
+                <label class="form-label">New Start Time</label>
+
+                <InputText class="form-control"
+                           type="time"
+                           @bind-Value="startTimeText" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">New End Time</label>
+
+                <InputText class="form-control"
+                           type="time"
+                           @bind-Value="endTimeText" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Session Type</label>
+
+                <InputText class="form-control"
+                           @bind-Value="editRequest.SessionType" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Reason for Change</label>
+
+                <InputText class="form-control"
+                           @bind-Value="editRequest.Reason" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Lecturer</label>
+
+                <InputSelect class="form-select"
+                             @bind-Value="selectedLecturerId">
+
+                    <option value="0">-- Select Lecturer --</option>
+
+                    @foreach (var lecturer in lecturers)
+                    {
+                        <option value="@lecturer.LecturerId">
+                            @lecturer.Name @lecturer.LastName
+                        </option>
+                    }
+
+                </InputSelect>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Notes</label>
+
+                <InputTextArea class="form-control"
+                               rows="4"
+                               @bind-Value="editRequest.Notes" />
+            </div>
+
+        </div>
+
+        <hr />
+        <div class="d-flex gap-2 mt-3">
+            <button type="button"
+                    class="btn btn-primary"
+                    @onclick="SaveChangesAsync">
+                Save Changes
+            </button>
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    @onclick="GoBack">
+                Back
+            </button>
+        </div>
+
+    </EditForm>
+
+    <button class="btn btn-secondary" @onclick="GoBack">
+        Back
+    </button>
+}
+
+@code
+{
+    [Parameter]
+    public Guid RecurrenceGroupId { get; set; }
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    private string startTimeText = "";
+    private string endTimeText = "";
+
+    private List<RoomDto> rooms = new();
+
+    private int selectedRoomId;
+
+
+    private List<CohortDto> cohorts = new();
+    private List<LecturerDto> lecturers = new();
+
+    private int selectedCohortId;
+    private int selectedLecturerId;
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo(
+            $"/admin/scheduling/recurring-series/{RecurrenceGroupId}");
+    }
+
+    private RecurringEventSeriesDto? series;
+
+    private UpdateRecurringEventDto editRequest = new()
+    {
+        Scope = RecurringEventUpdateScope.All
+    };
+
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadSeriesAsync();
+    }
+
+    private async Task LoadSeriesAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            series = await SchedulingService
+                .GetRecurringEventSeriesAsync(RecurrenceGroupId);
+
+            var firstRoomId = series?.Occurrences
+                .OrderBy(x => x.StartUtc)
+                .FirstOrDefault()
+                ?.RoomId;
+
+            if (firstRoomId.HasValue)
+            {
+                var currentRoom = await RoomService.GetByIdAsync(firstRoomId.Value);
+
+                if (currentRoom is not null)
+                {
+                    var roomResult = await RoomService.GetByBuildingAsync(
+                        currentRoom.BuildingId,
+                        page: 1,
+                        pageSize: 100);
+
+                    rooms = roomResult?.Items?.ToList() ?? new List<RoomDto>();
+                    selectedRoomId = currentRoom.RoomId;
+                }
+
+                var lecturerResult = await SchedulingService.GetLecturersAsync();
+
+                lecturers = lecturerResult?.Items?.ToList()
+                    ?? new List<LecturerDto>();
+
+            }
+
+            var firstOccurrence = series?.Occurrences
+                .OrderBy(x => x.StartUtc)
+                .FirstOrDefault();
+
+            if (firstOccurrence is not null)
+            {
+                editRequest.RoomId = firstOccurrence.RoomId;
+                editRequest.NewStartTime = firstOccurrence.StartUtc.TimeOfDay;
+                editRequest.NewEndTime = firstOccurrence.EndUtc.TimeOfDay;
+                startTimeText = firstOccurrence.StartUtc.ToLocalTime().ToString("HH:mm");
+                endTimeText = firstOccurrence.EndUtc.ToLocalTime().ToString("HH:mm");
+                editRequest.SessionType = firstOccurrence.SessionType;
+                editRequest.Notes = firstOccurrence.Notes;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveChangesAsync()
+    {
+        errorMessage = null;
+
+        try
+        {
+            if (!TimeSpan.TryParse(startTimeText, out var startTime))
+            {
+                errorMessage = "Please enter a valid start time.";
+                return;
+            }
+
+            if (!TimeSpan.TryParse(endTimeText, out var endTime))
+            {
+                errorMessage = "Please enter a valid end time.";
+                return;
+            }
+
+            editRequest.NewStartTime = startTime;
+            editRequest.NewEndTime = endTime;
+
+            editRequest.RoomId = selectedRoomId > 0
+                ? selectedRoomId
+                : null;
+
+            editRequest.LecturerIds = selectedLecturerId > 0
+                ? new List<int> { selectedLecturerId }
+                : null;
+
+            await SchedulingService.UpdateRecurringSeriesAsync(
+                RecurrenceGroupId,
+                editRequest);
+
+            Navigation.NavigateTo(
+                $"/admin/scheduling/recurring-series/{RecurrenceGroupId}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+
+    }
+}

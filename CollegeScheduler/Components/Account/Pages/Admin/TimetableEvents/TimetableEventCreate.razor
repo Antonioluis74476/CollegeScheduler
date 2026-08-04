@@ -1,0 +1,585 @@
+﻿@page "/admin/timetable-events/create"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.Services.Interfaces
+@using CollegeScheduler.Services.Admin
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject ITimetableEventService TimetableEventService
+@inject IModuleService ModuleService
+@inject IAcademicYearService AcademicYearService
+@inject ITermService TermService
+@inject ICampusService CampusService
+@inject IBuildingService BuildingService
+@inject IRoomService RoomService
+@inject IEventStatusService EventStatusService
+@inject NavigationManager Navigation
+
+<PageTitle>Create Timetable Event</PageTitle>
+
+<h1>Create Timetable Event</h1>
+
+@if (isLoading)
+{
+    <p>Loading form...</p>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+    }
+
+    <EditForm Model="model" OnValidSubmit="CreateAsync">
+        <DataAnnotationsValidator />
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Academic Year</label>
+
+                <select class="form-select"
+                        value="@selectedAcademicYearId"
+                        @onchange="AcademicYearChangedAsync">
+                    <option value="0">Select academic year</option>
+
+                    @foreach (var year in academicYears)
+                    {
+                        <option value="@year.Key">
+                            @year.Value
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Term</label>
+
+                <InputSelect class="form-select"
+                             @bind-Value="model.TermId"
+                             disabled="@(terms.Count == 0)">
+                    <option value="0">Select term</option>
+
+                    @foreach (var term in terms)
+                    {
+                        <option value="@term.Key">
+                            @term.Value
+                        </option>
+                    }
+                </InputSelect>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Module</label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="model.ModuleId">
+                <option value="0">Select module</option>
+
+                @foreach (var module in modules)
+                {
+                    <option value="@module.Key">
+                        @module.Value
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Campus</label>
+
+                <select class="form-select"
+                        value="@selectedCampusId"
+                        @onchange="CampusChangedAsync">
+                    <option value="0">Select campus</option>
+
+                    @foreach (var campus in campuses)
+                    {
+                        <option value="@campus.Key">
+                            @campus.Value
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Building</label>
+
+                <select class="form-select"
+                        value="@selectedBuildingId"
+                        @onchange="BuildingChangedAsync"
+                        disabled="@(buildings.Count == 0)">
+                    <option value="0">Select building</option>
+
+                    @foreach (var building in buildings)
+                    {
+                        <option value="@building.Key">
+                            @building.Value
+                        </option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Room</label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="model.RoomId"
+                         disabled="@(rooms.Count == 0)">
+                <option value="0">Select room</option>
+
+                @foreach (var room in rooms)
+                {
+                    <option value="@room.Key">
+                        @room.Value
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Start</label>
+
+                <InputDate class="form-control"
+                           Type="InputDateType.DateTimeLocal"
+                           @bind-Value="model.StartUtc" />
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label">End</label>
+
+                <InputDate class="form-control"
+                           Type="InputDateType.DateTimeLocal"
+                           @bind-Value="model.EndUtc" />
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Status</label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="model.EventStatusId">
+                <option value="0">Select status</option>
+
+                @foreach (var status in eventStatuses)
+                {
+                    <option value="@status.Key">
+                        @status.Value
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Session Type</label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="model.SessionType">
+                <option value="Lecture">Lecture</option>
+                <option value="Lab">Lab</option>
+                <option value="Tutorial">Tutorial</option>
+                <option value="Seminar">Seminar</option>
+                <option value="Exam">Exam</option>
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Notes</label>
+
+            <InputTextArea class="form-control"
+                           rows="3"
+                           @bind-Value="model.Notes" />
+        </div>
+
+        <button type="submit"
+                class="btn btn-primary me-2"
+                disabled="@isSaving">
+            @(isSaving ? "Creating..." : "Create Event")
+        </button>
+
+        <button type="button"
+                class="btn btn-secondary"
+                @onclick="Cancel">
+            Cancel
+        </button>
+    </EditForm>
+}
+
+@code {
+    private TimetableEventCreateDto model = new();
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? errorMessage;
+
+    private int selectedAcademicYearId;
+    private int selectedCampusId;
+    private int selectedBuildingId;
+
+    private Dictionary<int, string> academicYears = new();
+    private Dictionary<int, string> terms = new();
+    private Dictionary<int, string> modules = new();
+    private Dictionary<int, string> campuses = new();
+    private Dictionary<int, string> buildings = new();
+    private Dictionary<int, string> rooms = new();
+    private Dictionary<int, string> eventStatuses = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            SetDefaultValues();
+            await LoadInitialLookupsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load the form: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SetDefaultValues()
+    {
+        var nextHour = DateTime.Now
+            .AddHours(1);
+
+        nextHour = new DateTime(
+            nextHour.Year,
+            nextHour.Month,
+            nextHour.Day,
+            nextHour.Hour,
+            0,
+            0,
+            DateTimeKind.Local);
+
+        model.StartUtc = nextHour;
+        model.EndUtc = nextHour.AddHours(1);
+        model.SessionType = "Lecture";
+    }
+
+    private async Task LoadInitialLookupsAsync()
+    {
+        var moduleResult = await ModuleService.GetAllAsync(
+            page: 1,
+            pageSize: 100);
+
+        if (moduleResult is not null)
+        {
+            modules = moduleResult.Items.ToDictionary(
+                x => x.ModuleId,
+                x => $"{x.Code} - {x.Title}");
+
+            if (modules.Count > 0)
+            {
+                model.ModuleId = modules.Keys.First();
+            }
+        }
+
+        var academicYearResult =
+            await AcademicYearService.GetAllAsync(
+                page: 1,
+                pageSize: 100);
+
+        if (academicYearResult is not null)
+        {
+            academicYears =
+                academicYearResult.Items.ToDictionary(
+                    x => x.AcademicYearId,
+                    x => x.Label);
+
+            var currentYear =
+                academicYearResult.Items.FirstOrDefault(
+                    x => x.IsCurrent);
+
+            selectedAcademicYearId =
+                currentYear?.AcademicYearId
+                ?? academicYears.Keys.FirstOrDefault();
+
+            if (selectedAcademicYearId > 0)
+            {
+                await LoadTermsAsync(
+                    selectedAcademicYearId);
+            }
+        }
+
+        var campusResult = await CampusService.GetAllAsync(
+            page: 1,
+            pageSize: 100);
+
+        if (campusResult is not null)
+        {
+            campuses = campusResult.Items.ToDictionary(
+                x => x.CampusId,
+                x => $"{x.Code} - {x.Name}");
+
+            selectedCampusId =
+                campuses.Keys.FirstOrDefault();
+
+            if (selectedCampusId > 0)
+            {
+                await LoadBuildingsAsync(
+                    selectedCampusId);
+            }
+        }
+
+        var statusResult =
+            await EventStatusService.GetAllAsync(
+                page: 1,
+                pageSize: 100);
+
+        if (statusResult is not null)
+        {
+            eventStatuses =
+                statusResult.Items.ToDictionary(
+                    x => x.EventStatusId,
+                    x => x.Name);
+
+            var scheduledStatus =
+                statusResult.Items.FirstOrDefault(
+                    x => string.Equals(
+                        x.Name,
+                        "Scheduled",
+                        StringComparison.OrdinalIgnoreCase));
+
+            model.EventStatusId =
+                scheduledStatus?.EventStatusId
+                ?? eventStatuses.Keys.FirstOrDefault();
+        }
+    }
+
+    private async Task AcademicYearChangedAsync(
+        ChangeEventArgs args)
+    {
+        errorMessage = null;
+
+        if (!int.TryParse(
+                args.Value?.ToString(),
+                out selectedAcademicYearId))
+        {
+            selectedAcademicYearId = 0;
+        }
+
+        terms.Clear();
+        model.TermId = 0;
+
+        if (selectedAcademicYearId > 0)
+        {
+            await LoadTermsAsync(
+                selectedAcademicYearId);
+        }
+    }
+
+    private async Task LoadTermsAsync(
+        int academicYearId)
+    {
+        var result =
+            await TermService.GetByAcademicYearAsync(
+                academicYearId,
+                page: 1,
+                pageSize: 100);
+
+        if (result is null)
+        {
+            return;
+        }
+
+        terms = result.Items.ToDictionary(
+            x => x.TermId,
+            x => x.Name);
+
+        model.TermId = terms.Keys.FirstOrDefault();
+    }
+
+    private async Task CampusChangedAsync(
+        ChangeEventArgs args)
+    {
+        errorMessage = null;
+
+        if (!int.TryParse(
+                args.Value?.ToString(),
+                out selectedCampusId))
+        {
+            selectedCampusId = 0;
+        }
+
+        selectedBuildingId = 0;
+        buildings.Clear();
+        rooms.Clear();
+        model.RoomId = 0;
+
+        if (selectedCampusId > 0)
+        {
+            await LoadBuildingsAsync(
+                selectedCampusId);
+        }
+    }
+
+    private async Task LoadBuildingsAsync(
+        int campusId)
+    {
+        var result =
+            await BuildingService.GetByCampusAsync(
+                campusId,
+                page: 1,
+                pageSize: 100);
+
+        if (result is null)
+        {
+            return;
+        }
+
+        buildings = result.Items.ToDictionary(
+            x => x.BuildingId,
+            x => $"{x.Code} - {x.Name}");
+
+        selectedBuildingId =
+            buildings.Keys.FirstOrDefault();
+
+        if (selectedBuildingId > 0)
+        {
+            await LoadRoomsAsync(
+                selectedBuildingId);
+        }
+    }
+
+    private async Task BuildingChangedAsync(
+        ChangeEventArgs args)
+    {
+        errorMessage = null;
+
+        if (!int.TryParse(
+                args.Value?.ToString(),
+                out selectedBuildingId))
+        {
+            selectedBuildingId = 0;
+        }
+
+        rooms.Clear();
+        model.RoomId = 0;
+
+        if (selectedBuildingId > 0)
+        {
+            await LoadRoomsAsync(
+                selectedBuildingId);
+        }
+    }
+
+    private async Task LoadRoomsAsync(
+        int buildingId)
+    {
+        var result =
+            await RoomService.GetByBuildingAsync(
+                buildingId,
+                page: 1,
+                pageSize: 100);
+
+        if (result is null)
+        {
+            return;
+        }
+
+        rooms = result.Items.ToDictionary(
+            x => x.RoomId,
+            x => string.IsNullOrWhiteSpace(x.Name)
+                ? x.Code
+                : $"{x.Code} - {x.Name}");
+
+        model.RoomId = rooms.Keys.FirstOrDefault();
+    }
+
+    private async Task CreateAsync()
+    {
+        errorMessage = null;
+
+        if (model.TermId <= 0)
+        {
+            errorMessage = "Please select a term.";
+            return;
+        }
+
+        if (model.ModuleId <= 0)
+        {
+            errorMessage = "Please select a module.";
+            return;
+        }
+
+        if (model.RoomId <= 0)
+        {
+            errorMessage = "Please select a room.";
+            return;
+        }
+
+        if (model.EventStatusId <= 0)
+        {
+            errorMessage = "Please select an event status.";
+            return;
+        }
+
+        if (model.EndUtc <= model.StartUtc)
+        {
+            errorMessage =
+                "The end time must be later than the start time.";
+
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+
+            var dto = new TimetableEventCreateDto
+            {
+                TermId = model.TermId,
+                ModuleId = model.ModuleId,
+                RoomId = model.RoomId,
+                StartUtc = model.StartUtc.ToUniversalTime(),
+                EndUtc = model.EndUtc.ToUniversalTime(),
+                EventStatusId = model.EventStatusId,
+                SessionType = model.SessionType,
+                RecurrenceGroupId = null,
+                Notes = model.Notes
+            };
+
+            var success =
+                await TimetableEventService.CreateAsync(dto);
+
+            if (!success)
+            {
+                errorMessage =
+                    "Unable to create the timetable event. " +
+                    "Check whether the room, lecturer, or cohort has a conflict.";
+
+                return;
+            }
+
+            Navigation.NavigateTo(
+                "/admin/timetable-events");
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to create timetable event: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo(
+            "/admin/timetable-events");
+    }
+}

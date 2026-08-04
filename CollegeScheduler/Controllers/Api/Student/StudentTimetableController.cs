@@ -69,19 +69,32 @@ public sealed class StudentTimetableController : ControllerBase
 
 		var items = await query
 			.OrderBy(ec => ec.TimetableEvent.StartUtc)
-			.Select(ec => new
-			{
-				ec.TimetableEvent.TimetableEventId,
-				ec.CohortId,
-				ec.TimetableEvent.StartUtc,
-				ec.TimetableEvent.EndUtc,
-				ec.TimetableEvent.SessionType,
-				ModuleId = ec.TimetableEvent.ModuleId,
-				RoomId = ec.TimetableEvent.RoomId,
-				StatusId = ec.TimetableEvent.EventStatusId,
-				ec.TimetableEvent.Notes
-			})
-			.Distinct()
+            .Select(ec => new
+            {
+                ec.TimetableEvent.TimetableEventId,
+
+                CohortId = ec.CohortId,
+                CohortCode = ec.Cohort.Code,
+                CohortName = ec.Cohort.Name,
+
+                ec.TimetableEvent.StartUtc,
+                ec.TimetableEvent.EndUtc,
+                ec.TimetableEvent.SessionType,
+
+                ModuleId = ec.TimetableEvent.ModuleId,
+                ModuleCode = ec.TimetableEvent.Module!.Code,
+                ModuleTitle = ec.TimetableEvent.Module.Title,
+
+                RoomId = ec.TimetableEvent.RoomId,
+                RoomCode = ec.TimetableEvent.Room!.Code,
+                RoomName = ec.TimetableEvent.Room.Name,
+
+                StatusId = ec.TimetableEvent.EventStatusId,
+                StatusName = ec.TimetableEvent.EventStatus!.Name,
+
+                ec.TimetableEvent.Notes
+            })
+            .Distinct()
 			.ToListAsync();
 
 		return Ok(items);
@@ -162,29 +175,58 @@ public sealed class StudentTimetableController : ControllerBase
 		}
 	}
 
-	[HttpGet("requests")]
-	public async Task<IActionResult> GetMyRequests()
-	{
-		var requests = await _db.Requests
-			.AsNoTracking()
-			.Where(r => r.RequestedByUserId == CurrentUserId)
-			.OrderByDescending(r => r.CreatedAtUtc)
-			.Select(r => new
-			{
-				r.RequestId,
-				r.Title,
-				r.Notes,
-				RequestType = r.RequestType.Name,
-				RequestStatus = r.RequestStatus.Name,
-				r.CreatedAtUtc,
-				r.UpdatedAtUtc
-			})
-			.ToListAsync();
+    [HttpGet("requests")]
+    public async Task<IActionResult> GetMyRequests()
+    {
+        var requests = await (
+            from request in _db.Requests.AsNoTracking()
 
-		return Ok(requests);
-	}
+            join booking in _db.RequestRoomBookings.AsNoTracking()
+                on request.RequestId equals booking.RequestId
 
-	[HttpGet("profile")]
+            join room in _db.Rooms.AsNoTracking()
+                on booking.RoomId equals room.RoomId
+
+            join building in _db.Buildings.AsNoTracking()
+                on room.BuildingId equals building.BuildingId
+
+            join campus in _db.Campuses.AsNoTracking()
+                on building.CampusId equals campus.CampusId
+
+            where request.RequestedByUserId == CurrentUserId
+
+            orderby request.CreatedAtUtc descending
+
+            select new
+            {
+                request.RequestId,
+                request.Title,
+                request.Notes,
+
+                RequestType = request.RequestType.Name,
+                RequestStatus = request.RequestStatus.Name,
+
+                request.CreatedAtUtc,
+                request.UpdatedAtUtc,
+
+                booking.RoomId,
+                RoomCode = room.Code,
+                RoomName = room.Name,
+
+                BuildingName = building.Name,
+                CampusName = campus.Name,
+
+                booking.StartUtc,
+                booking.EndUtc,
+                booking.ExpectedAttendees,
+                booking.Purpose
+            })
+            .ToListAsync();
+
+        return Ok(requests);
+    }
+
+    [HttpGet("profile")]
 	public async Task<IActionResult> GetMyProfile()
 	{
 		var profile = await _db.StudentProfiles

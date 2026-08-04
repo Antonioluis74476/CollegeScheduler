@@ -5,12 +5,279 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using CollegeScheduler.Services;
+
+
+// usings for API clients
+using CollegeScheduler.Services.Implementations;
 using CollegeScheduler.Services.Interfaces;
 using CollegeScheduler.Hubs;
 using CollegeScheduler.Messaging;
 using MassTransit;
 
+using CollegeScheduler.Services.Admin;
+
+
+
+
 var builder = WebApplication.CreateBuilder(args);
+
+// API clients // FrontEnd
+
+// Forward auth cookie handler
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+builder.Services.AddHttpClient<CollegeScheduler.Services.AdminBuildingsApi>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+
+// Admin campus state
+builder.Services.AddScoped<CollegeScheduler.Services.AdminCampusState>();
+
+
+// Campus API client
+builder.Services.AddHttpClient<ICampusService, CampusService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Building API client
+builder.Services.AddHttpClient<IBuildingService, BuildingService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Room API client
+builder.Services.AddHttpClient<IRoomService, RoomService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// RoomType API client
+builder.Services.AddHttpClient<IRoomTypeService, RoomTypeService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Feature API client
+builder.Services.AddHttpClient<IFeatureService, FeatureService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// RoomFeature API client
+builder.Services.AddHttpClient<IRoomFeatureService, RoomFeatureService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Scheduling API client
+builder.Services.AddHttpClient<IAdminSchedulingService, AdminSchedulingService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Academic year API client
+builder.Services.AddHttpClient<IAcademicYearService, AcademicYearService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Term API client
+builder.Services.AddHttpClient<ITermService, TermService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Department API client
+builder.Services.AddHttpClient<IDepartmentService, DepartmentService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Program API client
+builder.Services.AddHttpClient<IProgramService, ProgramService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Module API client
+builder.Services.AddHttpClient<IModuleService, ModuleService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Cohort API client
+builder.Services.AddHttpClient<ICohortService, CohortService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// CohortModule API client
+builder.Services.AddHttpClient<ICohortModuleService, CohortModuleService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// ModuleLecturer API client
+builder.Services.AddHttpClient<
+    IModuleLecturerService,
+    ModuleLecturerService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// EventLecturer API client
+builder.Services.AddHttpClient<
+    IEventLecturerService,
+    EventLecturerService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// TimetableEvent API client
+
+builder.Services.AddHttpClient<
+    ITimetableEventService,
+    TimetableEventService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// EventCohort API client
+builder.Services.AddHttpClient<
+    IEventCohortService,
+    EventCohortService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+    .AddHttpMessageHandler<
+        CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// EventStatus API client
+builder.Services.AddHttpClient<
+    IEventStatusService,
+    EventStatusService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// RequestStatus API client
+builder.Services.AddHttpClient<
+    IRequestStatusService,
+    RequestStatusService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// RequestType API client
+builder.Services.AddHttpClient<
+    IRequestTypeService,
+    RequestTypeService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Audit Log API client
+builder.Services.AddHttpClient<
+    IAuditLogService,
+    AuditLogService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<
+    CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Student Cohort Membership API client
+builder.Services.AddHttpClient<
+    IStudentCohortMembershipService,
+    StudentCohortMembershipService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<ForwardAuthCookieHandler>();
+
+// Student Module Enrollment API client
+builder.Services.AddHttpClient<
+    IStudentModuleEnrollmentService,
+    StudentModuleEnrollmentService>(client =>
+    {
+        client.BaseAddress = new Uri(
+            builder.Configuration["ApiBaseUrl"]!);
+    })
+.AddHttpMessageHandler<ForwardAuthCookieHandler>();
+
+// Admin user API client
+builder.Services.AddHttpClient<IAdminUserService, AdminUserService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Admin notification API client
+builder.Services.AddHttpClient<IAdminNotificationService, AdminNotificationService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<CollegeScheduler.Services.ForwardAuthCookieHandler>();
+
+// Student API client
+builder.Services.AddHttpClient<IStudentService, StudentService>(client =>
+{
+	var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
+		?? throw new InvalidOperationException(
+			"ApiBaseUrl configuration is missing.");
+
+	client.BaseAddress = new Uri(apiBaseUrl);
+})
+.AddHttpMessageHandler<ForwardAuthCookieHandler>();
+
+// Lecturer API client
+builder.Services.AddHttpClient<ILecturerService, LecturerService>(client =>
+{
+	client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]!);
+})
+.AddHttpMessageHandler<ForwardAuthCookieHandler>();
+
+
 
 // UI (Blazor)
 builder.Services.AddRazorComponents()
@@ -55,22 +322,27 @@ builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRequestService, RequestService>();
 
+
 // RabbitMQ (MassTransit)
 builder.Services.AddMassTransit(x =>
 {
-	x.AddConsumer<SendEmailConsumer>();
+    x.AddConsumer<SendEmailConsumer>();
 
-	x.UsingRabbitMq((context, cfg) =>
-	{
-		cfg.Host("localhost", "/", h =>
-		{
-			h.Username("guest");
-			h.Password("guest");
-		});
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitUrl = builder.Configuration["RabbitMQ:Url"]
+    ?? throw new InvalidOperationException("RabbitMQ:Url not found.");
 
-		cfg.ConfigureEndpoints(context);
-	});
+        cfg.Host(new Uri(rabbitUrl));
+
+        cfg.ConfigureEndpoints(context);
+    });
 });
+
+// SMTP / Mailtrap settings
+builder.Services.Configure<CollegeScheduler.Messaging.SmtpSettings>(
+	builder.Configuration.GetSection("Smtp"));
+
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -86,12 +358,11 @@ if (app.Environment.IsDevelopment())
 {
 	app.UseMigrationsEndPoint();
 
-	await CollegeScheduler.Data.Identity.IdentitySeeder.SeedAsync(app.Services, app.Configuration);
-	await CollegeScheduler.Data.Seed.FacilitiesSeeder.SeedAsync(app.Services);
-	await CollegeScheduler.Data.Seed.SchedulingLookupSeeder.SeedAsync(app.Services);
+	
 
 
-	app.UseSwagger();
+
+    app.UseSwagger();
 	app.UseSwaggerUI();
 }
 else
@@ -100,13 +371,18 @@ else
 	app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+await CollegeScheduler.Data.Identity.IdentitySeeder.SeedAsync(app.Services, app.Configuration);
+await CollegeScheduler.Data.Seed.FacilitiesSeeder.SeedAsync(app.Services);
+await CollegeScheduler.Data.Seed.SchedulingLookupSeeder.SeedAsync(app.Services);
+await CollegeScheduler.Data.Seed.TestAcademicSeeder.SeedAsync(app.Services);
+
+//app.UseHttpsRedirection();
 
 app.UseStaticFiles();
-app.UseAntiforgery();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 
 // API endpoints
 app.MapControllers();

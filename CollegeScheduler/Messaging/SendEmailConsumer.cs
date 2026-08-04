@@ -2,37 +2,40 @@
 using System.Net.Mail;
 using CollegeScheduler.Messaging;
 using MassTransit;
+using Microsoft.Extensions.Options;
 
 public sealed class SendEmailConsumer : IConsumer<SendEmailMessage>
 {
 	private readonly ILogger<SendEmailConsumer> _logger;
+	private readonly SmtpSettings _settings;
 
-	public SendEmailConsumer(ILogger<SendEmailConsumer> logger)
+	public SendEmailConsumer(
+		ILogger<SendEmailConsumer> logger,
+		IOptions<SmtpSettings> settings)
 	{
 		_logger = logger;
+		_settings = settings.Value;
 	}
 
 	public async Task Consume(ConsumeContext<SendEmailMessage> context)
 	{
 		var msg = context.Message;
-
 		try
 		{
-			var smtp = new SmtpClient("smtp.gmail.com")
+			using var smtp = new SmtpClient(_settings.Host)
 			{
-				Port = 587,
-				Credentials = new NetworkCredential("your-email@gmail.com", "your-app-password"),
+				Port = _settings.Port,
+				Credentials = new NetworkCredential(_settings.Username, _settings.Password),
 				EnableSsl = true
 			};
 
-			var mail = new MailMessage
+			using var mail = new MailMessage
 			{
-				From = new MailAddress("your-email@gmail.com"),
+				From = new MailAddress(_settings.FromAddress, _settings.FromName),
 				Subject = msg.Subject,
 				Body = msg.Body,
 				IsBodyHtml = false
 			};
-
 			mail.To.Add(msg.To);
 
 			await smtp.SendMailAsync(mail);

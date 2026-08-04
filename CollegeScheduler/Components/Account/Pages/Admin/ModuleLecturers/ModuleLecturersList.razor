@@ -1,0 +1,206 @@
+﻿@page "/admin/module-lecturers"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Profiles
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IModuleLecturerService ModuleLecturerService
+@inject IModuleService ModuleService
+@inject IAdminUserService AdminUserService
+@inject IAcademicYearService AcademicYearService
+@inject ITermService TermService
+@inject NavigationManager Navigation
+
+<PageTitle>Module Lecturer Assignments</PageTitle>
+
+<h1>Module Lecturer Assignments</h1>
+
+<button class="btn btn-primary mb-3"
+        @onclick="CreateAssignment">
+    + Assign Lecturer
+</button>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+
+@if (isLoading)
+{
+    <p>Loading assignments...</p>
+}
+else if (assignments.Count == 0)
+{
+    <div class="alert alert-info">
+        No module lecturer assignments were found.
+    </div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Module</th>
+                <th>Lecturer</th>
+                <th>Term</th>
+                <th>Role</th>
+                <th>Assigned</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var assignment in assignments)
+            {
+                <tr>
+                    <td>@GetModuleName(assignment.ModuleId)</td>
+                    <td>@GetLecturerName(assignment.LecturerId)</td>
+                    <td>@GetTermName(assignment.TermId)</td>
+                    <td>@assignment.Role</td>
+                    <td>@assignment.AssignedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm me-2"
+                                @onclick="() => EditAssignment(assignment)">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-danger btn-sm"
+                                @onclick="() => DeleteAssignment(assignment)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<ModuleLecturerDto> assignments = [];
+    private List<ModuleDto> modules = [];
+    private List<LecturerDto> lecturers = [];
+    private List<TermDto> terms = [];
+
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            var assignmentResult =
+                await ModuleLecturerService.GetAllAsync();
+
+            var moduleResult =
+                await ModuleService.GetAllAsync(
+                    page: 1,
+                    pageSize: 100);
+
+            lecturers =
+                await AdminUserService.GetLecturersAsync();
+
+            var academicYearResult =
+                await AcademicYearService.GetAllAsync(
+                    page: 1,
+                    pageSize: 100);
+
+            assignments = assignmentResult?.Items ?? [];
+            modules = moduleResult?.Items?.ToList() ?? [];
+
+            terms = [];
+
+            if (academicYearResult?.Items is not null)
+            {
+                foreach (var academicYear in academicYearResult.Items)
+                {
+                    var termResult =
+                        await TermService.GetByAcademicYearAsync(
+                            academicYear.AcademicYearId,
+                            page: 1,
+                            pageSize: 100);
+
+                    if (termResult?.Items is not null)
+                    {
+                        terms.AddRange(termResult.Items);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetModuleName(int moduleId)
+    {
+        var module = modules.FirstOrDefault(
+            x => x.ModuleId == moduleId);
+
+        return module is null
+            ? $"Module {moduleId}"
+            : $"{module.Code} - {module.Title}";
+    }
+
+    private string GetLecturerName(int lecturerId)
+    {
+        var lecturer = lecturers.FirstOrDefault(
+            x => x.LecturerId == lecturerId);
+
+        return lecturer is null
+            ? $"Lecturer {lecturerId}"
+            : $"{lecturer.Name} {lecturer.LastName} ({lecturer.StaffNumber})";
+    }
+
+    private string GetTermName(int termId)
+    {
+        var term = terms.FirstOrDefault(
+            x => x.TermId == termId);
+
+        return term is null
+            ? $"Term {termId}"
+            : term.Name;
+    }
+
+    private void CreateAssignment()
+    {
+        Navigation.NavigateTo(
+            "/admin/module-lecturers/create");
+    }
+
+    private void EditAssignment(
+        ModuleLecturerDto assignment)
+    {
+        Navigation.NavigateTo(
+            $"/admin/module-lecturers/edit/" +
+            $"{assignment.ModuleId}/" +
+            $"{assignment.LecturerId}/" +
+            $"{assignment.TermId}");
+    }
+
+    private void DeleteAssignment(
+        ModuleLecturerDto assignment)
+    {
+        Navigation.NavigateTo(
+            $"/admin/module-lecturers/delete/" +
+            $"{assignment.ModuleId}/" +
+            $"{assignment.LecturerId}/" +
+            $"{assignment.TermId}");
+    }
+}

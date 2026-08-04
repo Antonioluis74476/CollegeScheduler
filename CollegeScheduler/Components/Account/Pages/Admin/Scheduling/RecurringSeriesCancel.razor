@@ -1,0 +1,110 @@
+﻿@page "/admin/scheduling/recurring-series/{RecurrenceGroupId:guid}/cancel"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+
+@using CollegeScheduler.DTOs.Scheduling
+
+@using CollegeScheduler.Services.Interfaces
+@inject IAdminSchedulingService SchedulingService
+
+<PageTitle>Cancel Recurring Series</PageTitle>
+
+<h3>Cancel Recurring Series</h3>
+
+<div class="alert alert-warning">
+    <strong>Recurrence Group ID:</strong>
+    @RecurrenceGroupId
+</div>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+
+<EditForm Model="cancelRequest">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Cancellation Scope</label>
+
+        <InputSelect class="form-select"
+                     @bind-Value="cancelRequest.Scope">
+            <option value="@RecurringEventUpdateScope.All">
+                Entire Series
+            </option>
+            <option value="@RecurringEventUpdateScope.ThisOnly">
+                This Event Only
+            </option>
+            <option value="@RecurringEventUpdateScope.ThisAndFollowing">
+                This Event and Following
+            </option>
+        </InputSelect>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Reason</label>
+
+        <InputTextArea class="form-control"
+                       rows="4"
+                       @bind-Value="cancelRequest.Reason" />
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="button"
+                class="btn btn-danger"
+                @onclick="CancelSeriesAsync">
+            Confirm Cancellation
+        </button>
+
+        <button type="button"
+                class="btn btn-secondary"
+                @onclick="GoBack">
+            Back
+        </button>
+    </div>
+</EditForm>
+
+@code
+{
+    [Parameter]
+    public Guid RecurrenceGroupId { get; set; }
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    private string? errorMessage;
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo(
+            $"/admin/scheduling/recurring-series/{RecurrenceGroupId}");
+    }
+
+
+    private CancelRecurringEventDto cancelRequest = new()
+    {
+        Scope = RecurringEventUpdateScope.All
+    };
+
+    private async Task CancelSeriesAsync()
+    {
+        try
+        {
+            await SchedulingService.CancelRecurringSeriesAsync(
+                RecurrenceGroupId,
+                cancelRequest);
+
+            Navigation.NavigateTo(
+                $"/admin/scheduling/recurring-series/{RecurrenceGroupId}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+}

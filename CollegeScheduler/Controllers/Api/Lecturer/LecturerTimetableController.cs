@@ -65,10 +65,19 @@ public sealed class LecturerTimetableController : ControllerBase
 				el.TimetableEvent.StartUtc,
 				el.TimetableEvent.EndUtc,
 				el.TimetableEvent.SessionType,
-				ModuleId = el.TimetableEvent.ModuleId,
-				RoomId = el.TimetableEvent.RoomId,
-				StatusId = el.TimetableEvent.EventStatusId,
-				el.TimetableEvent.Notes
+
+                ModuleId = el.TimetableEvent.ModuleId,
+                ModuleCode = el.TimetableEvent.Module!.Code,
+                ModuleTitle = el.TimetableEvent.Module.Title,
+
+                RoomId = el.TimetableEvent.RoomId,
+                RoomCode = el.TimetableEvent.Room!.Code,
+                RoomName = el.TimetableEvent.Room.Name,
+
+                StatusId = el.TimetableEvent.EventStatusId,
+                StatusName = el.TimetableEvent.EventStatus.Name,
+
+                el.TimetableEvent.Notes
 			})
 			.ToListAsync();
 
@@ -244,22 +253,46 @@ public sealed class LecturerTimetableController : ControllerBase
 		return Ok(notifications);
 	}
 
+	[HttpPost("notifications/{id:long}/read")]
+	public async Task<IActionResult> MarkNotificationAsRead(long id)
+	{
+		var row = await _db.NotificationRecipients
+			.FirstOrDefaultAsync(nr =>
+				nr.NotificationId == id &&
+				nr.UserId == CurrentUserId);
+
+		if (row is null)
+			return NotFound();
+
+		if (row.ReadAtUtc is null)
+		{
+			row.ReadAtUtc = DateTime.UtcNow;
+			await _db.SaveChangesAsync();
+		}
+
+		return NoContent();
+	}
+
 	[HttpGet("profile")]
 	public async Task<IActionResult> GetMyProfile()
 	{
 		var profile = await _db.LecturerProfiles
 			.AsNoTracking()
 			.Where(lp => lp.UserId == CurrentUserId)
-			.Select(lp => new
-			{
-				lp.LecturerId,
-				lp.StaffNumber,
-				lp.Name,
-				lp.LastName,
-				lp.Email,
-				lp.DepartmentId
-			})
-			.FirstOrDefaultAsync();
+            .Select(lp => new
+            {
+                lp.LecturerId,
+                lp.StaffNumber,
+                lp.Name,
+                lp.LastName,
+                lp.Email,
+                lp.DepartmentId,
+                DepartmentName = _db.Departments
+					.Where(d => d.DepartmentId == lp.DepartmentId)
+					.Select(d => d.Name)
+					.FirstOrDefault()
+            })
+            .FirstOrDefaultAsync();
 
 		if (profile is null)
 			return NotFound("No lecturer profile found for the current user.");

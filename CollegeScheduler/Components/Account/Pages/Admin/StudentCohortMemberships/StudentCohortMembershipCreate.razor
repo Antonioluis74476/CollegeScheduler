@@ -1,0 +1,285 @@
+﻿@page "/admin/student-cohort-memberships/create"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Authorization
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Membership
+@using CollegeScheduler.DTOs.Profiles
+@using CollegeScheduler.Services.Interfaces
+
+@inject IStudentCohortMembershipService MembershipService
+@inject IAdminUserService AdminUserService
+@inject IDepartmentService DepartmentService
+@inject IProgramService ProgramService
+@inject ICohortService CohortService
+@inject IAcademicYearService AcademicYearService
+@inject NavigationManager Navigation
+
+<h3>Create Student Cohort Membership</h3>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (isLoading)
+{
+    <p>Loading form...</p>
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label class="form-label">Student</label>
+            <InputSelect class="form-select" @bind-Value="model.StudentId">
+                <option value="0">Select a student</option>
+
+                @foreach (var student in students)
+                {
+                    <option value="@student.StudentId">
+                        @student.StudentNumber - @student.Name @student.LastName
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Department</label>
+            <InputSelect class="form-select"
+                         @bind-Value="selectedDepartmentId"
+                         @bind-Value:after="LoadProgramsAsync">
+                <option value="0">Select a department</option>
+
+                @foreach (var department in departments)
+                {
+                    <option value="@department.DepartmentId">
+                        @department.Code - @department.Name
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Program</label>
+            <InputSelect class="form-select"
+                         @bind-Value="selectedProgramId"
+                         @bind-Value:after="LoadCohortsAsync"
+                         disabled="@(selectedDepartmentId == 0)">
+                <option value="0">Select a program</option>
+
+                @foreach (var program in programs)
+                {
+                    <option value="@program.ProgramId">
+                        @program.Code - @program.Name
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Cohort</label>
+            <InputSelect class="form-select"
+                         @bind-Value="model.CohortId"
+                         disabled="@(selectedProgramId == 0)">
+                <option value="0">Select a cohort</option>
+
+                @foreach (var cohort in cohorts)
+                {
+                    <option value="@cohort.CohortId">
+                        @cohort.Code - @cohort.Name
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Academic Year</label>
+            <InputSelect class="form-select"
+                         @bind-Value="model.AcademicYearId">
+                <option value="0">Select an academic year</option>
+
+                @foreach (var year in academicYears)
+                {
+                    <option value="@year.AcademicYearId">
+                        @year.Label
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Membership Type</label>
+            <InputSelect class="form-select"
+                         @bind-Value="model.MembershipType">
+                <option value="">Select a membership type</option>
+                <option value="Primary">Primary</option>
+                <option value="RepeatYear">Repeat Year</option>
+                <option value="Visiting">Visiting</option>
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Start Date</label>
+            <InputDate class="form-control"
+                       @bind-Value="model.StartDate" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">End Date</label>
+            <InputDate class="form-control"
+                       @bind-Value="model.EndDate" />
+        </div>
+
+        <button class="btn btn-primary"
+                type="submit"
+                disabled="@isSaving">
+            @(isSaving ? "Saving..." : "Create Membership")
+        </button>
+
+        <a class="btn btn-secondary ms-2"
+           href="/admin/student-cohort-memberships">
+            Cancel
+        </a>
+    </EditForm>
+}
+
+@code {
+    private readonly StudentCohortMembershipCreateDto model = new();
+
+    private List<StudentDto> students = [];
+    private List<DepartmentDto> departments = [];
+    private List<ProgramDto> programs = [];
+    private List<CohortDto> cohorts = [];
+    private List<AcademicYearDto> academicYears = [];
+
+    private int selectedDepartmentId;
+    private int selectedProgramId;
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            students = await AdminUserService.GetStudentsAsync();
+
+            var departmentResult =
+                await DepartmentService.GetAllAsync(
+                    page: 1,
+                    pageSize: 100);
+
+            departments =
+                departmentResult?.Items?.ToList() ?? [];
+
+            var academicYearResult =
+                await AcademicYearService.GetAllAsync(
+                    page: 1,
+                    pageSize: 100);
+
+            academicYears =
+                academicYearResult?.Items?.ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadProgramsAsync()
+    {
+        selectedProgramId = 0;
+        model.CohortId = 0;
+        programs = [];
+        cohorts = [];
+
+        if (selectedDepartmentId == 0)
+        {
+            return;
+        }
+
+        var result =
+            await ProgramService.GetByDepartmentAsync(
+                selectedDepartmentId,
+                page: 1,
+                pageSize: 100);
+
+        programs = result?.Items?.ToList() ?? [];
+    }
+
+    private async Task LoadCohortsAsync()
+    {
+        model.CohortId = 0;
+        cohorts = [];
+
+        if (selectedProgramId == 0)
+        {
+            return;
+        }
+
+        var result =
+            await CohortService.GetByProgramAsync(
+                selectedProgramId,
+                page: 1,
+                pageSize: 100);
+
+        cohorts = result?.Items?.ToList() ?? [];
+    }
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = null;
+
+        if (model.StudentId == 0 ||
+            model.CohortId == 0 ||
+            model.AcademicYearId == 0 ||
+            string.IsNullOrWhiteSpace(model.MembershipType))
+        {
+            errorMessage = "Please complete all required fields.";
+            return;
+        }
+
+        if (model.EndDate.HasValue &&
+            model.StartDate.HasValue &&
+            model.EndDate < model.StartDate)
+        {
+            errorMessage =
+                "The end date cannot be earlier than the start date.";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+
+            var success =
+                await MembershipService.CreateAsync(model);
+
+            if (!success)
+            {
+                errorMessage =
+                    "The membership could not be created.";
+                return;
+            }
+
+            Navigation.NavigateTo(
+                "/admin/student-cohort-memberships");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

@@ -1,0 +1,78 @@
+﻿@page "/admin/requests-dashboard"
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Requests</PageTitle>
+
+<div class="container-fluid py-4">
+
+    <div class="mb-4">
+        <h1 class="h3 mb-1">Requests</h1>
+        <p class="text-muted mb-0">
+            Review pending requests and manage request types and statuses.
+        </p>
+    </div>
+
+    <div class="row g-4">
+
+        <div class="col-12 col-md-6 col-xl-4">
+            <NavLink href="/admin/requests/pending"
+                     class="text-decoration-none">
+                <div class="card h-100 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <div class="fs-2 mb-3">📥</div>
+                        <h2 class="h5">Pending Requests</h2>
+                        <p class="text-muted mb-0">
+                            Review and approve or reject submitted requests.
+                        </p>
+                    </div>
+                </div>
+            </NavLink>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-4">
+            <NavLink href="/admin/request-types"
+                     class="text-decoration-none">
+                <div class="card h-100 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <div class="fs-2 mb-3">🗂️</div>
+                        <h2 class="h5">Request Types</h2>
+                        <p class="text-muted mb-0">
+                            Manage categories such as room booking and rescheduling.
+                        </p>
+                    </div>
+                </div>
+            </NavLink>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-4">
+            <NavLink href="/admin/request-statuses"
+                     class="text-decoration-none">
+                <div class="card h-100 shadow-sm dashboard-card">
+                    <div class="card-body">
+                        <div class="fs-2 mb-3">🏷️</div>
+                        <h2 class="h5">Request Statuses</h2>
+                        <p class="text-muted mb-0">
+                            Manage statuses such as pending, approved, and rejected.
+                        </p>
+                    </div>
+                </div>
+            </NavLink>
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+    .dashboard-card {
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        color: inherit;
+    }
+
+        .dashboard-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15) !important;
+        }
+</style>

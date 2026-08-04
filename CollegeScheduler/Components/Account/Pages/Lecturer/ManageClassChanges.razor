@@ -1,0 +1,692 @@
+﻿@page "/lecturer/manage-class-changes"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = RoleNames.Lecturer)]
+
+@using CollegeScheduler.Data.Identity
+@using CollegeScheduler.DTOs.Lecturer
+@using CollegeScheduler.DTOs.Requests
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+
+@using CollegeScheduler.DTOs.Scheduling
+
+@using CollegeScheduler.DTOs.Facilities
+
+@inject ILecturerService LecturerService
+
+<PageTitle>Manage Class Changes</PageTitle>
+
+<div class="container py-4">
+
+    <div class="mb-4">
+
+        <h1 class="h3 mb-1">Manage Class Changes</h1>
+
+        <p class="text-muted mb-0">
+            Request a change to an assigned class or request its cancellation.
+        </p>
+
+    </div>
+
+    @if (_isLoadingEvents)
+    {
+        <div class="d-flex align-items-center gap-2">
+
+            <div class="spinner-border spinner-border-sm"
+                 role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+
+            <span>Loading your classes...</span>
+
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_loadErrorMessage))
+    {
+        <div class="alert alert-danger">
+            @_loadErrorMessage
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+
+            <div class="col-lg-7">
+
+                <div class="card shadow-sm h-100">
+
+                    <div class="card-header bg-light">
+                        <strong>Schedule Change Request</strong>
+                    </div>
+
+                    <div class="card-body">
+
+                        @if (!string.IsNullOrWhiteSpace(_scheduleSuccessMessage))
+                        {
+                            <div class="alert alert-success">
+                                @_scheduleSuccessMessage
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(_scheduleErrorMessage))
+                        {
+                            <div class="alert alert-danger">
+                                @_scheduleErrorMessage
+                            </div>
+                        }
+
+                        <EditForm Model="_scheduleForm"
+                                  OnValidSubmit="SubmitScheduleChangeAsync">
+
+                            <DataAnnotationsValidator />
+
+                            <div class="mb-3">
+
+                                <label class="form-label">
+                                    Class
+                                </label>
+
+                                <InputSelect class="form-select"
+                                             @bind-Value="_scheduleForm.TimetableEventId">
+
+                                    <option value="0">
+                                        Select one of your classes
+                                    </option>
+
+                                    @foreach (var item in _availableEvents)
+                                    {
+                                        <option value="@item.TimetableEventId">
+                                            @GetEventDescription(item)
+                                        </option>
+                                    }
+
+                                </InputSelect>
+
+                                <ValidationMessage For="@(() => _scheduleForm.TimetableEventId)" />
+
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Campus</label>
+
+                                <select class="form-select"
+                                        @onchange="@(async e => await OnCampusChangedAsync(
+                                        int.TryParse(e.Value?.ToString(), out var id) ? id : null))">
+
+                                    <option value="">Select a campus</option>
+
+                                    @foreach (var campus in _campuses)
+                                    {
+                                        <option value="@campus.CampusId">
+                                            @campus.Name
+                                        </option>
+                                    }
+
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Building</label>
+
+                                <select class="form-select"
+                                        @onchange="OnBuildingChanged"
+                                        disabled="@(_selectedCampusId is null)">
+
+                                    <option value="">Select a building</option>
+
+                                    @foreach (var building in _buildings)
+                                    {
+                                        <option value="@building.BuildingId">
+                                            @building.Name
+                                        </option>
+                                    }
+
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Proposed room</label>
+
+                                <InputSelect class="form-select"
+                                             @bind-Value="_scheduleForm.ProposedRoomId"
+                                             disabled="@(_selectedBuildingId is null)">
+
+                                    <option value="0">Select a room</option>
+
+                                    @foreach (var room in _rooms)
+                                    {
+                                        <option value="@room.RoomId">
+                                            @room.Code - @room.Name
+                                        </option>
+                                    }
+
+                                </InputSelect>
+
+                                <ValidationMessage For="@(() => _scheduleForm.ProposedRoomId)" />
+                            </div>
+
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label">
+                                        Proposed start date
+                                    </label>
+
+                                    <InputDate class="form-control"
+                                               @bind-Value="_scheduleForm.StartDate" />
+
+                                </div>
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label">
+                                        Proposed start time
+                                    </label>
+
+                                    <InputText type="time"
+                                               class="form-control"
+                                               @bind-Value="_scheduleForm.StartTime" />
+
+                                </div>
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label">
+                                        Proposed end date
+                                    </label>
+
+                                    <InputDate class="form-control"
+                                               @bind-Value="_scheduleForm.EndDate" />
+
+                                </div>
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label">
+                                        Proposed end time
+                                    </label>
+
+                                    <InputText type="time"
+                                               class="form-control"
+                                               @bind-Value="_scheduleForm.EndTime" />
+
+                                </div>
+
+                            </div>
+
+                            <div class="mt-3">
+
+                                <label class="form-label">
+                                    Reason
+                                </label>
+
+                                <InputTextArea class="form-control"
+                                               rows="4"
+                                               @bind-Value="_scheduleForm.Reason" />
+
+                                <ValidationMessage For="@(() => _scheduleForm.Reason)" />
+
+                            </div>
+
+                            <ValidationSummary class="text-danger mt-3" />
+
+                            <button type="submit"
+                                    class="btn btn-primary mt-4"
+                                    disabled="@_isSubmittingScheduleChange">
+
+                                @if (_isSubmittingScheduleChange)
+                                {
+                                    <span class="spinner-border
+                                                         spinner-border-sm me-2">
+                                    </span>
+
+                                    <span>Submitting...</span>
+                                }
+                                else
+                                {
+                                    <span>Submit schedule change</span>
+                                }
+
+                            </button>
+
+                        </EditForm>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="col-lg-5">
+
+                <div class="card shadow-sm h-100">
+
+                    <div class="card-header bg-light">
+                        <strong>Cancel Class Request</strong>
+                    </div>
+
+                    <div class="card-body">
+
+                        @if (!string.IsNullOrWhiteSpace(_cancelSuccessMessage))
+                        {
+                            <div class="alert alert-success">
+                                @_cancelSuccessMessage
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(_cancelErrorMessage))
+                        {
+                            <div class="alert alert-danger">
+                                @_cancelErrorMessage
+                            </div>
+                        }
+
+                        <EditForm Model="_cancelForm"
+                                  OnValidSubmit="SubmitCancellationAsync">
+
+                            <DataAnnotationsValidator />
+
+                            <div class="mb-3">
+
+                                <label class="form-label">
+                                    Class
+                                </label>
+
+                                <InputSelect class="form-select"
+                                             @bind-Value="_cancelForm.TimetableEventId">
+
+                                    <option value="0">
+                                        Select one of your classes
+                                    </option>
+
+                                    @foreach (var item in _availableEvents)
+                                    {
+                                        <option value="@item.TimetableEventId">
+                                            @GetEventDescription(item)
+                                        </option>
+                                    }
+
+                                </InputSelect>
+
+                                <ValidationMessage For="@(() => _cancelForm.TimetableEventId)" />
+
+                            </div>
+
+                            <div class="mb-3">
+
+                                <label class="form-label">
+                                    Reason for cancellation
+                                </label>
+
+                                <InputTextArea class="form-control"
+                                               rows="6"
+                                               @bind-Value="_cancelForm.Reason" />
+
+                                <ValidationMessage For="@(() => _cancelForm.Reason)" />
+
+                            </div>
+
+                            <ValidationSummary class="text-danger" />
+
+                            <button type="submit"
+                                    class="btn btn-danger"
+                                    disabled="@_isSubmittingCancellation">
+
+                                @if (_isSubmittingCancellation)
+                                {
+                                    <span class="spinner-border
+                                                         spinner-border-sm me-2">
+                                    </span>
+
+                                    <span>Submitting...</span>
+                                }
+                                else
+                                {
+                                    <span>Request class cancellation</span>
+                                }
+
+                            </button>
+
+                        </EditForm>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>
+
+@code {
+    private readonly List<LecturerTimetableItemDto> _availableEvents = [];
+
+    private ScheduleChangeFormModel _scheduleForm =
+        CreateInitialScheduleForm();
+
+    private CancelClassFormModel _cancelForm = new();
+
+    private bool _isLoadingEvents = true;
+    private bool _isSubmittingScheduleChange;
+    private bool _isSubmittingCancellation;
+
+    private string? _loadErrorMessage;
+    private string? _scheduleSuccessMessage;
+    private string? _scheduleErrorMessage;
+    private string? _cancelSuccessMessage;
+    private string? _cancelErrorMessage;
+
+    private List<CampusDto> _campuses = [];
+    private List<BuildingDto> _buildings = [];
+    private List<AvailableRoomDto> _rooms = [];
+
+    private int? _selectedCampusId;
+    private int? _selectedBuildingId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCampusesAsync();
+        await LoadEventsAsync();
+    }
+
+    private async Task LoadEventsAsync()
+    {
+        _isLoadingEvents = true;
+
+        try
+        {
+            var fromUtc = DateTime.Now.ToUniversalTime();
+            var toUtc = DateTime.Now.AddDays(180).ToUniversalTime();
+
+            var results = await LecturerService.GetTimetableAsync(
+                fromUtc,
+                toUtc);
+
+            _availableEvents.Clear();
+
+            _availableEvents.AddRange(
+                results.OrderBy(x => x.StartUtc));
+        }
+        catch (HttpRequestException ex)
+        {
+            _loadErrorMessage = CleanErrorMessage(ex.Message);
+        }
+        catch (Exception)
+        {
+            _loadErrorMessage =
+                "An unexpected error occurred while loading classes.";
+        }
+        finally
+        {
+            _isLoadingEvents = false;
+        }
+    }
+
+    private async Task SubmitScheduleChangeAsync()
+    {
+        _scheduleSuccessMessage = null;
+        _scheduleErrorMessage = null;
+
+        if (!TryBuildLocalDateTime(
+                _scheduleForm.StartDate,
+                _scheduleForm.StartTime,
+                out var proposedStart))
+        {
+            _scheduleErrorMessage =
+                "Please enter a valid proposed start date and time.";
+
+            return;
+        }
+
+        if (!TryBuildLocalDateTime(
+                _scheduleForm.EndDate,
+                _scheduleForm.EndTime,
+                out var proposedEnd))
+        {
+            _scheduleErrorMessage =
+                "Please enter a valid proposed end date and time.";
+
+            return;
+        }
+
+        if (proposedEnd <= proposedStart)
+        {
+            _scheduleErrorMessage =
+                "The proposed end time must be after the start time.";
+
+            return;
+        }
+
+        _isSubmittingScheduleChange = true;
+
+        try
+        {
+            var dto = new ScheduleChangeRequestCreateDto
+            {
+                TimetableEventId = _scheduleForm.TimetableEventId,
+                ProposedRoomId = _scheduleForm.ProposedRoomId,
+
+                ProposedStartUtc = DateTime.SpecifyKind(
+                        proposedStart,
+                        DateTimeKind.Local)
+                    .ToUniversalTime(),
+
+                ProposedEndUtc = DateTime.SpecifyKind(
+                        proposedEnd,
+                        DateTimeKind.Local)
+                    .ToUniversalTime(),
+
+                Reason = _scheduleForm.Reason.Trim()
+            };
+
+            var result =
+                await LecturerService.CreateScheduleChangeRequestAsync(dto);
+
+            _scheduleSuccessMessage =
+                result?.Message
+                ?? "Schedule change request submitted successfully.";
+
+            _scheduleForm = CreateInitialScheduleForm();
+        }
+        catch (HttpRequestException ex)
+        {
+            _scheduleErrorMessage =
+                CleanErrorMessage(ex.Message);
+        }
+        catch (Exception)
+        {
+            _scheduleErrorMessage =
+                "An unexpected error occurred while submitting the request.";
+        }
+        finally
+        {
+            _isSubmittingScheduleChange = false;
+        }
+    }
+
+    private async Task LoadCampusesAsync()
+    {
+        _campuses = await LecturerService.GetCampusesAsync();
+    }
+
+    private async Task OnCampusChangedAsync(int? campusId)
+    {
+        _selectedCampusId = campusId;
+        _selectedBuildingId = null;
+
+        _buildings.Clear();
+        _rooms.Clear();
+
+        if (campusId.HasValue)
+        {
+            _buildings = await LecturerService
+                .GetBuildingsByCampusAsync(campusId.Value);
+        }
+    }
+
+    private async Task OnBuildingChanged(ChangeEventArgs e)
+    {
+        _selectedBuildingId = int.TryParse(e.Value?.ToString(), out var id)
+            ? id
+            : null;
+
+        _rooms.Clear();
+
+        if (_selectedBuildingId is null)
+            return;
+
+        var startLocal = DateTime.Parse(
+            $"{_scheduleForm.StartDate:yyyy-MM-dd} {_scheduleForm.StartTime}");
+
+        var endLocal = DateTime.Parse(
+            $"{_scheduleForm.EndDate:yyyy-MM-dd} {_scheduleForm.EndTime}");
+
+        var startUtc = startLocal.ToUniversalTime();
+        var endUtc = endLocal.ToUniversalTime();
+
+        _rooms = await LecturerService.GetAvailableRoomsAsync(
+            new RoomSearchQuery
+            {
+                StartUtc = startUtc,
+                EndUtc = endUtc,
+                CampusId = _selectedCampusId,
+                BuildingId = _selectedBuildingId
+            });
+    }
+
+    private async Task SubmitCancellationAsync()
+    {
+        _cancelSuccessMessage = null;
+        _cancelErrorMessage = null;
+        _isSubmittingCancellation = true;
+
+        try
+        {
+            var dto = new CancelClassRequestCreateDto
+            {
+                TimetableEventId = _cancelForm.TimetableEventId,
+                Reason = _cancelForm.Reason.Trim()
+            };
+
+            var result =
+                await LecturerService.CreateCancelClassRequestAsync(dto);
+
+            _cancelSuccessMessage =
+                result?.Message
+                ?? "Cancel class request submitted successfully.";
+
+            _cancelForm = new CancelClassFormModel();
+        }
+        catch (HttpRequestException ex)
+        {
+            _cancelErrorMessage =
+                CleanErrorMessage(ex.Message);
+        }
+        catch (Exception)
+        {
+            _cancelErrorMessage =
+                "An unexpected error occurred while submitting the request.";
+        }
+        finally
+        {
+            _isSubmittingCancellation = false;
+        }
+    }
+
+    private static ScheduleChangeFormModel CreateInitialScheduleForm()
+    {
+        var start = DateTime.Now.AddDays(1);
+
+        start = new DateTime(
+            start.Year,
+            start.Month,
+            start.Day,
+            9,
+            0,
+            0);
+
+        return new ScheduleChangeFormModel
+        {
+            StartDate = start.Date,
+            StartTime = start.ToString("HH:mm"),
+            EndDate = start.Date,
+            EndTime = start.AddHours(1).ToString("HH:mm")
+        };
+    }
+
+    private static bool TryBuildLocalDateTime(
+        DateTime date,
+        string timeText,
+        out DateTime value)
+    {
+        value = default;
+
+        if (!TimeSpan.TryParse(timeText, out var time))
+        {
+            return false;
+        }
+
+        value = date.Date.Add(time);
+        return true;
+    }
+
+    private static string GetEventDescription(LecturerTimetableItemDto item)
+    {
+        var localStart = item.StartUtc.ToLocalTime();
+
+        return
+            $"{localStart:dd MMM yyyy HH:mm} - " +
+            $"{item.ModuleCode} - {item.ModuleTitle} ({item.SessionType})";
+    }
+
+    private static string CleanErrorMessage(string message)
+    {
+        return string.IsNullOrWhiteSpace(message)
+            ? "The request could not be completed."
+            : message.Trim('"');
+    }
+
+    private sealed class ScheduleChangeFormModel
+    {
+        [Range(
+            1,
+            long.MaxValue,
+            ErrorMessage = "Please select a class.")]
+        public long TimetableEventId { get; set; }
+
+        [Range(
+            1,
+            int.MaxValue,
+            ErrorMessage = "Please select a room.")]
+        public int ProposedRoomId { get; set; }
+
+        public DateTime StartDate { get; set; }
+
+        [Required]
+        public string StartTime { get; set; } = "";
+
+        public DateTime EndDate { get; set; }
+
+        [Required]
+        public string EndTime { get; set; } = "";
+
+        [Required(ErrorMessage = "Please provide a reason.")]
+        [StringLength(500, MinimumLength = 3)]
+        public string Reason { get; set; } = "";
+    }
+
+    private sealed class CancelClassFormModel
+    {
+        [Range(
+            1,
+            long.MaxValue,
+            ErrorMessage = "Please select a class.")]
+        public long TimetableEventId { get; set; }
+
+        [Required(ErrorMessage = "Please provide a reason.")]
+        [StringLength(500, MinimumLength = 3)]
+        public string Reason { get; set; } = "";
+    }
+}

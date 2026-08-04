@@ -1,0 +1,674 @@
+﻿@page "/lecturer/room-booking"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = RoleNames.Lecturer)]
+
+@using CollegeScheduler.Data.Identity
+@using CollegeScheduler.DTOs.Requests
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@using CollegeScheduler.DTOs.Scheduling
+
+@using CollegeScheduler.DTOs.Facilities
+
+@inject ILecturerService LecturerService
+
+<PageTitle>Book a Room</PageTitle>
+
+<div class="container py-4">
+
+    <div class="mb-4">
+
+        <h1 class="h3 mb-1">Book a Room</h1>
+
+        <p class="text-muted mb-0">
+            Submit a room-booking request for approval.
+        </p>
+
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_successMessage))
+    {
+        <div class="alert alert-success">
+
+            <div class="fw-semibold">
+                @_successMessage
+            </div>
+
+            @if (_createdRequestId.HasValue)
+            {
+                <div class="mt-2">
+                    Request number:
+                    <strong>@_createdRequestId</strong>
+                </div>
+            }
+
+            <div class="mt-3">
+                <a class="btn btn-sm btn-outline-success"
+                   href="/lecturer/requests">
+                    View my requests
+                </a>
+            </div>
+
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-danger">
+            @_errorMessage
+        </div>
+    }
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            <EditForm Model="_form"
+                      OnValidSubmit="SubmitRequestAsync">
+
+                <DataAnnotationsValidator />
+
+                <div class="row g-3">
+
+                    <div class="col-12">
+                        <label class="form-label">Booking type</label>
+
+                        <InputSelect class="form-select"
+                                     @bind-Value="_bookingType">
+                            <option value="Single">Single booking</option>
+                            <option value="Recurring">Recurring booking</option>
+                        </InputSelect>
+
+
+                        <div class="form-text">
+                            Choose whether you want to book a room once or for recurring weekly sessions.
+                        </div>
+                    </div>
+
+                    <div class="form-text mb-2">
+                        Select the expected attendees, date and time first, then click
+                        <strong>Search available rooms</strong>.
+                    </div>
+
+                    <div class="col-md-6">
+
+                        <label class="form-label">
+                            Expected attendees
+                        </label>
+
+                        <InputNumber class="form-control"
+                                     @bind-Value="_form.ExpectedAttendees" />
+
+                        <ValidationMessage For="@(() => _form.ExpectedAttendees)" />
+
+                    </div>
+
+                    <div class="col-md-6">
+
+                        <label class="form-label">
+                            Start date
+                        </label>
+
+                        <InputDate class="form-control"
+                                   @bind-Value="_form.StartDate" />
+
+                    </div>
+
+                    <div class="col-md-6">
+
+                        <label class="form-label">
+                            Start time
+                        </label>
+
+                        <InputText type="time"
+                                   class="form-control"
+                                   @bind-Value="_form.StartTime" />
+
+                    </div>
+
+                    @if (_bookingType == "Recurring")
+                    {
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                Duration in hours
+                            </label>
+
+                            <InputNumber class="form-control"
+                                         @bind-Value="_form.DurationHours" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                Number of weeks
+                            </label>
+
+                            <InputNumber class="form-control"
+                                         @bind-Value="_form.NumberOfWeeks" />
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="customWeekdays"
+                                       @bind="_useCustomDays" />
+
+                                <label class="form-check-label" for="customWeekdays">
+                                    Choose custom weekdays
+                                </label>
+                            </div>
+
+                            @if (_useCustomDays)
+                            {
+                                <label class="form-label">Repeat on</label>
+
+                                <div class="d-flex flex-wrap gap-3">
+                                    @foreach (DayOfWeek day in Enum.GetValues<DayOfWeek>())
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input"
+                                                   type="checkbox"
+                                                   id="@day"
+                                                   checked="@_selectedDays.Contains(day)"
+                                                   @onchange="e => ToggleDay(day, (bool)e.Value!)" />
+
+                                            <label class="form-check-label" for="@day">
+                                                @day
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="form-text">
+                                    Repeats every @_form.StartDate.DayOfWeek based on the selected start date.
+                                </div>
+                            }
+                        </div>
+
+                    }
+
+
+
+                    @if (_bookingType == "Single")
+                    {
+                        <div class="col-md-6">
+                            <label class="form-label">End date</label>
+
+                            <InputDate class="form-control"
+                                       @bind-Value="_form.EndDate" />
+                        </div>
+                    }
+
+                    @if (_bookingType == "Single")
+                    {
+                        <div class="col-md-6">
+                            <label class="form-label">End time</label>
+
+                            <InputText class="form-control"
+                                       @bind-Value="_form.EndTime"
+                                       type="time" />
+                        </div>
+                    }
+
+
+                    <div class="col-md-6">
+                        <label class="form-label">Campus</label>
+
+                        <InputSelect TValue="int?"
+                                     class="form-select"
+                                     Value="_selectedCampusId"
+                                     ValueChanged="@((int? campusId) => OnCampusChangedAsync(campusId))"
+                                     ValueExpression="@(() => _selectedCampusId)">
+                            <option value="">All campuses</option>
+
+                            @foreach (var campus in _campuses)
+                            {
+                                <option value="@campus.CampusId">
+                                    @campus.Name
+                                </option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Building</label>
+
+                        <InputSelect class="form-select"
+                                     @bind-Value="_selectedBuildingId">
+                            <option value="">All buildings</option>
+
+                            @foreach (var building in _buildings)
+                            {
+                                <option value="@building.BuildingId">
+                                    @building.Name
+                                </option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="col-12">
+                        <button type="button"
+                                class="btn btn-outline-primary"
+                                @onclick="LoadAvailableRoomsAsync"
+                                disabled="@_isLoadingRooms">
+
+                            @if (_isLoadingRooms)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span>Loading rooms...</span>
+                            }
+                            else
+                            {
+                                <span>Load available rooms</span>
+                            }
+
+                        </button>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            Room
+                        </label>
+
+                        <InputSelect class="form-select"
+                                     @bind-Value="_form.RoomId">
+
+                            <option value="0">Select a room</option>
+
+                            @if (_bookingType == "Recurring")
+                            {
+                                @foreach (var room in _recurringAvailableRooms)
+                                {
+                                    <option value="@room.RoomId">
+                                        @room.RoomCode - @room.RoomName
+                                        (@room.AvailableOccurrences/@room.TotalOccurrences available)
+                                    </option>
+                                }
+                            }
+                            else
+                            {
+                                @foreach (var room in _availableRooms)
+                                {
+                                    <option value="@room.RoomId">
+                                        @room.Code - @room.Name
+                                    </option>
+                                }
+                            }
+
+                        </InputSelect>
+
+                        <ValidationMessage For="@(() => _form.RoomId)" />
+
+                        @if (_bookingType == "Recurring" && _form.RoomId > 0)
+                        {
+                            var selectedRoom = _recurringAvailableRooms
+                            .FirstOrDefault(r => r.RoomId == _form.RoomId);
+
+                            if (selectedRoom is not null)
+                            {
+                                <div class="alert alert-info mt-3">
+
+                                    <strong>
+                                        Availability:
+                                        @selectedRoom.AvailableOccurrences /
+                                        @selectedRoom.TotalOccurrences
+                                        occurrences available
+                                    </strong>
+
+                                    @if (selectedRoom.UnavailableOccurrences.Any())
+                                    {
+                                        <hr />
+
+                                        <strong>Unavailable occurrences</strong>
+
+                                        <ul class="mb-0 mt-2">
+                                            @foreach (var occurrence in selectedRoom.UnavailableOccurrences)
+                                            {
+                                                <li>
+                                                    @occurrence.StartUtc.ToLocalTime():dd MMM yyyy
+                                                    (@occurrence.StartUtc.ToLocalTime():HH:mm -
+                                                    @occurrence.EndUtc.ToLocalTime():HH:mm)
+
+                                                    <br />
+
+                                                    <small>@occurrence.Reason</small>
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <div class="mt-2 text-success">
+                                            ✓ This room is available for every selected week.
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+
+                    </div>
+
+                    <div class="col-12">
+
+                        <label class="form-label">
+                            Purpose
+                        </label>
+
+                        <InputTextArea class="form-control"
+                                       rows="4"
+                                       @bind-Value="_form.Purpose" />
+
+                        <ValidationMessage For="@(() => _form.Purpose)" />
+
+                    </div>
+
+                </div>
+
+                <ValidationSummary class="text-danger mt-3" />
+
+                <button type="submit"
+                        class="btn btn-primary mt-4"
+                        disabled="@_isSubmitting">
+
+                    @if (_isSubmitting)
+                    {
+                        <span class="spinner-border
+                                         spinner-border-sm me-2">
+                        </span>
+
+                        <span>Submitting...</span>
+                    }
+                    else
+                    {
+                        <span>Submit request</span>
+                    }
+
+                </button>
+
+            </EditForm>
+
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private RoomBookingFormModel _form = CreateInitialForm();
+
+    private bool _isSubmitting;
+
+    private long? _createdRequestId;
+    private string? _successMessage;
+    private string? _errorMessage;
+
+    private List<AvailableRoomDto> _availableRooms = new();
+    private List<RecurringAvailableRoomDto> _recurringAvailableRooms = new();
+
+    private bool _isLoadingRooms;
+
+    private string _bookingType = "Single";
+
+    private readonly HashSet<DayOfWeek> _selectedDays = [];
+
+    private bool _useCustomDays;
+
+    private List<CampusDto> _campuses = [];
+    private List<CollegeScheduler.DTOs.Facilities.BuildingDto> _buildings = [];
+
+    private int? _selectedCampusId;
+    private int? _selectedBuildingId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _campuses = await LecturerService.GetCampusesAsync();
+    }
+
+    private async Task SubmitRequestAsync()
+    {
+        _successMessage = null;
+        _errorMessage = null;
+
+        if (!TimeSpan.TryParse(_form.StartTime, out var startTime) ||
+            !TimeSpan.TryParse(_form.EndTime, out var endTime))
+        {
+            _errorMessage = "Please enter valid start and end times.";
+            return;
+        }
+
+        var localStart = _form.StartDate.Date.Add(startTime);
+        var localEnd = _form.EndDate.Date.Add(endTime);
+
+        if (localEnd <= localStart)
+        {
+            _errorMessage =
+                "The booking end time must be after the start time.";
+
+            return;
+        }
+
+        _isSubmitting = true;
+
+        try
+        {
+            var dto = new LecturerRoomBookingRequestCreateDto
+            {
+                RoomId = _form.RoomId,
+
+                StartUtc = DateTime.SpecifyKind(
+                        localStart,
+                        DateTimeKind.Local)
+                    .ToUniversalTime(),
+
+                EndUtc = DateTime.SpecifyKind(
+                        localEnd,
+                        DateTimeKind.Local)
+                    .ToUniversalTime(),
+
+                Purpose = _form.Purpose.Trim(),
+                ExpectedAttendees = _form.ExpectedAttendees
+            };
+
+            var result =
+                await LecturerService.CreateRoomBookingRequestAsync(dto);
+
+            _createdRequestId = result?.RequestId;
+
+            _successMessage =
+                result?.Message
+                ?? "Room-booking request submitted successfully.";
+
+            _form = CreateInitialForm();
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = CleanErrorMessage(ex.Message);
+        }
+        catch (Exception)
+        {
+            _errorMessage =
+                "An unexpected error occurred while submitting the request.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private static RoomBookingFormModel CreateInitialForm()
+    {
+        var start = DateTime.Now.AddHours(1);
+
+        start = new DateTime(
+            start.Year,
+            start.Month,
+            start.Day,
+            start.Hour,
+            0,
+            0);
+
+        return new RoomBookingFormModel
+        {
+            StartDate = start.Date,
+            StartTime = start.ToString("HH:mm"),
+            EndDate = start.Date,
+            EndTime = start.AddHours(1).ToString("HH:mm"),
+            ExpectedAttendees = 1
+        };
+    }
+
+    private static string CleanErrorMessage(string message)
+    {
+        return string.IsNullOrWhiteSpace(message)
+            ? "The room-booking request could not be submitted."
+            : message.Trim('"');
+    }
+
+    private sealed class RoomBookingFormModel
+    {
+        [Range(
+            1,
+            int.MaxValue,
+            ErrorMessage = "Please enter a valid room ID.")]
+        public int RoomId { get; set; }
+
+        public DateTime StartDate { get; set; }
+
+        [Required]
+        public string StartTime { get; set; } = "";
+
+        public DateTime EndDate { get; set; }
+
+        [Required]
+        public string EndTime { get; set; } = "";
+
+        [Range(1, 12, ErrorMessage = "Duration must be between 1 and 12 hours.")]
+        public int DurationHours { get; set; } = 1;
+
+        [Range(1, 52, ErrorMessage = "Number of weeks must be between 1 and 52.")]
+        public int NumberOfWeeks { get; set; } = 12;
+
+        [Required(ErrorMessage = "Please provide a purpose.")]
+        [StringLength(500, MinimumLength = 3)]
+        public string Purpose { get; set; } = "";
+
+        [Range(
+            1,
+            1000,
+            ErrorMessage =
+                "Expected attendees must be between 1 and 1000.")]
+        public int ExpectedAttendees { get; set; }
+    }
+
+    private void ToggleDay(DayOfWeek day, bool isSelected)
+    {
+        if (isSelected)
+        {
+            _selectedDays.Add(day);
+        }
+        else
+        {
+            _selectedDays.Remove(day);
+        }
+    }
+
+    private async Task LoadAvailableRoomsAsync()
+    {
+        _isLoadingRooms = true;
+        _availableRooms.Clear();
+        _recurringAvailableRooms.Clear();
+        _form.RoomId = 0;
+        _errorMessage = null;
+
+        try
+        {
+            if (_bookingType == "Recurring")
+            {
+                var recurringQuery = new RecurringRoomSearchQuery
+                {
+                    StartDate = DateOnly.FromDateTime(_form.StartDate),
+
+                    StartTime = TimeOnly.Parse(_form.StartTime),
+
+                    DurationMinutes = _form.DurationHours * 60,
+
+                    NumberOfWeeks = _form.NumberOfWeeks,
+
+                    MinimumCapacity = _form.ExpectedAttendees,
+
+                    CampusId = _selectedCampusId,
+
+                    BuildingId = _selectedBuildingId,
+
+                    DaysOfWeek = _selectedDays.ToList(),
+
+                };
+
+                _recurringAvailableRooms =
+                    await LecturerService.GetRecurringAvailableRoomsAsync(
+                        recurringQuery);
+
+            }
+            else
+            {
+                var startDateTime = _form.StartDate.Date
+                    .Add(TimeSpan.Parse(_form.StartTime));
+
+                var endDateTime = _form.EndDate.Date
+                    .Add(TimeSpan.Parse(_form.EndTime));
+
+                var query = new RoomSearchQuery
+                {
+                    StartUtc = DateTime.SpecifyKind(
+                        startDateTime,
+                        DateTimeKind.Local)
+                        .ToUniversalTime(),
+
+                    EndUtc = DateTime.SpecifyKind(
+                        endDateTime,
+                        DateTimeKind.Local)
+                        .ToUniversalTime(),
+
+                    MinCapacity = _form.ExpectedAttendees,
+
+                    CampusId = _selectedCampusId,
+
+                    BuildingId = _selectedBuildingId,
+
+                };
+
+                _availableRooms =
+                    await LecturerService.GetAvailableRoomsAsync(query);
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = CleanErrorMessage(ex.Message);
+        }
+        finally
+        {
+            _isLoadingRooms = false;
+        }
+    }
+
+    private async Task OnCampusChangedAsync(int? campusId)
+    {
+        _selectedCampusId = campusId;
+        _selectedBuildingId = null;
+        _buildings.Clear();
+
+        _availableRooms.Clear();
+        _recurringAvailableRooms.Clear();
+        _form.RoomId = 0;
+
+        if (campusId.HasValue)
+        {
+            _buildings = await LecturerService
+                .GetBuildingsByCampusAsync(campusId.Value);
+        }
+    }
+
+
+}

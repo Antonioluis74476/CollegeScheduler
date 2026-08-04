@@ -1,0 +1,157 @@
+﻿@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Common
+@using CollegeScheduler.Services.Interfaces
+
+@page "/admin/modules"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject IModuleService ModuleService
+@inject IDepartmentService DepartmentService
+
+<h3>Modules</h3>
+
+<div class="row mb-3 g-2 align-items-end">
+    <div class="col-md-4">
+        <label class="form-label">Search</label>
+        <InputText class="form-control" @bind-Value="searchTerm" placeholder="Search by code or title" />
+    </div>
+    <div class="col-md-auto">
+        <button class="btn btn-primary" @onclick="SearchModules">Search</button>
+        <button class="btn btn-secondary ms-2" @onclick="ClearSearch">Clear</button>
+    </div>
+</div>
+
+<a class="btn btn-primary mb-3" href="/admin/modules/create">
+    + Create Module
+</a>
+
+@if (modules == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Title</th>
+                <th>Credits</th>
+                <th>Department</th>
+                <th style="width: 140px;">Active</th>
+                <th style="width: 180px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var module in modules.Items)
+            {
+                <tr>
+                    <td>@module.Code</td>
+                    <td>@module.Title</td>
+                    <td>@module.Credits</td>
+                    <td>@GetDepartmentName(module.DepartmentId)</td>
+                    <td>
+                        @if (module.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactive</span>
+                        }
+                    </td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-info me-2" href="/admin/modules/@module.ModuleId">View</a>
+                        <a class="btn btn-sm btn-outline-warning" href="/admin/modules/edit/@module.ModuleId">Edit</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <button class="btn btn-secondary"
+                @onclick="PreviousPage"
+                disabled="@(currentPage <= 1)">
+            Previous
+        </button>
+
+        <span>Page @currentPage</span>
+
+        <button class="btn btn-secondary"
+                @onclick="NextPage"
+                disabled="@(modules == null || modules.Items.Count < pageSize)">
+            Next
+        </button>
+    </div>
+
+}
+
+
+
+@code {
+    private PagedResult<ModuleDto>? modules;
+    
+    private List<DepartmentDto> departments = new();
+
+    private string searchTerm = string.Empty;
+    private int currentPage = 1;
+    private int pageSize = 10;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadModules();
+
+        var departmentResult = await DepartmentService.GetAllAsync();
+        if (departmentResult != null)
+        {
+            departments = departmentResult.Items.ToList();
+        }
+    }
+
+    private async Task LoadModules()
+    {
+        modules = await ModuleService.GetAllAsync(currentPage, pageSize, searchTerm);
+    }
+
+    private string GetDepartmentName(int? departmentId)
+    {
+        if (!departmentId.HasValue)
+            return "-";
+
+        var department = departments.FirstOrDefault(d => d.DepartmentId == departmentId.Value);
+        return department?.Name ?? "-";
+    }
+
+    private async Task SearchModules()
+    {
+        currentPage = 1;
+        await LoadModules();
+    }
+
+    private async Task ClearSearch()
+    {
+        searchTerm = string.Empty;
+        currentPage = 1;
+        await LoadModules();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadModules();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (modules != null && modules.Items.Count == pageSize)
+        {
+            currentPage++;
+            await LoadModules();
+        }
+    }
+}

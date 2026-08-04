@@ -1,0 +1,13 @@
+﻿@page "/logout"
+@using Microsoft.AspNetCore.Antiforgery
+
+<PageTitle>Logout</PageTitle>
+
+<h1>Logout</h1>
+<p>Click below to sign out safely.</p>
+
+<form action="/Account/Logout" method="post">
+    <AntiforgeryToken />
+    <input type="hidden" name="returnUrl" value="" />
+    <button type="submit" class="btn btn-danger">Confirm Logout</button>
+</form>

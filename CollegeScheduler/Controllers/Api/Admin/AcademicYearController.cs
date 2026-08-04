@@ -148,6 +148,8 @@ public sealed class AcademicYearController : ControllerBase
 			EndDate = entity.EndDate,
 			IsCurrent = entity.IsCurrent,
 			IsActive = entity.IsActive
+
+
 		});
 	}
 

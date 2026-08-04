@@ -134,4 +134,29 @@ public sealed class RequestStatusController : ControllerBase
 
 		return NoContent();
 	}
+
+    [HttpDelete("api/v1/admin/request-statuses/{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var entity = await _db.Set<RequestStatus>()
+            .FirstOrDefaultAsync(x => x.RequestStatusId == id);
+
+        if (entity is null)
+            return NotFound();
+
+        _db.Remove(entity);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(
+                "This Request Status cannot be deleted because it is currently being used.");
+        }
+
+        return NoContent();
+    }
+
 }

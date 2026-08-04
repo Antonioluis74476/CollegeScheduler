@@ -1,0 +1,360 @@
+﻿@page "/admin/student-module-enrollments"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using CollegeScheduler.DTOs.Membership
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IStudentModuleEnrollmentService EnrollmentService
+@inject NavigationManager Navigation
+
+@inject IAdminUserService AdminUserService
+@inject IModuleService ModuleService
+@inject ITermService TermService
+@inject ICohortService CohortService
+
+<PageTitle>Student Module Enrolments</PageTitle>
+
+<h1>Student Module Enrolments</h1>
+
+<div class="mb-3">
+    <button class="btn btn-primary"
+            @onclick="CreateEnrollment">
+        Create Enrolment
+    </button>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row g-3">
+
+            <div class="col-md-6">
+                <label class="form-label">Search</label>
+
+                <input class="form-control"
+                       @bind="searchText"
+                       @bind:event="oninput"
+                       placeholder="Search by student, module, term or cohort..." />
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Enrolment Type</label>
+
+                <select class="form-select"
+                        @bind="selectedEnrollmentType">
+                    <option value="">All types</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Repeat">Repeat</option>
+                    <option value="Resit">Resit</option>
+                    <option value="Additional">Additional</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+
+                <select class="form-select"
+                        @bind="selectedStatus">
+                    <option value="">All statuses</option>
+                    <option value="Enrolled">Enrolled</option>
+                    <option value="Withdrawn">Withdrawn</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Failed">Failed</option>
+                </select>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <p>Loading enrolments...</p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+else if (!FilteredEnrollments.Any())
+{
+    <div class="alert alert-info">
+        No student module enrolments match the selected filters.
+    </div>
+}
+else
+{
+    <table class="table table-striped table-bordered align-middle">
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Module</th>
+                <th>Term</th>
+                <th>Enrolment Type</th>
+                <th>Attend With Cohort</th>
+                <th>Status</th>
+                <th>Enrolled At</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var enrollment in FilteredEnrollments)
+            {
+                <tr>
+                    <td>
+                        @(studentNames.TryGetValue(
+                                        enrollment.StudentId,
+                                        out var studentName)
+                                        ? studentName
+                                        : "Student not found")
+                                                          </td>
+
+                    <td>
+                        @(moduleNames.TryGetValue(
+                                        enrollment.ModuleId,
+                                        out var moduleName)
+                                        ? moduleName
+                                        : "Module not found")
+                                                         </td>
+
+                    <td>
+                        @(termNames.TryGetValue(
+                                        enrollment.TermId,
+                                        out var termName)
+                                        ? termName
+                                        : "Term not found")
+                    </td>
+                    <td>@enrollment.EnrollmentType</td>
+                    <td>
+                        @(enrollment.AttendWithCohortId.HasValue &&
+                                        cohortNames.TryGetValue(
+                                        enrollment.AttendWithCohortId.Value,
+                                        out var cohortName)
+                                        ? cohortName
+                                        : "Not assigned")
+                    </td>
+                    <td>@enrollment.Status</td>
+                    <td>@enrollment.EnrolledAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                    <td class="text-nowrap">
+                        <button class="btn btn-sm btn-outline-primary me-1"
+                                @onclick="() => ViewDetails(enrollment)">
+                            Details
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-secondary me-1"
+                                @onclick="() => EditEnrollment(enrollment)">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-danger"
+                                @onclick="() => DeleteEnrollment(enrollment)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<StudentModuleEnrollmentDto> enrollments =
+        Array.Empty<StudentModuleEnrollmentDto>();
+
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private readonly Dictionary<int, string> studentNames = [];
+    private readonly Dictionary<int, string> moduleNames = [];
+    private readonly Dictionary<int, string> termNames = [];
+    private readonly Dictionary<int, string> cohortNames = [];
+
+    private string searchText = "";
+    private string selectedEnrollmentType = "";
+    private string selectedStatus = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            enrollments = await EnrollmentService.GetAllAsync();
+
+            await LoadDisplayNamesAsync();
+        }
+
+
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load student module enrolments: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+
+
+    }
+
+    private void CreateEnrollment()
+    {
+        Navigation.NavigateTo(
+            "/admin/student-module-enrollments/create");
+    }
+
+    private void ViewDetails(StudentModuleEnrollmentDto enrollment)
+    {
+        Navigation.NavigateTo(
+            $"/admin/student-module-enrollments/details/" +
+            $"{enrollment.StudentId}/" +
+            $"{enrollment.ModuleId}/" +
+            $"{enrollment.TermId}");
+    }
+
+    private void EditEnrollment(StudentModuleEnrollmentDto enrollment)
+    {
+        Navigation.NavigateTo(
+            $"/admin/student-module-enrollments/edit/" +
+            $"{enrollment.StudentId}/" +
+            $"{enrollment.ModuleId}/" +
+            $"{enrollment.TermId}");
+    }
+
+    private void DeleteEnrollment(StudentModuleEnrollmentDto enrollment)
+    {
+        Navigation.NavigateTo(
+            $"/admin/student-module-enrollments/delete/" +
+            $"{enrollment.StudentId}/" +
+            $"{enrollment.ModuleId}/" +
+            $"{enrollment.TermId}");
+    }
+
+    private async Task LoadDisplayNamesAsync()
+    {
+        var students = await AdminUserService.GetStudentsAsync();
+
+        foreach (var student in students)
+        {
+            studentNames[student.StudentId] =
+                $"{student.StudentNumber} - {student.Name} {student.LastName}";
+        }
+
+        foreach (var enrollment in enrollments)
+        {
+            if (!moduleNames.ContainsKey(enrollment.ModuleId))
+            {
+                var module = await ModuleService.GetByIdAsync(
+                    enrollment.ModuleId);
+
+                moduleNames[enrollment.ModuleId] = module is null
+                    ? "Module not found"
+                    : $"{module.Code} - {module.Title}";
+            }
+
+            if (!termNames.ContainsKey(enrollment.TermId))
+            {
+                var term = await TermService.GetByIdAsync(
+                    enrollment.TermId);
+
+                termNames[enrollment.TermId] = term is null
+                    ? "Term not found"
+                    : term.Name;
+            }
+
+            if (enrollment.AttendWithCohortId.HasValue &&
+                !cohortNames.ContainsKey(
+                    enrollment.AttendWithCohortId.Value))
+            {
+                var cohort = await CohortService.GetByIdAsync(
+                    enrollment.AttendWithCohortId.Value);
+
+                cohortNames[enrollment.AttendWithCohortId.Value] =
+                    cohort is null
+                        ? "Cohort not found"
+                        : $"{cohort.Code} - {cohort.Name}";
+            }
+        }
+    }
+
+    private IEnumerable<StudentModuleEnrollmentDto> FilteredEnrollments
+    {
+        get
+        {
+            IEnumerable<StudentModuleEnrollmentDto> result = enrollments;
+
+            if (!string.IsNullOrWhiteSpace(selectedEnrollmentType))
+            {
+                result = result.Where(enrollment =>
+                    string.Equals(
+                        enrollment.EnrollmentType,
+                        selectedEnrollmentType,
+                        StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectedStatus))
+            {
+                result = result.Where(enrollment =>
+                    string.Equals(
+                        enrollment.Status,
+                        selectedStatus,
+                        StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var search = searchText.Trim();
+
+                result = result.Where(enrollment =>
+                {
+                    studentNames.TryGetValue(
+                        enrollment.StudentId,
+                        out var studentName);
+
+                    moduleNames.TryGetValue(
+                        enrollment.ModuleId,
+                        out var moduleName);
+
+                    termNames.TryGetValue(
+                        enrollment.TermId,
+                        out var termName);
+
+                    string? cohortName = null;
+
+                    if (enrollment.AttendWithCohortId.HasValue)
+                    {
+                        cohortNames.TryGetValue(
+                            enrollment.AttendWithCohortId.Value,
+                            out cohortName);
+                    }
+
+                    return ContainsIgnoreCase(studentName, search)
+                        || ContainsIgnoreCase(moduleName, search)
+                        || ContainsIgnoreCase(termName, search)
+                        || ContainsIgnoreCase(cohortName, search)
+                        || ContainsIgnoreCase(
+                            enrollment.EnrollmentType,
+                            search)
+                        || ContainsIgnoreCase(
+                            enrollment.Status,
+                            search);
+                });
+            }
+
+            return result;
+        }
+    }
+
+    private static bool ContainsIgnoreCase(
+    string? value,
+    string search)
+    {
+        return !string.IsNullOrWhiteSpace(value)
+            && value.Contains(
+                search,
+                StringComparison.OrdinalIgnoreCase);
+    }
+
+}

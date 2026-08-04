@@ -1,0 +1,254 @@
+﻿@using CollegeScheduler.DTOs.Facilities
+@using CollegeScheduler.DTOs.Common
+@using CollegeScheduler.Services.Interfaces
+
+@inject IJSRuntime JS
+
+@rendermode InteractiveServer
+
+@page "/admin/campuses"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject ICampusService CampusService
+
+<h3>Campuses</h3>
+
+<button class="btn btn-primary mb-3" @onclick="ShowCreateForm">
+    + Create Campus
+</button>
+
+@if (campuses == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Address</th>
+                <th>City</th>
+                <th>Active</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var campus in campuses.Items)
+            {
+                <tr>
+                    <td>@campus.Code</td>
+                    <td>@campus.Name</td>
+                    <td>@campus.Address</td>
+                    <td>@campus.City</td>
+                    <td>@campus.IsActive</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-2"
+                                @onclick="() => StartEdit(campus)">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-danger"
+                                @onclick="() => ConfirmDelete(campus.CampusId)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showCreate)
+{
+    <EditForm Model="createModel" OnValidSubmit="CreateCampus">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Code</label>
+            <InputText class="form-control" @bind-Value="createModel.Code" />
+        </div>
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="createModel.Name" />
+        </div>
+
+        <div class="mb-2">
+            <label>Address</label>
+            <InputText class="form-control" @bind-Value="createModel.Address" />
+        </div>
+
+        <div class="mb-2">
+            <label>City</label>
+            <InputText class="form-control" @bind-Value="createModel.City" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Save</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelCreate">Cancel</button>
+    </EditForm>
+}
+
+@if (showEdit)
+{
+    <EditForm Model="editModel" OnValidSubmit="UpdateCampus">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Code</label>
+            <InputText class="form-control" @bind-Value="editModel.Code" />
+        </div>
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="editModel.Name" />
+        </div>
+
+        <div class="mb-2">
+            <label>Address</label>
+            <InputText class="form-control" @bind-Value="editModel.Address" />
+        </div>
+
+        <div class="mb-2">
+            <label>City</label>
+            <InputText class="form-control" @bind-Value="editModel.City" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Update</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+    </EditForm>
+}
+
+@code {
+    private CollegeScheduler.DTOs.Common.PagedResult<CampusDto>? campuses;
+    private bool showCreate = false;
+
+    private CampusCreateFormModel createModel = new();
+
+    private bool showEdit = false;
+    private int editingCampusId;
+    private CampusCreateFormModel editModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCampuses();
+    }
+
+    private async Task LoadCampuses()
+    {
+        campuses = await CampusService.GetAllAsync();
+    }
+
+    private void ShowCreateForm()
+    {
+        showCreate = true;
+    }
+
+    private void CancelCreate()
+    {
+        showCreate = false;
+        createModel = new CampusCreateFormModel();
+    }
+
+    private async Task CreateCampus()
+    {
+        var dto = new CampusCreateDto
+        {
+            Code = createModel.Code,
+            Name = createModel.Name,
+            Address = createModel.Address,
+            City = createModel.City
+        };
+
+        var success = await CampusService.CreateAsync(dto);
+
+        if (success)
+        {
+            showCreate = false;
+            createModel = new CampusCreateFormModel();
+            await LoadCampuses();
+        }
+    }
+
+    private class CampusCreateFormModel
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Address { get; set; }
+        public string? City { get; set; }
+    }
+
+
+
+    private void StartEdit(CampusDto campus)
+    {
+        editingCampusId = campus.CampusId;
+        showEdit = true;
+
+        editModel = new CampusCreateFormModel
+        {
+            Code = campus.Code,
+            Name = campus.Name,
+            Address = campus.Address,
+            City = campus.City
+        };
+    }
+
+    private async Task UpdateCampus()
+    {
+        var dto = new CampusUpdateDto
+        {
+            Code = editModel.Code,
+            Name = editModel.Name,
+            Address = editModel.Address,
+            City = editModel.City
+        };
+
+        var success = await CampusService.UpdateAsync(editingCampusId, dto);
+
+        if (success)
+        {
+            showEdit = false;
+            editingCampusId = 0;
+            editModel = new CampusCreateFormModel();
+            await LoadCampuses();
+        }
+    }
+
+    private void CancelEdit()
+    {
+        showEdit = false;
+        editingCampusId = 0;
+        editModel = new CampusCreateFormModel();
+    }
+
+    private async Task DeleteCampus(int campusId)
+    {
+        var success = await CampusService.DeleteAsync(campusId);
+
+        if (success)
+        {
+            if (editingCampusId == campusId)
+            {
+                showEdit = false;
+                editingCampusId = 0;
+                editModel = new CampusCreateFormModel();
+            }
+
+            await LoadCampuses();
+        }
+    }
+
+    private async Task ConfirmDelete(int campusId)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this campus?");
+
+        if (confirmed)
+        {
+            await DeleteCampus(campusId);
+        }
+    }
+}

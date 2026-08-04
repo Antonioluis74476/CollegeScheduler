@@ -1,0 +1,143 @@
+﻿@page "/admin/request-types"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Requests
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IRequestTypeService RequestTypeService
+@inject NavigationManager Navigation
+
+<PageTitle>Request Types</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Request Types</h2>
+
+        <button class="btn btn-primary"
+                @onclick="CreateRequestType">
+            Create Request Type
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <p>Loading request types...</p>
+    }
+    else if (requestTypes.Count == 0)
+    {
+        <div class="alert alert-info">
+            No request types were found.
+        </div>
+    }
+    else
+    {
+        <table class="table table-bordered table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th style="width: 280px;">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @foreach (var requestType in requestTypes)
+                {
+                    <tr>
+                        <td>@requestType.Name</td>
+
+                        <td>
+                            @if (requestType.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </td>
+
+                        <td>
+                            <button class="btn btn-sm btn-info me-2"
+                                    @onclick="() => ViewDetails(requestType.RequestTypeId)">
+                                Details
+                            </button>
+
+                            <button class="btn btn-sm btn-warning me-2"
+                                    @onclick="() => EditRequestType(requestType.RequestTypeId)">
+                                Edit
+                            </button>
+
+                            @if (requestType.IsActive)
+                            {
+                                <button class="btn btn-sm btn-danger"
+                                        @onclick="() => DeleteRequestType(requestType.RequestTypeId)">
+                                    Delete
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<RequestTypeDto> requestTypes = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequestTypesAsync();
+    }
+
+    private async Task LoadRequestTypesAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            requestTypes = await RequestTypeService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load request types: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CreateRequestType()
+    {
+        Navigation.NavigateTo("/admin/request-types/create");
+    }
+
+    private void ViewDetails(int id)
+    {
+        Navigation.NavigateTo($"/admin/request-types/{id}");
+    }
+
+    private void EditRequestType(int id)
+    {
+        Navigation.NavigateTo($"/admin/request-types/{id}/edit");
+    }
+
+    private void DeleteRequestType(int id)
+    {
+        Navigation.NavigateTo($"/admin/request-types/{id}/delete");
+    }
+}

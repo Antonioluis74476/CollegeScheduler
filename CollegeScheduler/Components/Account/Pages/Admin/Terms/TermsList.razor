@@ -1,0 +1,71 @@
+﻿@page "/admin/academic-years/{AcademicYearId:int}/terms"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+@inject ITermService TermService
+
+<h3>Terms</h3>
+
+<a class="btn btn-primary mb-3"
+   href="/admin/academic-years/@AcademicYearId/terms/create">
+    + Create Term
+</a>
+
+<p>Academic Year Id: @AcademicYearId</p>
+
+@if (terms == null)
+{
+    <p>Loading...</p>
+}
+else if (!terms.Any())
+{
+    <p>No terms found for this academic year.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Term Number</th>
+                <th>Name</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var term in terms)
+            {
+                <tr>
+                    <td>@term.TermNumber</td>
+                    <td>@term.Name</td>
+                    <td>@term.StartDate.ToShortDateString()</td>
+                    <td>@term.EndDate.ToShortDateString()</td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-primary"
+                           href="/admin/terms/@term.TermId/edit">
+                            Edit
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<a class="btn btn-secondary" href="/admin/academic-years">Back to Academic Years</a>
+
+@code {
+    [Parameter]
+    public int AcademicYearId { get; set; }
+
+    private List<TermDto>? terms;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await TermService.GetByAcademicYearAsync(AcademicYearId);
+        terms = result?.Items?.ToList();
+    }
+}

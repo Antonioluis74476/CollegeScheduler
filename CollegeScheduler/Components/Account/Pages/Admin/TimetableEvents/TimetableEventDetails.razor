@@ -1,0 +1,544 @@
+﻿@page "/admin/timetable-events/details/{Id:long}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@using CollegeScheduler.DTOs.Academic
+
+@using CollegeScheduler.DTOs.Profiles
+
+
+@inject ITimetableEventService TimetableEventService
+@inject NavigationManager Navigation
+
+@inject IModuleService ModuleService
+@inject ITermService TermService
+@inject IRoomService RoomService
+
+@inject IEventCohortService EventCohortService
+@inject ICohortService CohortService
+@inject IEventLecturerService EventLecturerService
+@inject IAdminUserService AdminUserService
+
+
+<PageTitle>Timetable Event Details</PageTitle>
+
+<h1>Timetable Event Details</h1>
+
+@if (isLoading)
+{
+    <p>Loading event...</p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+else if (item is null)
+{
+    <div class="alert alert-warning">
+        Timetable event not found.
+    </div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            Event Information
+        </div>
+
+        <div class="card-body p-0">
+            <table class="table table-bordered mb-0">
+                <tbody>
+                    <tr>
+                        <th style="width: 25%;">Event ID</th>
+                        <td>@item.TimetableEventId</td>
+                    </tr>
+
+                    <tr>
+                        <th>Module</th>
+                        <td>@moduleName</td>
+                    </tr>
+
+                    <tr>
+                        <th>Term</th>
+                        <td>@termName</td>
+                    </tr>
+
+                    <tr>
+                        <th>Room</th>
+                        <td>@roomName</td>
+                    </tr>
+
+                    <tr>
+                        <th>Start</th>
+                        <td>
+                            @item.StartUtc.ToLocalTime().ToString("ddd dd MMM yyyy HH:mm")
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th>End</th>
+                        <td>
+                            @item.EndUtc.ToLocalTime().ToString("ddd dd MMM yyyy HH:mm")
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th>Session Type</th>
+                        <td>@item.SessionType</td>
+                    </tr>
+
+                    <tr>
+                        <th>Status</th>
+                        <td>
+                            @(item.EventStatusId switch
+                            {
+                                1 => "Scheduled",
+                                2 => "Cancelled",
+                                3 => "Completed",
+                                _ => "Unknown"
+                            })
+                    </td>
+                </tr>
+
+                    <tr>
+                        <th>Notes</th>
+                        <td>
+                            @(string.IsNullOrWhiteSpace(item.Notes)
+                                                    ? "None"
+                                                    : item.Notes)
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+    <hr class="my-4" />
+
+    <h4>Assigned Cohorts</h4>
+
+@if (!string.IsNullOrWhiteSpace(cohortMessage))
+    {
+        <div class="alert alert-info">
+            @cohortMessage
+        </div>
+    }
+
+    @if (assignedCohorts.Count == 0)
+    {
+        <p class="text-muted">No cohorts are assigned to this event.</p>
+    }
+    else
+    {
+        <table class="table table-bordered align-middle">
+            <thead>
+                <tr>
+                    <th>Cohort</th>
+                    <th style="width: 140px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var assignment in assignedCohorts)
+                {
+                    <tr>
+                        <td>
+                            @GetCohortDisplayName(assignment.CohortId)
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger"
+                                    @onclick="() => RemoveCohortAsync(assignment.CohortId)">
+                                Remove
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(lecturerMessage))
+    {
+        <div class="alert alert-info">
+            @lecturerMessage
+        </div>
+    }
+
+    <div class="row g-2 align-items-end mb-3">
+        <div class="col-md-8">
+            <label class="form-label">Lecturer</label>
+
+            <select class="form-select" @bind="selectedLecturerId">
+                <option value="0">-- Select lecturer --</option>
+
+                @foreach (var lecturer in allLecturers)
+                {
+                    <option value="@lecturer.LecturerId">
+                        @lecturer.Name @lecturer.LastName
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <button class="btn btn-primary w-100"
+                    @onclick="AssignLecturerAsync"
+                    disabled="@isSavingLecturer">
+                Assign Lecturer
+            </button>
+        </div>
+    </div>
+
+    @if (assignedLecturers.Count == 0)
+    {
+        <p>No lecturers are assigned to this timetable event.</p>
+    }
+    else
+    {
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Lecturer</th>
+                    <th style="width: 130px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var assignment in assignedLecturers)
+                {
+                    var lecturer = allLecturers.FirstOrDefault(
+                    l => l.LecturerId == assignment.LecturerId);
+
+                    <tr>
+                        <td>
+                            @(lecturer is null
+                                            ? $"Lecturer {assignment.LecturerId}"
+                                            : $"{lecturer.Name} {lecturer.LastName}")
+            </td>
+
+                        <td>
+                            <button class="btn btn-danger btn-sm"
+                                    @onclick="() => RemoveLecturerAsync(
+                                                            assignment.LecturerId)"
+                        disabled="@isSavingLecturer">
+                    Remove
+                </button>
+            </td>
+        </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h5 class="mt-4">Assign Cohort</h5>
+
+    <div class="row g-2 align-items-end">
+        <div class="col-md-8">
+            <label class="form-label">Cohort</label>
+
+            <select class="form-select"
+                    @bind="selectedCohortId">
+                <option value="0">-- Select cohort --</option>
+
+                @foreach (var cohort in GetAvailableCohorts())
+                {
+                    <option value="@cohort.CohortId">
+                        @cohort.Code - @cohort.Name
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <button class="btn btn-primary"
+                    disabled="@isSavingCohort"
+                    @onclick="AssignCohortAsync">
+                @(isSavingCohort ? "Assigning..." : "Assign Cohort")
+            </button>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+
+        @if (item?.RecurrenceGroupId is not null)
+        {
+            <button class="btn btn-outline-primary"
+                    @onclick="ViewRecurringSeries">
+                View Recurring Series
+            </button>
+        }
+
+        <button class="btn btn-secondary"
+                @onclick="Back">
+            Back
+        </button>
+
+    </div>
+}
+
+@code {
+    [Parameter]
+    public long Id { get; set; }
+
+    private TimetableEventDto? item;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private string moduleName = "";
+    private string termName = "";
+    private string roomName = "";
+
+    private List<CohortDto> allCohorts = new();
+    private List<EventCohortDto> assignedCohorts = new();
+
+    private int selectedCohortId;
+    private string? cohortMessage;
+    private bool isSavingCohort;
+
+
+    private List<LecturerDto> allLecturers = new();
+    private List<EventLecturerDto> assignedLecturers = new();
+
+    private int selectedLecturerId;
+    private string? lecturerMessage;
+    private bool isSavingLecturer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            item = await TimetableEventService.GetByIdAsync(Id);
+
+            if (item is not null)
+    {
+        var module = await ModuleService.GetByIdAsync(item.ModuleId);
+        moduleName = module is null
+            ? "Unknown module"
+            : $"{module.Code} - {module.Title}";
+
+        var term = await TermService.GetByIdAsync(item.TermId);
+        termName = term is null
+            ? "Unknown term"
+            : term.Name;
+
+        var room = await RoomService.GetByIdAsync(item.RoomId);
+        roomName = room is null
+            ? "Unknown room"
+            : $"{room.Code} - {room.Name}";
+
+                var cohortsResult = await CohortService.GetAllAsync(
+            page: 1,
+            pageSize: 100);
+
+                allCohorts = cohortsResult?.Items?
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.Code)
+                    .ToList()
+                    ?? new List<CohortDto>();
+
+                var assignedResult = await EventCohortService.GetAllAsync(
+                    timetableEventId: item.TimetableEventId,
+                    page: 1,
+                    pageSize: 100);
+
+                assignedCohorts = assignedResult?.Items?.ToList()
+                    ?? new List<EventCohortDto>();
+
+                allLecturers = (await AdminUserService.GetLecturersAsync())
+                    .Where(l => l.IsActive)
+                    .OrderBy(l => l.Name)
+                    .ThenBy(l => l.LastName)
+                    .ToList();
+
+                var assignedLecturerResult =
+                    await EventLecturerService.GetAllAsync(
+                        timetableEventId: item.TimetableEventId,
+                        page: 1,
+                        pageSize: 100);
+
+                assignedLecturers = assignedLecturerResult.Items.ToList();
+
+    }
+
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load timetable event: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetCohortDisplayName(int cohortId)
+    {
+        var cohort = allCohorts
+            .FirstOrDefault(c => c.CohortId == cohortId);
+
+        return cohort is null
+            ? $"Cohort {cohortId}"
+            : $"{cohort.Code} - {cohort.Name}";
+    }
+
+    private List<CohortDto> GetAvailableCohorts()
+    {
+        var assignedIds = assignedCohorts
+            .Select(x => x.CohortId)
+            .ToHashSet();
+
+        return allCohorts
+            .Where(c => !assignedIds.Contains(c.CohortId))
+            .OrderBy(c => c.Code)
+            .ToList();
+    }
+
+    private void Back()
+    {
+        Navigation.NavigateTo("/admin/timetable-events");
+    }
+
+    private async Task AssignCohortAsync()
+    {
+        cohortMessage = null;
+
+        if (selectedCohortId <= 0 || item is null)
+        {
+            cohortMessage = "Please select a cohort.";
+            return;
+        }
+
+        isSavingCohort = true;
+
+        var created = await EventCohortService.CreateAsync(
+            new EventCohortCreateDto
+            {
+                TimetableEventId = item.TimetableEventId,
+                CohortId = selectedCohortId
+            });
+
+        if (created is null)
+        {
+            cohortMessage = "The cohort could not be assigned.";
+            isSavingCohort = false;
+            return;
+        }
+
+        assignedCohorts.Add(created);
+        selectedCohortId = 0;
+        cohortMessage = "Cohort assigned successfully.";
+        isSavingCohort = false;
+    }
+
+    private async Task RemoveCohortAsync(int cohortId)
+    {
+        cohortMessage = null;
+
+        if (item is null)
+            return;
+
+        var deleted = await EventCohortService.DeleteAsync(
+            item.TimetableEventId,
+            cohortId);
+
+        if (!deleted)
+        {
+            cohortMessage = "The cohort could not be removed.";
+            return;
+        }
+
+        assignedCohorts.RemoveAll(x => x.CohortId == cohortId);
+        cohortMessage = "Cohort removed successfully.";
+    }
+
+    private async Task AssignLecturerAsync()
+    {
+        lecturerMessage = null;
+
+        if (selectedLecturerId <= 0 || item is null)
+        {
+            lecturerMessage = "Please select a lecturer.";
+            return;
+        }
+
+        if (assignedLecturers.Any(
+            x => x.LecturerId == selectedLecturerId))
+        {
+            lecturerMessage =
+                "This lecturer is already assigned to the event.";
+            return;
+        }
+
+        try
+        {
+            isSavingLecturer = true;
+
+            var created = await EventLecturerService.CreateAsync(
+                new EventLecturerCreateDto
+                {
+                    TimetableEventId = item.TimetableEventId,
+                    LecturerId = selectedLecturerId
+                });
+
+            assignedLecturers.Add(created);
+
+            selectedLecturerId = 0;
+            lecturerMessage = "Lecturer assigned successfully.";
+        }
+        catch (Exception ex)
+        {
+            lecturerMessage =
+                $"The lecturer could not be assigned: {ex.Message}";
+        }
+        finally
+        {
+            isSavingLecturer = false;
+        }
+    }
+
+    private async Task RemoveLecturerAsync(int lecturerId)
+    {
+        lecturerMessage = null;
+
+        if (item is null)
+            return;
+
+        try
+        {
+            isSavingLecturer = true;
+
+            await EventLecturerService.DeleteAsync(
+                item.TimetableEventId,
+                lecturerId);
+
+            assignedLecturers.RemoveAll(
+                x => x.LecturerId == lecturerId);
+
+            lecturerMessage = "Lecturer removed successfully.";
+        }
+        catch (Exception ex)
+        {
+            lecturerMessage =
+                $"The lecturer could not be removed: {ex.Message}";
+        }
+        finally
+        {
+            isSavingLecturer = false;
+        }
+    }
+
+    private void ViewRecurringSeries()
+    {
+        if (item?.RecurrenceGroupId is null)
+            return;
+
+        Navigation.NavigateTo(
+            $"/admin/scheduling/recurring-series/{item.RecurrenceGroupId}");
+    }
+
+}

@@ -1,0 +1,230 @@
+﻿@page "/admin/student-cohort-memberships"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Authorization
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Membership
+@using CollegeScheduler.DTOs.Profiles
+@using CollegeScheduler.Services.Interfaces
+
+@inject IStudentCohortMembershipService MembershipService
+@inject IAdminUserService AdminUserService
+@inject IAcademicYearService AcademicYearService
+@inject ICohortService CohortService
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Student Cohort Memberships</h3>
+
+    <a class="btn btn-primary"
+       href="/admin/student-cohort-memberships/create">
+        + Create Membership
+    </a>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-5">
+        <input class="form-control"
+               placeholder="Search by student name or student number"
+               @bind="searchText"
+               @bind:event="oninput" />
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (isLoading)
+{
+    <p>Loading memberships...</p>
+}
+else if (memberships.Count == 0)
+{
+    <div class="alert alert-info">
+        No student cohort memberships were found.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Student Number</th>
+                <th>Cohort</th>
+                <th>Academic Year</th>
+                <th>Membership Type</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+                @foreach (var membership in FilteredMemberships)
+            {
+                var student = GetStudent(membership.StudentId);
+                var cohort = GetCohort(membership.CohortId);
+                var academicYear = GetAcademicYear(
+                membership.AcademicYearId);
+
+                <tr>
+                    <td>
+                        @(student is null
+                                        ? $"Student {membership.StudentId}"
+                                        : $"{student.Name} {student.LastName}")
+                                                                           </td>
+
+                    <td>
+                        @(student?.StudentNumber ?? "-")
+                    </td>
+
+                    <td>
+                        @(cohort is null
+                                        ? $"Cohort {membership.CohortId}"
+                                        : $"{cohort.Code} - {cohort.Name}")
+                                                                       </td>
+
+                    <td>
+                        @(academicYear?.Label
+                                        ?? $"Year {membership.AcademicYearId}")
+                                                                           </td>
+
+                    <td>@membership.MembershipType</td>
+
+                    <td>
+                        @(membership.StartDate?.ToString("dd/MM/yyyy")
+                                        ?? "-")
+                                           </td>
+
+                    <td>
+                        @(membership.EndDate?.ToString("dd/MM/yyyy")
+                                        ?? "-")
+                    </td>
+
+                    <td>
+                        <a class="btn btn-sm btn-warning me-2"
+                           href="/admin/student-cohort-memberships/edit/@membership.StudentId/@membership.CohortId/@membership.AcademicYearId">
+                            Edit
+                        </a>
+
+                        <a class="btn btn-sm btn-danger"
+                           href="/admin/student-cohort-memberships/delete/@membership.StudentId/@membership.CohortId/@membership.AcademicYearId">
+                            Delete
+                        </a>
+                    </td>
+
+        </tr>
+                }
+        </tbody>
+    </table>
+    </div>
+}
+
+@code {
+    private List<StudentCohortMembershipDto> memberships = [];
+    private List<StudentDto> students = [];
+    private List<AcademicYearDto> academicYears = [];
+    private readonly Dictionary<int, CohortDto> cohorts = [];
+
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            memberships =
+                (await MembershipService.GetAllAsync()).ToList();
+
+            students = await AdminUserService.GetStudentsAsync();
+
+            var academicYearResult =
+                await AcademicYearService.GetAllAsync(
+                    page: 1,
+                    pageSize: 100);
+
+            academicYears =
+                academicYearResult?.Items?.ToList() ?? [];
+
+            var cohortIds = memberships
+                .Select(x => x.CohortId)
+                .Distinct();
+
+            foreach (var cohortId in cohortIds)
+            {
+                var cohort =
+                    await CohortService.GetByIdAsync(cohortId);
+
+                if (cohort is not null)
+                {
+                    cohorts[cohortId] = cohort;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private StudentDto? GetStudent(int studentId)
+    {
+        return students.FirstOrDefault(
+            x => x.StudentId == studentId);
+    }
+
+    private CohortDto? GetCohort(int cohortId)
+    {
+        return cohorts.GetValueOrDefault(cohortId);
+    }
+
+    private AcademicYearDto? GetAcademicYear(int academicYearId)
+    {
+        return academicYears.FirstOrDefault(
+            x => x.AcademicYearId == academicYearId);
+    }
+
+    private string searchText = "";
+
+    private IEnumerable<StudentCohortMembershipDto> FilteredMemberships
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                return memberships;
+            }
+
+            var value = searchText.Trim();
+
+            return memberships.Where(membership =>
+            {
+                var student = GetStudent(membership.StudentId);
+
+                if (student is null)
+                {
+                    return false;
+                }
+
+                var fullName =
+                    $"{student.Name} {student.LastName}";
+
+                return fullName.Contains(
+                           value,
+                           StringComparison.OrdinalIgnoreCase)
+                       ||
+                       student.StudentNumber.Contains(
+                           value,
+                           StringComparison.OrdinalIgnoreCase);
+            });
+        }
+    }
+}

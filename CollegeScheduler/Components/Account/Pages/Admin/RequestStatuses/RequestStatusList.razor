@@ -1,0 +1,110 @@
+﻿@page "/admin/request-statuses"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using CollegeScheduler.DTOs.Requests
+@using CollegeScheduler.Services.Admin
+
+@inject IRequestStatusService RequestStatusService
+@inject NavigationManager Navigation
+
+<PageTitle>Request Statuses</PageTitle>
+
+<h3>Request Statuses</h3>
+
+<div class="mb-3">
+    <button class="btn btn-primary"
+            @onclick="GoToCreate">
+        Create Request Status
+    </button>
+</div>
+
+@if (_statuses is null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (_statuses.Items.Count == 0)
+{
+    <div class="alert alert-info">
+        No request statuses were found.
+    </div>
+}
+else
+{
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th style="width: 230px;">Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var item in _statuses.Items)
+            {
+                <tr>
+                    <td>@item.Name</td>
+
+                    <td>
+                        @if (item.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactive</span>
+                        }
+                    </td>
+
+                    <td>
+                        <button class="btn btn-sm btn-info me-2"
+                                @onclick="() => GoToDetails(item.RequestStatusId)">
+                            Details
+                        </button>
+
+                        <button class="btn btn-sm btn-warning me-2"
+                                @onclick="() => GoToEdit(item.RequestStatusId)">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-danger"
+                                @onclick="() => GoToDelete(item.RequestStatusId)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private CollegeScheduler.DTOs.Common.PagedResult<RequestStatusDto>? _statuses;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _statuses = await RequestStatusService.GetAllAsync();
+    }
+
+    private void GoToCreate()
+    {
+        Navigation.NavigateTo("/admin/request-statuses/create");
+    }
+
+    private void GoToDetails(int id)
+    {
+        Navigation.NavigateTo($"/admin/request-statuses/details/{id}");
+    }
+
+    private void GoToEdit(int id)
+    {
+        Navigation.NavigateTo($"/admin/request-statuses/edit/{id}");
+    }
+
+    private void GoToDelete(int id)
+    {
+        Navigation.NavigateTo($"/admin/request-statuses/delete/{id}");
+    }
+}

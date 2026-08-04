@@ -1,0 +1,27 @@
+﻿@page "/account"
+@using Microsoft.AspNetCore.Components.Authorization
+
+<h1>Account</h1>
+
+<AuthorizeView>
+    <Authorized Context="auth">
+        <div class="card">
+            <p class="muted">Signed in as</p>
+            <h3>@auth.User.Identity?.Name</h3>
+
+            <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+                <a class="btn" href="/account/manage">Manage Account</a>
+                <a class="btn" href="/account/logout">Logout</a>
+                <a class="btn" href="/account/admin">Admin</a>
+            </div>
+        </div>
+    </Authorized>
+
+    <NotAuthorized>
+        <div class="card">
+            <p class="muted">You are not signed in.</p>
+            <a class="btn" href="/account/login">Login</a>
+            <a class="btn" href="/account/register">Register</a>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>

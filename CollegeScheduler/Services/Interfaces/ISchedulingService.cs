@@ -1,6 +1,7 @@
 ﻿using CollegeScheduler.Data.Entities.Scheduling;
 using CollegeScheduler.DTOs.Scheduling;
 
+
 namespace CollegeScheduler.Services.Interfaces;
 
 public interface ISchedulingService
@@ -15,7 +16,24 @@ public interface ISchedulingService
 
 	Task<List<AvailableRoomDto>> FindAvailableRoomsAsync(RoomSearchQuery query);
 
-	Task<List<TimetableEvent>> GenerateRecurringEventsAsync(
+    Task<List<RecurringAvailableRoomDto>> FindRecurringAvailableRoomsAsync(
+    RecurringRoomSearchQuery query);
+
+    Task<List<TimetableEvent>> GenerateRecurringEventsAsync(
 		RecurringEventCreateDto dto,
 		string createdByUserId);
+
+	// NEW Recurring Events CRUD Operations
+	Task<List<TimetableEvent>> GetRecurringEventSeriesAsync(Guid recurrenceGroupId);
+
+	Task<RecurringEventUpdateResultDto> UpdateRecurringEventsAsync(
+		Guid recurrenceGroupId,
+		UpdateRecurringEventDto dto,
+		string updatedByUserId);
+
+	Task<RecurringEventUpdateResultDto> CancelRecurringEventsAsync(
+		Guid recurrenceGroupId,
+		CancelRecurringEventDto dto,
+		string cancelledByUserId);
+	
 }

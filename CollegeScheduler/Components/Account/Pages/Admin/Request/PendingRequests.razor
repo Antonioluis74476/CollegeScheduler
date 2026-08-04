@@ -1,0 +1,604 @@
+﻿@page "/admin/requests/pending"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Requests
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+
+@inject IAdminSchedulingService AdminSchedulingService
+@inject IJSRuntime JS
+
+
+<PageTitle>Pending Requests</PageTitle>
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Pending Requests</h1>
+            <p class="text-muted mb-0">
+                Review, approve, or reject lecturer and student requests.
+            </p>
+        </div>
+
+        <button class="btn btn-outline-primary"
+                @onclick="LoadRequestsAsync"
+                disabled="@isLoading">
+            Refresh
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert alert-success">
+            @successMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+    }
+
+    <div class="row mb-3">
+
+        <div class="col-md-8">
+
+            <input class="form-control"
+                   placeholder="Search by ID, title, requester..."
+                   @bind="searchText"
+                   @bind:event="oninput" />
+
+        </div>
+
+        <div class="col-md-4">
+
+            <select class="form-select"
+                    @bind="selectedType">
+
+                <option>All</option>
+
+                <option>RoomBooking</option>
+
+                <option>ScheduleChange</option>
+
+                <option>CancelClass</option>
+
+            </select>
+
+        </div>
+
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border" role="status"></div>
+            <p class="mt-3 text-muted">Loading pending requests...</p>
+        </div>
+    }
+    else if (requests.Count == 0)
+    {
+        <div class="alert alert-info">
+            There are no pending requests.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Title</th>
+                        <th>Requested by</th>
+                        <th>Created</th>
+                        <th>Status</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @foreach (var request in FilteredRequests)
+                    {
+                        <tr>
+                            <td>@request.RequestId</td>
+                            <td>@FormatRequestType(request.RequestType)</td>
+                            <td>@DisplayValue(request.Title)</td>
+                            @if (!string.IsNullOrWhiteSpace(request.RequestedByName))
+                            {
+                                <strong>@request.RequestedByName</strong>
+
+                                <br />
+
+                                <small class="text-muted">
+                                    @request.RequestedByEmail
+                                </small>
+
+                                <br />
+
+                                <small>
+                                    @request.RequestedByRole
+                                </small>
+                            }
+                            else
+                            {
+                                @request.RequestedByEmail
+
+                                <br />
+
+                                <small class="text-muted">
+                                    @request.RequestedByUserId
+                                </small>
+                            }
+                            <td>@FormatDate(request.CreatedAtUtc)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark">
+                                    @request.RequestStatus
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-primary"
+                                        @onclick="() => SelectRequest(request)">
+                                    Review
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (selectedRequest is not null)
+    {
+        <hr class="my-4" />
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>Request #@selectedRequest.RequestId</strong>
+            </div>
+
+            <div class="card-body">
+
+                <dl class="row mb-4">
+                    <dt class="col-sm-3">Type</dt>
+                    <dd class="col-sm-9">
+                        @FormatRequestType(selectedRequest.RequestType)
+                    </dd>
+
+                    <dt class="col-sm-3">Title</dt>
+                    <dd class="col-sm-9">
+                        @DisplayValue(selectedRequest.Title)
+                    </dd>
+
+                    <dt class="col-sm-3">Notes</dt>
+                    <dd class="col-sm-9">
+                        @DisplayValue(selectedRequest.Notes)
+                    </dd>
+
+                    <dt class="col-sm-3">Requested by</dt>
+                    <dd class="col-sm-9">
+                        @if (!string.IsNullOrWhiteSpace(selectedRequest.RequestedByName))
+                        {
+                            <strong>@selectedRequest.RequestedByName</strong>
+
+                            <br />
+
+                            <small class="text-muted">
+                                @selectedRequest.RequestedByEmail
+                            </small>
+
+                            <br />
+
+                            <small>
+                                @selectedRequest.RequestedByRole
+                            </small>
+                        }
+                        else
+                        {
+                            @selectedRequest.RequestedByEmail
+
+                            <br />
+
+                            <small class="text-muted">
+                                @selectedRequest.RequestedByUserId
+                            </small>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">Created</dt>
+                    <dd class="col-sm-9">
+                        @FormatDate(selectedRequest.CreatedAtUtc)
+                    </dd>
+                </dl>
+
+                @if (selectedRequest.ScheduleChangeDetail is not null)
+                {
+                    var detail = selectedRequest.ScheduleChangeDetail;
+
+                    <h2 class="h5">Schedule change details</h2>
+
+                    <dl class="row">
+                        <dt class="col-sm-3">Module</dt>
+                        <dd class="col-sm-9">
+                            @FormatModule(detail)
+                        </dd>
+
+                        <dt class="col-sm-3">Timetable event</dt>
+                        <dd class="col-sm-9">
+                            @detail.TimetableEventId
+                        </dd>
+
+                        <dt class="col-sm-3">Current room</dt>
+                        <dd class="col-sm-9">
+                            @FormatCurrentRoom(detail)
+                        </dd>
+
+                        <dt class="col-sm-3">Requested room</dt>
+                        <dd class="col-sm-9">
+                            @FormatProposedRoom(detail)
+                        </dd>
+
+                        <dt class="col-sm-3">Current start</dt>
+                        <dd class="col-sm-9">
+                            @FormatDate(detail.CurrentStartUtc)
+                        </dd>
+
+                        <dt class="col-sm-3">Current end</dt>
+                        <dd class="col-sm-9">
+                            @FormatDate(detail.CurrentEndUtc)
+                        </dd>
+
+                        <dt class="col-sm-3">Requested start</dt>
+                        <dd class="col-sm-9">
+                            @FormatNullableDate(detail.ProposedStartUtc)
+                        </dd>
+
+                        <dt class="col-sm-3">Requested end</dt>
+                        <dd class="col-sm-9">
+                            @FormatNullableDate(detail.ProposedEndUtc)
+                        </dd>
+
+                        <dt class="col-sm-3">Reason</dt>
+                        <dd class="col-sm-9">
+                            @DisplayValue(detail.Reason)
+                        </dd>
+                    </dl>
+                }
+
+                @if (selectedRequest.RoomBookingDetail is not null)
+                {
+                    <h2 class="h5">Room booking details</h2>
+
+                    <dl class="row">
+                        <dt class="col-sm-3">Room</dt>
+                        <dd class="col-sm-9">
+                            @FormatRoom(selectedRequest.RoomBookingDetail)
+                        </dd>
+
+                        <dt class="col-sm-3">Start</dt>
+                        <dd class="col-sm-9">
+                            @FormatDate(
+                            selectedRequest.RoomBookingDetail.StartUtc)
+                </dd>
+
+                <dt class="col-sm-3">End</dt>
+                <dd class="col-sm-9">
+                    @FormatDate(
+                                        selectedRequest.RoomBookingDetail.EndUtc)
+                </dd>
+
+                <dt class="col-sm-3">Purpose</dt>
+                <dd class="col-sm-9">
+                    @DisplayValue(
+                                        selectedRequest.RoomBookingDetail.Purpose)
+                </dd>
+
+                <dt class="col-sm-3">Expected attendees</dt>
+                <dd class="col-sm-9">
+                    @selectedRequest.RoomBookingDetail.ExpectedAttendees
+                </dd>
+            </dl>
+                        }
+
+                <div class="mb-3">
+                    <label for="adminComment" class="form-label">
+                        Admin comment
+                    </label>
+
+                    <textarea id="adminComment"
+                              class="form-control"
+                              rows="3"
+                              maxlength="500"
+                              @bind="adminComment">
+                        </textarea>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success"
+                            disabled="@isProcessing"
+                            @onclick='() => DecideAsync("Approved")'>
+                        Approve
+                    </button>
+
+                    <button class="btn btn-danger"
+                            disabled="@isProcessing"
+                            @onclick='() => DecideAsync("Rejected")'>
+                        Reject
+                    </button>
+
+                    <button class="btn btn-outline-secondary"
+                            disabled="@isProcessing"
+                            @onclick="ClearSelection">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<PendingRequestDto> requests = new();
+    private PendingRequestDto? selectedRequest;
+
+    private string? adminComment;
+    private string? successMessage;
+    private string? errorMessage;
+
+    private bool isLoading;
+    private bool isProcessing;
+
+    private string searchText = string.Empty;
+
+    private string selectedType = "All";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequestsAsync();
+    }
+
+    private async Task LoadRequestsAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            requests =
+                await AdminSchedulingService.GetPendingRequestsAsync()
+                ?? new List<PendingRequestDto>();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SelectRequest(PendingRequestDto request)
+    {
+        selectedRequest = request;
+        adminComment = null;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private async Task DecideAsync(string decision)
+    {
+        if (selectedRequest is null)
+            return;
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Are you sure you want to {decision.ToLower()} request #{selectedRequest.RequestId}? This action cannot be undone."
+        );
+
+        if (!confirmed)
+            return;
+
+        isProcessing = true;
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            var result =
+                await AdminSchedulingService.DecideRequestAsync(
+                    selectedRequest.RequestId,
+                    new DecideRequestDto
+                    {
+                        Decision = decision,
+                        Comment = string.IsNullOrWhiteSpace(adminComment)
+                            ? null
+                            : adminComment.Trim()
+                    });
+
+            if (result is null || !result.IsSuccess)
+            {
+                errorMessage =
+                    result?.Message
+                    ?? "The request could not be processed.";
+
+                return;
+            }
+
+            successMessage = result.Message;
+
+            selectedRequest = null;
+            adminComment = null;
+
+            await LoadRequestsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void ClearSelection()
+    {
+        selectedRequest = null;
+        adminComment = null;
+        errorMessage = null;
+    }
+
+    private static string DisplayValue(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not provided"
+            : value;
+    }
+
+    private static string DisplayNullableNumber(int? value)
+    {
+        return value?.ToString() ?? "No change requested";
+    }
+
+    private static string FormatDate(DateTime value)
+    {
+        return value.ToLocalTime().ToString("dd MMM yyyy, HH:mm");
+    }
+
+    private static string FormatNullableDate(DateTime? value)
+    {
+        return value.HasValue
+            ? FormatDate(value.Value)
+            : "No change requested";
+    }
+
+    private static string FormatRequestType(string value)
+    {
+        return value switch
+        {
+            "RoomBooking" => "Room booking",
+            "Reschedule" => "Schedule change",
+            "ScheduleChange" => "Schedule change",
+            "CancelClass" => "Cancel class",
+            _ => value
+        };
+    }
+
+    private static string FormatRoom(PendingRoomBookingDetailDto room)
+    {
+        if (!string.IsNullOrWhiteSpace(room.RoomCode)
+            && !string.IsNullOrWhiteSpace(room.RoomName))
+        {
+            return $"{room.RoomCode} - {room.RoomName}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(room.RoomCode))
+        {
+            return room.RoomCode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(room.RoomName))
+        {
+            return room.RoomName;
+        }
+
+        return $"Room ID {room.RoomId}";
+    }
+
+    private IEnumerable<PendingRequestDto> FilteredRequests =>
+    requests.Where(r =>
+    {
+        var matchesSearch =
+            string.IsNullOrWhiteSpace(searchText)
+            || (r.Title?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (r.RequestedByName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (r.RequestedByEmail?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false)
+            || r.RequestId.ToString().Contains(searchText);
+
+        var matchesType =
+            selectedType == "All"
+            || r.RequestType.Equals(selectedType, StringComparison.OrdinalIgnoreCase);
+
+        return matchesSearch && matchesType;
+    });
+
+    private static string FormatModule(
+    PendingScheduleChangeDetailDto detail)
+    {
+        if (!string.IsNullOrWhiteSpace(detail.ModuleCode)
+            && !string.IsNullOrWhiteSpace(detail.ModuleTitle))
+        {
+            return $"{detail.ModuleCode} - {detail.ModuleTitle}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(detail.ModuleCode))
+        {
+            return detail.ModuleCode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(detail.ModuleTitle))
+        {
+            return detail.ModuleTitle;
+        }
+
+        return "Module unavailable";
+    }
+
+    private static string FormatCurrentRoom(
+        PendingScheduleChangeDetailDto detail)
+    {
+        if (!string.IsNullOrWhiteSpace(detail.CurrentRoomCode)
+            && !string.IsNullOrWhiteSpace(detail.CurrentRoomName))
+        {
+            return $"{detail.CurrentRoomCode} - {detail.CurrentRoomName}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(detail.CurrentRoomCode))
+        {
+            return detail.CurrentRoomCode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(detail.CurrentRoomName))
+        {
+            return detail.CurrentRoomName;
+        }
+
+        return $"Room ID {detail.CurrentRoomId}";
+    }
+
+    private static string FormatProposedRoom(
+        PendingScheduleChangeDetailDto detail)
+    {
+        if (!detail.ProposedRoomId.HasValue)
+        {
+            return "No room change requested";
+        }
+
+        if (!string.IsNullOrWhiteSpace(detail.ProposedRoomCode)
+            && !string.IsNullOrWhiteSpace(detail.ProposedRoomName))
+        {
+            return $"{detail.ProposedRoomCode} - {detail.ProposedRoomName}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(detail.ProposedRoomCode))
+        {
+            return detail.ProposedRoomCode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(detail.ProposedRoomName))
+        {
+            return detail.ProposedRoomName;
+        }
+
+        return $"Room ID {detail.ProposedRoomId.Value}";
+    }
+
+}

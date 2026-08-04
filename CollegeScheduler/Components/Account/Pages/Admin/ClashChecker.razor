@@ -1,0 +1,304 @@
+﻿@page "/admin/scheduling/clash-checker"
+@rendermode InteractiveServer
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.DTOs.Facilities
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Profiles
+
+
+@inject CollegeScheduler.Services.Interfaces.IAdminSchedulingService SchedulingService
+@inject CollegeScheduler.Services.Interfaces.IAdminUserService AdminUserService
+@inject CollegeScheduler.Services.Interfaces.ICohortService CohortService
+@inject CollegeScheduler.Services.Interfaces.IProgramService ProgramService
+@inject CollegeScheduler.Services.Interfaces.IDepartmentService DepartmentService
+
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <small class="text-muted">Scheduling /</small>
+        <h3 class="mb-0">Clash Checker</h3>
+    </div>
+
+    <a href="/admin/scheduling" class="btn btn-outline-secondary">
+        ← Back
+    </a>
+</div>
+
+<div class="mb-3">
+    <label>Start Time:</label>
+    <input type="datetime-local" class="form-control" @bind="startLocal" />
+</div>
+
+<div class="mb-3">
+    <label>End Time:</label>
+    <input type="datetime-local" class="form-control" @bind="endLocal" />
+</div>
+
+<div class="mb-3">
+    <button class="btn btn-outline-primary" @onclick="LoadAvailableRooms">
+        Load Available Rooms
+    </button>
+</div>
+
+@if (rooms.Any())
+{
+    <div class="mb-3">
+        <label>Room:</label>
+        <select class="form-select" @bind="roomId">
+            <option value="0">Select a room</option>
+
+            @foreach (var room in rooms)
+            {
+                <option value="@room.RoomId">
+                    @GetRoomDisplay(room)
+                </option>
+            }
+        </select>
+    </div>
+}
+
+<div class="mb-3">
+    <label>Department:</label>
+    <select class="form-control" value="@selectedDepartmentId" @onchange="OnDepartmentChanged">
+        <option value="0">-- Select department --</option>
+
+        @foreach (var department in departments)
+        {
+            <option value="@department.DepartmentId">
+                @department.Code - @department.Name
+            </option>
+        }
+    </select>
+
+    <label class="mt-2">Program:</label>
+    <select class="form-control" value="@selectedProgramId" @onchange="OnProgramChanged" disabled="@(selectedDepartmentId <= 0)">
+        <option value="0">-- Select program --</option>
+
+        @foreach (var program in programs)
+        {
+            <option value="@program.ProgramId">
+                @program.Code - @program.Name
+            </option>
+        }
+    </select>
+
+    <label class="mt-2">Cohort:</label>
+    <select class="form-control" @bind="selectedCohortId" disabled="@(selectedProgramId <= 0)">
+        <option value="0">-- Select cohort --</option>
+
+        @foreach (var cohort in cohorts)
+        {
+            <option value="@cohort.CohortId">
+                @cohort.Code - @cohort.Name
+            </option>
+        }
+    </select>
+</div>
+
+<div class="mb-3">
+    <label>Lecturer:</label>
+    <select class="form-control" @bind="selectedLecturerId">
+        <option value="0">-- Select lecturer --</option>
+
+        @foreach (var lecturer in lecturers)
+        {
+            <option value="@lecturer.LecturerId">
+                @lecturer.Name @lecturer.LastName (@lecturer.StaffNumber)
+            </option>
+        }
+    </select>
+</div>
+
+<button class="btn btn-primary" @onclick="CheckClashes">Check Clashes</button>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <div class="alert alert-info mt-3">@message</div>
+}
+
+@if (result is not null)
+{
+    <div class="mt-4">
+        @if (!result.HasClash)
+        {
+            <div class="alert alert-success">No clash detected.</div>
+        }
+        else
+        {
+            <div class="alert alert-danger">Clashes found.</div>
+
+            @if (result.RoomClash is not null)
+            {
+                <p><strong>Room Clash:</strong> @result.RoomClash.Message</p>
+            }
+
+            @if (result.CohortClashes.Any())
+            {
+                <h5>Cohort Clashes</h5>
+                <ul>
+                    @foreach (var clash in result.CohortClashes)
+                    {
+                        <li>@clash.Message</li>
+                    }
+                </ul>
+            }
+
+            @if (result.LecturerClashes.Any())
+            {
+                <h5>Lecturer Clashes</h5>
+                <ul>
+                    @foreach (var clash in result.LecturerClashes)
+                    {
+                        <li>@clash.Message</li>
+                    }
+                </ul>
+            }
+        }
+    </div>
+}
+
+@code {
+    private int roomId;
+    private DateTime? startLocal;
+    private DateTime? endLocal;
+
+    private string? cohortIdsText;
+    private string? lecturerIdsText;
+
+    private List<DepartmentDto> departments = new();
+    private List<ProgramDto> programs = new();
+    private List<CohortDto> cohorts = new();
+    private List<LecturerDto> lecturers = new();
+
+    private int selectedDepartmentId;
+    private int selectedProgramId;
+    private int selectedCohortId;
+    private int selectedLecturerId;
+
+    private string? message;
+
+    private List<AvailableRoomDto> rooms = new();
+    private ClashResult? result;
+
+    protected override async Task OnInitializedAsync()
+    {
+        lecturers = await AdminUserService.GetLecturersAsync();
+
+        var departmentsResult = await DepartmentService.GetAllAsync();
+        departments = departmentsResult?.Items?.ToList() ?? new List<DepartmentDto>();
+    }
+
+    private async Task OnDepartmentChanged(ChangeEventArgs e)
+    {
+        selectedDepartmentId = int.TryParse(e.Value?.ToString(), out var id) ? id : 0;
+
+        selectedProgramId = 0;
+        selectedCohortId = 0;
+        programs.Clear();
+        cohorts.Clear();
+
+        if (selectedDepartmentId <= 0)
+            return;
+
+        var programsResult = await ProgramService.GetByDepartmentAsync(
+            selectedDepartmentId,
+            page: 1,
+            pageSize: 100
+        );
+
+        programs = programsResult?.Items?.ToList() ?? new List<ProgramDto>();
+    }
+
+    private async Task OnProgramChanged(ChangeEventArgs e)
+    {
+        selectedProgramId = int.TryParse(e.Value?.ToString(), out var id) ? id : 0;
+
+        selectedCohortId = 0;
+        cohorts.Clear();
+
+        if (selectedProgramId <= 0)
+            return;
+
+        var cohortsResult = await CohortService.GetByProgramAsync(
+            selectedProgramId,
+            page: 1,
+            pageSize: 100
+        );
+
+        cohorts = cohortsResult?.Items?.ToList() ?? new List<CohortDto>();
+    }
+
+    private async Task LoadAvailableRooms()
+    {
+        message = null;
+        result = null;
+        roomId = 0;
+        rooms.Clear();
+
+        if (!startLocal.HasValue || !endLocal.HasValue)
+        {
+            message = "Please select start and end time first.";
+            return;
+        }
+
+        var query = new RoomSearchQuery
+        {
+            StartUtc = DateTime.SpecifyKind(startLocal.Value, DateTimeKind.Utc),
+            EndUtc = DateTime.SpecifyKind(endLocal.Value, DateTimeKind.Utc)
+        };
+
+        rooms = await SchedulingService.GetAvailableRoomsAsync(query) ?? new();
+
+        if (!rooms.Any())
+        {
+            message = "No available rooms found for the selected time range.";
+        }
+    }
+
+    private async Task CheckClashes()
+    {
+        message = null;
+
+        if (!startLocal.HasValue || !endLocal.HasValue || roomId <= 0)
+        {
+            message = "Please select start time, end time, and room.";
+            return;
+        }
+
+        var request = new ClashCheckRequest
+        {
+            RoomId = roomId,
+            StartUtc = DateTime.SpecifyKind(startLocal.Value, DateTimeKind.Utc),
+            EndUtc = DateTime.SpecifyKind(endLocal.Value, DateTimeKind.Utc),
+            CohortIds = selectedCohortId > 0
+                ? new List<int> { selectedCohortId }
+                : new List<int>(),
+            LecturerIds = selectedLecturerId > 0
+                ? new List<int> { selectedLecturerId }
+                : new List<int>()
+        };
+
+        result = await SchedulingService.CheckClashesAsync(request);
+    }
+
+    private string GetRoomDisplay(AvailableRoomDto room)
+    {
+        if (!string.IsNullOrWhiteSpace(room.Name))
+            return $"{room.Name} ({room.Code})";
+
+        return room.Code;
+    }
+
+    private List<int> ParseIds(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return new List<int>();
+
+        return input
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Where(x => int.TryParse(x, out _))
+            .Select(int.Parse)
+            .ToList();
+    }
+}

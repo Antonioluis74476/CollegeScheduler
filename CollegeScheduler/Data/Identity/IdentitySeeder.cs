@@ -82,6 +82,110 @@ public static class IdentitySeeder
             Console.WriteLine($" Admin role already assigned to: {adminEmail}");
         }
 
+        // Seed default Lecturer test account
+        var lecturerEmail = "lecturertest@college.ie";
+        var lecturerPassword = "Lecturer123!";
+
+        var lecturerUser = await userManager.FindByEmailAsync(lecturerEmail);
+
+        if (lecturerUser is null)
+        {
+            lecturerUser = new ApplicationUser
+            {
+                UserName = lecturerEmail,
+                Email = lecturerEmail,
+                EmailConfirmed = true
+            };
+
+            var lecturerResult =
+                await userManager.CreateAsync(lecturerUser, lecturerPassword);
+
+            if (!lecturerResult.Succeeded)
+            {
+                var errors = string.Join(
+                    ", ",
+                    lecturerResult.Errors.Select(e => e.Description));
+
+                throw new Exception(
+                    $"Failed to create seed lecturer: {errors}");
+            }
+
+            Console.WriteLine($"Created seed lecturer: {lecturerEmail}");
+        }
+
+        if (!await userManager.IsInRoleAsync(lecturerUser, RoleNames.Lecturer))
+        {
+            var lecturerRoleResult =
+                await userManager.AddToRoleAsync(
+                    lecturerUser,
+                    RoleNames.Lecturer);
+
+            if (!lecturerRoleResult.Succeeded)
+            {
+                var errors = string.Join(
+                    ", ",
+                    lecturerRoleResult.Errors.Select(e => e.Description));
+
+                throw new Exception(
+                    $"Failed to assign Lecturer role: {errors}");
+            }
+
+            Console.WriteLine(
+                $"Assigned Lecturer role to: {lecturerEmail}");
+        }
+
+        // Seed default Student test account
+        var studentEmail = "studenttest@college.ie";
+        var studentPassword = "Student123!";
+
+        var studentUser = await userManager.FindByEmailAsync(studentEmail);
+
+        if (studentUser is null)
+        {
+            studentUser = new ApplicationUser
+            {
+                UserName = studentEmail,
+                Email = studentEmail,
+                EmailConfirmed = true
+            };
+
+            var studentResult =
+                await userManager.CreateAsync(studentUser, studentPassword);
+
+            if (!studentResult.Succeeded)
+            {
+                var errors = string.Join(
+                    ", ",
+                    studentResult.Errors.Select(e => e.Description));
+
+                throw new Exception(
+                    $"Failed to create seed student: {errors}");
+            }
+
+            Console.WriteLine($"Created seed student: {studentEmail}");
+        }
+
+        if (!await userManager.IsInRoleAsync(studentUser, RoleNames.Student))
+        {
+            var studentRoleResult =
+                await userManager.AddToRoleAsync(
+                    studentUser,
+                    RoleNames.Student);
+
+            if (!studentRoleResult.Succeeded)
+            {
+                var errors = string.Join(
+                    ", ",
+                    studentRoleResult.Errors.Select(e => e.Description));
+
+                throw new Exception(
+                    $"Failed to assign Student role: {errors}");
+            }
+
+            Console.WriteLine(
+                $"Assigned Student role to: {studentEmail}");
+        }
+
         Console.WriteLine(" IdentitySeeder finished");
 
     }

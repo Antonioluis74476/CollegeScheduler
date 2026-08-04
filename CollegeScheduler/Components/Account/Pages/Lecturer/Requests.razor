@@ -1,0 +1,265 @@
+﻿@page "/lecturer/requests"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = RoleNames.Lecturer)]
+
+@using CollegeScheduler.Data.Identity
+@using CollegeScheduler.DTOs.Lecturer
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject ILecturerService LecturerService
+
+<PageTitle>My Requests</PageTitle>
+
+<div class="container py-4">
+
+    <div class="d-flex flex-column flex-md-row
+                justify-content-between align-items-md-center
+                gap-3 mb-4">
+
+        <div>
+            <h1 class="h3 mb-1">My Requests</h1>
+
+            <p class="text-muted mb-0">
+                Track your submitted requests and their approval status.
+            </p>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+
+            <a class="btn btn-primary"
+               href="/lecturer/manage-class-changes">
+                Manage class changes
+            </a>
+
+            <a class="btn btn-outline-primary"
+               href="/lecturer/room-booking">
+                Book a room
+            </a>
+
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    @onclick="LoadPageAsync"
+                    disabled="@_isLoading">
+                Refresh
+            </button>
+
+        </div>
+
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex align-items-center gap-2">
+
+            <div class="spinner-border spinner-border-sm"
+                 role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+
+            <span>Loading requests...</span>
+
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-danger"
+             role="alert">
+            @_errorMessage
+        </div>
+    }
+    else if (_requests.Count == 0)
+    {
+        <div class="alert alert-info"
+             role="alert">
+            You have not submitted any requests yet.
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>Request</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                            <th>Updated</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var request in _requests
+                                            .OrderByDescending(x => x.CreatedAtUtc))
+                        {
+                            <tr>
+
+                                <td>
+
+                                    <div class="fw-semibold">
+                                        @GetTitle(request)
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(request.Notes))
+                                    {
+                                        <div class="text-muted small mt-1">
+                                            @request.Notes
+                                        </div>
+                                    }
+
+                                </td>
+
+                                <td>
+                                    @request.RequestType
+                                </td>
+
+                                <td>
+                                    <span class="badge
+                                                         @GetStatusBadgeClass(
+                                          request.RequestStatus)">
+                                @request.RequestStatus
+                            </span>
+                        </td>
+
+                        <td>
+                            @(request.CreatedAtUtc
+                                                        .ToLocalTime()
+                                                        .ToString("dd MMM yyyy HH:mm"))
+                        </td>
+
+                                <td>
+
+                            @if (request.UpdatedAtUtc.HasValue)
+                                    {
+                                        @(request.UpdatedAtUtc.Value
+                                                                    .ToLocalTime()
+                                                                    .ToString("dd MMM yyyy HH:mm"))
+                                                        }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+    }
+
+</div>
+
+@code {
+    private readonly List<LecturerRequestDto> _requests = [];
+
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    private readonly List<LecturerTimetableItemDto> _timetable = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageAsync();
+    }
+
+    private async Task LoadRequestsAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var results = await LecturerService.GetRequestsAsync();
+
+            _requests.Clear();
+            _requests.AddRange(results);
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = CleanErrorMessage(ex.Message);
+        }
+        catch (Exception)
+        {
+            _errorMessage =
+                "An unexpected error occurred while loading requests.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string GetTitle(LecturerRequestDto request)
+    {
+        return string.IsNullOrWhiteSpace(request.Title)
+            ? $"{request.RequestType} request"
+            : request.Title;
+    }
+
+    private static string GetStatusBadgeClass(string? status)
+    {
+        return status?.Trim().ToLowerInvariant() switch
+        {
+            "approved" => "bg-success",
+            "rejected" => "bg-danger",
+            "pending" => "bg-warning text-dark",
+            "submitted" => "bg-primary",
+            "cancelled" => "bg-secondary",
+            "canceled" => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+
+    private static string CleanErrorMessage(string message)
+    {
+        return string.IsNullOrWhiteSpace(message)
+            ? "The requests could not be loaded."
+            : message.Trim('"');
+    }
+
+    private async Task LoadPageAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var requestsTask = LecturerService.GetRequestsAsync();
+            var timetableTask = LecturerService.GetTimetableAsync();
+
+            await Task.WhenAll(requestsTask, timetableTask);
+
+            _requests.Clear();
+            _requests.AddRange(await requestsTask);
+
+            _timetable.Clear();
+            _timetable.AddRange(await timetableTask);
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = CleanErrorMessage(ex.Message);
+        }
+        catch (Exception)
+        {
+            _errorMessage =
+                "An unexpected error occurred while loading requests.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

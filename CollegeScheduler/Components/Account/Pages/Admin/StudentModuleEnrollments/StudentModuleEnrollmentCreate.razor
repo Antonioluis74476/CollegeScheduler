@@ -1,0 +1,443 @@
+﻿@page "/admin/student-module-enrollments/create"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Membership
+@using CollegeScheduler.DTOs.Profiles
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IStudentModuleEnrollmentService EnrollmentService
+@inject IAdminUserService AdminUserService
+@inject IModuleService ModuleService
+@inject IAcademicYearService AcademicYearService
+@inject ITermService TermService
+@inject IDepartmentService DepartmentService
+@inject IProgramService ProgramService
+@inject ICohortService CohortService
+@inject NavigationManager Navigation
+
+<PageTitle>Create Student Module Enrolment</PageTitle>
+
+<h1>Create Student Module Enrolment</h1>
+
+<p class="text-muted">
+    Enrol a student in a specific module and term.
+</p>
+
+@if (isLoading)
+{
+    <p>Loading form data...</p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="row g-3">
+
+                <div class="col-md-6">
+                    <label class="form-label">Student</label>
+                    <InputSelect class="form-select"
+                                 @bind-Value="model.StudentId">
+                        <option value="0">Select a student</option>
+
+                        @foreach (var student in students)
+                        {
+                            <option value="@student.StudentId">
+                                @student.StudentNumber - @student.Name @student.LastName
+                            </option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Module</label>
+                    <InputSelect class="form-select"
+                                 @bind-Value="model.ModuleId">
+                        <option value="0">Select a module</option>
+
+                        @foreach (var module in modules)
+                        {
+                            <option value="@module.ModuleId">
+                                @module.Code - @module.Title
+                            </option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Academic Year</label>
+                    <select class="form-select"
+                            @bind="selectedAcademicYearId"
+                            @bind:after="OnAcademicYearChangedAsync">
+                        <option value="0">Select an academic year</option>
+
+                        @foreach (var academicYear in academicYears)
+                        {
+                            <option value="@academicYear.AcademicYearId">
+                                @academicYear.Label
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Term</label>
+                    <InputSelect class="form-select"
+                                 @bind-Value="model.TermId"
+                                 disabled="@(selectedAcademicYearId == 0)">
+                        <option value="0">Select a term</option>
+
+                        @foreach (var term in terms)
+                        {
+                            <option value="@term.TermId">
+                                @term.Name
+                            </option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Department</label>
+                    <select class="form-select"
+                            @bind="selectedDepartmentId"
+                            @bind:after="OnDepartmentChangedAsync">
+                        <option value="0">Select a department</option>
+
+                        @foreach (var department in departments)
+                        {
+                            <option value="@department.DepartmentId">
+                                @department.Code - @department.Name
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Program</label>
+                    <select class="form-select"
+                            @bind="selectedProgramId"
+                            @bind:after="OnProgramChangedAsync"
+                            disabled="@(selectedDepartmentId == 0)">
+                        <option value="0">Select a program</option>
+
+                        @foreach (var program in programs)
+                        {
+                            <option value="@program.ProgramId">
+                                @program.Code - @program.Name
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">
+                        Attend With Cohort
+                    </label>
+
+                    <InputSelect class="form-select"
+                                 @bind-Value="model.AttendWithCohortId"
+                                 disabled="@(selectedProgramId == 0)">
+                        <option value="">No specific cohort</option>
+
+                        @foreach (var cohort in cohorts)
+                        {
+                            <option value="@cohort.CohortId">
+                                @cohort.Code - @cohort.Name
+                            </option>
+                        }
+                    </InputSelect>
+
+                    <div class="form-text">
+                        Optional. Use this when the student attends the module
+                        with another cohort.
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Enrolment Type</label>
+
+                    <InputSelect class="form-select"
+                                 @bind-Value="model.EnrollmentType">
+                        <option value="Regular">Regular</option>
+                        <option value="Repeat">Repeat</option>
+                        <option value="Resit">Resit</option>
+                        <option value="Additional">Additional</option>
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Status</label>
+
+                    <InputSelect class="form-select"
+                                 @bind-Value="model.Status">
+                        <option value="Enrolled">Enrolled</option>
+                        <option value="Withdrawn">Withdrawn</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Failed">Failed</option>
+                    </InputSelect>
+                </div>
+
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(successMessage))
+            {
+                <div class="alert alert-success mt-3">
+                    @successMessage
+                </div>
+            }
+
+            <button type="button"
+                    class="btn btn-primary me-2"
+                    disabled="@isSaving"
+                    @onclick="CreateEnrollmentAsync">
+                @(isSaving ? "Saving..." : "Create Enrolment")
+            </button>
+
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        disabled="@isSaving"
+                        @onclick="Cancel">
+                    Cancel
+                </button>
+            </div>
+        </div>
+}
+
+@code {
+    private readonly StudentModuleEnrollmentCreateDto model = new()
+    {
+        EnrollmentType = "Regular",
+        Status = "Enrolled"
+    };
+
+    private List<StudentDto> students = [];
+
+    private List<ModuleDto> modules = [];
+    private List<AcademicYearDto> academicYears = [];
+    private List<TermDto> terms = [];
+    private List<DepartmentDto> departments = [];
+    private List<ProgramDto> programs = [];
+    private List<CohortDto> cohorts = [];
+
+    private int selectedAcademicYearId;
+    private int selectedDepartmentId;
+    private int selectedProgramId;
+
+    private bool isLoading = true;
+    private bool isSaving;
+
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInitialDataAsync();
+    }
+
+    private async Task LoadInitialDataAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            students = await AdminUserService.GetStudentsAsync();
+
+            var moduleResult = await ModuleService.GetAllAsync(
+                page: 1,
+                pageSize: 100);
+
+            modules = moduleResult?.Items?.ToList() ?? [];
+
+            var academicYearResult =
+                await AcademicYearService.GetAllAsync(
+                    page: 1,
+                    pageSize: 100);
+
+            academicYears =
+                academicYearResult?.Items?.ToList() ?? [];
+
+            var departmentResult =
+                await DepartmentService.GetAllAsync(
+                    page: 1,
+                    pageSize: 100);
+
+            departments =
+                departmentResult?.Items?.ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load the enrolment form: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo(
+            "/admin/student-module-enrollments");
+    }
+
+    private async Task OnAcademicYearChangedAsync()
+    {
+        terms.Clear();
+        model.TermId = 0;
+
+        if (selectedAcademicYearId == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            errorMessage = null;
+
+            var result = await TermService.GetByAcademicYearAsync(
+                selectedAcademicYearId,
+                page: 1,
+                pageSize: 100);
+
+            terms = result?.Items?.ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load terms: {ex.Message}";
+        }
+    }
+
+    private async Task OnDepartmentChangedAsync()
+    {
+        programs.Clear();
+        cohorts.Clear();
+
+        selectedProgramId = 0;
+        model.AttendWithCohortId = null;
+
+        if (selectedDepartmentId == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            errorMessage = null;
+
+            var result = await ProgramService.GetByDepartmentAsync(
+                selectedDepartmentId,
+                page: 1,
+                pageSize: 100);
+
+            programs = result?.Items?.ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load programs: {ex.Message}";
+        }
+    }
+
+    private async Task OnProgramChangedAsync()
+    {
+        cohorts.Clear();
+        model.AttendWithCohortId = null;
+
+        if (selectedProgramId == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            errorMessage = null;
+
+            var result = await CohortService.GetByProgramAsync(
+                selectedProgramId,
+                page: 1,
+                pageSize: 100);
+
+            cohorts = result?.Items?.ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load cohorts: {ex.Message}";
+        }
+    }
+
+    private async Task CreateEnrollmentAsync()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (model.StudentId == 0)
+        {
+            errorMessage = "Please select a student.";
+            return;
+        }
+
+        if (model.ModuleId == 0)
+        {
+            errorMessage = "Please select a module.";
+            return;
+        }
+
+        if (model.TermId == 0)
+        {
+            errorMessage = "Please select an academic year and term.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(model.EnrollmentType))
+        {
+            errorMessage = "Please select an enrolment type.";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+
+            var created = await EnrollmentService.CreateAsync(model);
+
+            if (!created)
+            {
+                errorMessage =
+                    "The enrolment could not be created. " +
+                    "It may already exist for this student, module, and term.";
+
+                return;
+            }
+
+            successMessage =
+                "The student module enrolment was created successfully.";
+
+            await Task.Delay(800);
+
+            Navigation.NavigateTo(
+                "/admin/student-module-enrollments");
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to create the enrolment: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+}

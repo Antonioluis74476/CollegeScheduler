@@ -1,0 +1,183 @@
+﻿@page "/admin/module-lecturers/delete/{ModuleId:int}/{LecturerId:int}/{TermId:int}"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IModuleLecturerService ModuleLecturerService
+@inject IModuleService ModuleService
+@inject IAdminUserService AdminUserService
+@inject ITermService TermService
+@inject NavigationManager Navigation
+
+<PageTitle>Delete Module Lecturer Assignment</PageTitle>
+
+<h1>Delete Module Lecturer Assignment</h1>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+
+@if (isLoading)
+{
+    <p>Loading assignment...</p>
+}
+else if (assignment is null)
+{
+    <div class="alert alert-warning">
+        Assignment not found.
+    </div>
+}
+else
+{
+    <div class="alert alert-warning">
+        Are you sure you want to delete this assignment?
+    </div>
+
+    <dl class="row">
+        <dt class="col-sm-3">Module</dt>
+        <dd class="col-sm-9">@moduleName</dd>
+
+        <dt class="col-sm-3">Lecturer</dt>
+        <dd class="col-sm-9">@lecturerName</dd>
+
+        <dt class="col-sm-3">Term</dt>
+        <dd class="col-sm-9">@termName</dd>
+
+        <dt class="col-sm-3">Role</dt>
+        <dd class="col-sm-9">@assignment.Role</dd>
+    </dl>
+
+    <button class="btn btn-danger"
+            disabled="@isDeleting"
+            @onclick="DeleteAssignmentAsync">
+        @(isDeleting ? "Deleting..." : "Delete")
+    </button>
+
+    <button class="btn btn-secondary ms-2"
+            @onclick="Cancel">
+        Cancel
+    </button>
+}
+
+@code {
+    [Parameter]
+    public int ModuleId { get; set; }
+
+    [Parameter]
+    public int LecturerId { get; set; }
+
+    [Parameter]
+    public int TermId { get; set; }
+
+    private ModuleLecturerDto? assignment;
+
+    private string moduleName = "";
+    private string lecturerName = "";
+    private string termName = "";
+
+    private bool isLoading = true;
+    private bool isDeleting;
+    private string? errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            assignment =
+                await ModuleLecturerService.GetByIdAsync(
+                    ModuleId,
+                    LecturerId,
+                    TermId);
+
+            if (assignment is null)
+            {
+                return;
+            }
+
+            var module =
+                await ModuleService.GetByIdAsync(ModuleId);
+
+            moduleName = module is null
+                ? $"Module {ModuleId}"
+                : $"{module.Code} - {module.Title}";
+
+            var lecturers =
+                await AdminUserService.GetLecturersAsync();
+
+            var lecturer = lecturers.FirstOrDefault(
+                x => x.LecturerId == LecturerId);
+
+            lecturerName = lecturer is null
+                ? $"Lecturer {LecturerId}"
+                : $"{lecturer.Name} {lecturer.LastName} ({lecturer.StaffNumber})";
+
+            var term =
+                await TermService.GetByIdAsync(TermId);
+
+            termName = term is null
+                ? $"Term {TermId}"
+                : term.Name;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DeleteAssignmentAsync()
+    {
+        try
+        {
+            isDeleting = true;
+            errorMessage = null;
+
+            var deleted =
+                await ModuleLecturerService.DeleteAsync(
+                    ModuleId,
+                    LecturerId,
+                    TermId);
+
+            if (!deleted)
+            {
+                errorMessage =
+                    "The assignment could not be deleted.";
+                return;
+            }
+
+            Navigation.NavigateTo(
+                "/admin/module-lecturers");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo(
+            "/admin/module-lecturers");
+    }
+}

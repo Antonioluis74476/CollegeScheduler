@@ -1481,6 +1481,8 @@ namespace CollegeScheduler.Migrations
 
                     b.HasIndex("RecurrenceGroupId");
 
+                    b.HasIndex("StartUtc", "TimetableEventId");
+
                     b.HasIndex("TermId", "StartUtc");
 
                     b.HasIndex("RoomId", "StartUtc", "EndUtc");

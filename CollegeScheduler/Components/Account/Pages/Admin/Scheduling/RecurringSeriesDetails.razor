@@ -1,0 +1,240 @@
+﻿@page "/admin/scheduling/recurring-series/{RecurrenceGroupId:guid}"
+@attribute [Authorize(Roles = "Admin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.Services.Interfaces
+@using CollegeScheduler.Services.Admin
+
+
+@inject IAdminSchedulingService SchedulingService
+@inject IRoomService RoomService
+@inject IEventStatusService EventStatusService
+@inject NavigationManager Navigation
+
+<PageTitle>Recurring Series</PageTitle>
+
+<h3>Recurring Series</h3>
+
+@if (isLoading)
+{
+    <p>Loading recurring series...</p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+
+    <button class="btn btn-secondary" @onclick="GoBack">
+        Back
+    </button>
+}
+else if (series is null)
+{
+    <div class="alert alert-warning">
+        Recurring series not found.
+    </div>
+
+    <button class="btn btn-secondary" @onclick="GoBack">
+        Back
+    </button>
+}
+else
+{
+    <div class="alert alert-info">
+        <strong>Recurrence Group ID:</strong>
+        @series.RecurrenceGroupId
+    </div>
+
+    <div class="d-flex gap-2 mb-3">
+
+        <button class="btn btn-warning"
+                @onclick="EditSeries">
+            Edit Series
+        </button>
+
+        <button class="btn btn-danger"
+                @onclick="CancelSeries">
+            Cancel Series
+        </button>
+
+        <button class="btn btn-secondary"
+                @onclick="GoBack">
+            Back
+        </button>
+
+    </div>
+
+    <p>
+        <strong>Total occurrences:</strong>
+        @series.Occurrences.Count
+    </p>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Event ID</th>
+                    <th>Date</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Room</th>
+                    <th>Status ID</th>
+                    <th>Session Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var occurrence in series.Occurrences.OrderBy(x => x.StartUtc))
+                {
+                    <tr>
+                        <td>@occurrence.TimetableEventId</td>
+                        <td>@occurrence.StartUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                        <td>@occurrence.StartUtc.ToLocalTime().ToString("HH:mm")</td>
+                        <td>@occurrence.EndUtc.ToLocalTime().ToString("HH:mm")</td>
+                        <td>@GetRoomDisplay(occurrence.RoomId)</td>
+                        <td>@GetStatusDisplay(occurrence.EventStatusId)</td>
+                        <td>@occurrence.SessionType</td>
+                        <td>
+                            <button class="btn btn-sm btn-info"
+                                    @onclick="() => ViewEvent(occurrence.TimetableEventId)">
+                                Details
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <button class="btn btn-secondary" @onclick="GoBack">
+        Back
+    </button>
+}
+
+@code
+{
+    [Parameter]
+    public Guid RecurrenceGroupId { get; set; }
+
+    private RecurringEventSeriesDto? series;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private readonly Dictionary<int, string> roomDisplays = new();
+
+    private readonly Dictionary<int, string> statusDisplays = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadSeriesAsync();
+    }
+
+    private async Task LoadSeriesAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            series = await SchedulingService
+                .GetRecurringEventSeriesAsync(RecurrenceGroupId);
+
+            if (series is not null)
+            {
+                await LoadRoomDisplaysAsync();
+                await LoadStatusDisplaysAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin/timetable-events");
+    }
+
+    private async Task LoadRoomDisplaysAsync()
+    {
+        if (series is null)
+            return;
+
+        var roomIds = series.Occurrences
+            .Select(x => x.RoomId)
+            .Distinct();
+
+        foreach (var roomId in roomIds)
+        {
+            var room = await RoomService.GetByIdAsync(roomId);
+
+            if (room is null)
+            {
+                roomDisplays[roomId] = $"Room {roomId}";
+                continue;
+            }
+
+            roomDisplays[roomId] = string.IsNullOrWhiteSpace(room.Name)
+                ? room.Code
+                : $"{room.Code} - {room.Name}";
+        }
+    }
+
+    private string GetRoomDisplay(int roomId)
+    {
+        return roomDisplays.TryGetValue(roomId, out var display)
+            ? display
+            : $"Room {roomId}";
+    }
+
+    private async Task LoadStatusDisplaysAsync()
+    {
+        if (series is null)
+            return;
+
+        var statusIds = series.Occurrences
+            .Select(x => x.EventStatusId)
+            .Distinct();
+
+        foreach (var statusId in statusIds)
+        {
+            var status = await EventStatusService.GetByIdAsync(statusId);
+
+            statusDisplays[statusId] =
+                status?.Name ?? $"Status {statusId}";
+        }
+    }
+
+    private string GetStatusDisplay(int statusId)
+    {
+        return statusDisplays.TryGetValue(statusId, out var name)
+            ? name
+            : $"Status {statusId}";
+    }
+
+    private void ViewEvent(long eventId)
+    {
+        Navigation.NavigateTo(
+            $"/admin/timetable-events/details/{eventId}");
+    }
+
+    private void EditSeries()
+    {
+        Navigation.NavigateTo(
+            $"/admin/scheduling/recurring-series/{RecurrenceGroupId}/edit");
+    }
+
+    private void CancelSeries()
+    {
+        Navigation.NavigateTo(
+            $"/admin/scheduling/recurring-series/{RecurrenceGroupId}/cancel");
+    }
+}

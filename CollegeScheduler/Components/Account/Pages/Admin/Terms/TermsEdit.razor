@@ -1,0 +1,109 @@
+﻿@page "/admin/terms/{TermId:int}/edit"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+@inject ITermService TermService
+@inject NavigationManager Navigation
+
+<h3>Edit Term</h3>
+
+@if (model == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="HandleUpdate" FormName="EditTerm">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Term Number</label>
+            <InputNumber class="form-control" @bind-Value="model.TermNumber" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <InputText class="form-control" @bind-Value="model.Name" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Start Date</label>
+            <InputDate class="form-control" @bind-Value="model.StartDate" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">End Date</label>
+            <InputDate class="form-control" @bind-Value="model.EndDate" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary ms-2" @onclick="GoBack">
+            Cancel
+        </button>
+    </EditForm>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger mt-3">@errorMessage</div>
+    }
+}
+
+@code {
+    [Parameter]
+    public int TermId { get; set; }
+
+    private TermUpdateDto? model;
+    private int academicYearId;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var term = await TermService.GetByIdAsync(TermId);
+
+        if (term == null)
+            return;
+
+        academicYearId = term.AcademicYearId;
+
+        model = new TermUpdateDto
+        {
+            TermNumber = term.TermNumber,
+            Name = term.Name,
+            StartDate = term.StartDate,
+            EndDate = term.EndDate
+        };
+    }
+
+    private async Task HandleUpdate()
+    {
+        if (model == null)
+            return;
+
+        errorMessage = null;
+
+        var success = await TermService.UpdateAsync(TermId, model);
+
+        if (success)
+        {
+            Navigation.NavigateTo($"/admin/academic-years/{academicYearId}/terms");
+            return;
+        }
+
+        errorMessage = "Failed to update term.";
+    }
+
+    private void GoBack()
+    {
+        if (academicYearId > 0)
+        {
+            Navigation.NavigateTo($"/admin/academic-years/{academicYearId}/terms");
+        }
+        else
+        {
+            Navigation.NavigateTo("/admin/academic-years");
+        }
+    }
+}

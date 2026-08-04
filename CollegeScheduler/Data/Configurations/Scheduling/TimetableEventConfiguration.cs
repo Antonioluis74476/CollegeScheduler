@@ -44,6 +44,7 @@ public sealed class TimetableEventConfiguration : IEntityTypeConfiguration<Timet
 		// Indexes
 		b.HasIndex(x => new { x.RoomId, x.StartUtc, x.EndUtc });
 		b.HasIndex(x => new { x.TermId, x.StartUtc });
-		b.HasIndex(x => x.RecurrenceGroupId);
+        b.HasIndex(x => new { x.StartUtc, x.TimetableEventId });
+        b.HasIndex(x => x.RecurrenceGroupId);
 	}
 }

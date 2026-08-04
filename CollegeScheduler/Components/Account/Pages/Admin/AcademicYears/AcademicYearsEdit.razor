@@ -1,0 +1,146 @@
+﻿@page "/admin/academic-years/edit/{AcademicYearId:int}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@inject IAcademicYearService AcademicYearService
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Academic Year</PageTitle>
+
+<h3>Edit Academic Year</h3>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (model is not null)
+{
+    <EditForm Model="model" OnValidSubmit="SaveAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Start Date</label>
+            <InputDate class="form-control" @bind-Value="model.StartDate" />
+            <ValidationMessage For="@(() => model.StartDate)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">End Date</label>
+            <InputDate class="form-control" @bind-Value="model.EndDate" />
+            <ValidationMessage For="@(() => model.EndDate)" />
+        </div>
+
+        <div class="form-check mb-3">
+            <InputCheckbox class="form-check-input" @bind-Value="model.IsCurrent" />
+            <label class="form-check-label">Current Academic Year</label>
+        </div>
+
+        <div class="form-check mb-3">
+            <InputCheckbox class="form-check-input" @bind-Value="model.IsActive" />
+            <label class="form-check-label">Active</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary" disabled="@isSaving">
+            @(isSaving ? "Saving..." : "Save Changes")
+        </button>
+
+        <button type="button"
+                class="btn btn-secondary ms-2"
+                @onclick="Cancel">
+            Cancel
+        </button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int AcademicYearId { get; set; }
+
+    private AcademicYearUpdateDto? model;
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var year = await AcademicYearService.GetByIdAsync(AcademicYearId);
+
+            if (year is null)
+            {
+                errorMessage = "Academic year not found.";
+                return;
+            }
+
+            model = new AcademicYearUpdateDto
+            {
+                StartDate = year.StartDate,
+                EndDate = year.EndDate,
+                IsCurrent = year.IsCurrent,
+                IsActive = year.IsActive
+            };
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load academic year: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (model is null)
+            return;
+
+        errorMessage = null;
+
+        if (model.EndDate <= model.StartDate)
+        {
+            errorMessage = "End date must be after start date.";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+
+            var success = await AcademicYearService.UpdateAsync(
+                AcademicYearId,
+                model);
+
+            if (!success)
+            {
+                errorMessage = "The academic year could not be updated.";
+                return;
+            }
+
+            Navigation.NavigateTo("/admin/academic-years");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to update academic year: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/admin/academic-years");
+    }
+}

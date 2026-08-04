@@ -1,0 +1,276 @@
+﻿@page "/admin/timetable-events/edit/{Id:long}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject ITimetableEventService TimetableEventService
+@inject NavigationManager Navigation
+
+@inject IModuleService ModuleService
+@inject ITermService TermService
+@inject IRoomService RoomService
+@inject IAcademicYearService AcademicYearService
+@inject IBuildingService BuildingService
+
+<PageTitle>Edit Timetable Event</PageTitle>
+
+<h1>Edit Timetable Event</h1>
+
+@if (isLoading)
+{
+    <p>Loading event...</p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+else
+{
+    <EditForm Model="model"
+              OnValidSubmit="SaveAsync">
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label class="form-label">Term</label>
+            <InputSelect class="form-select"
+                         @bind-Value="model.TermId">
+                @foreach (var term in termNames)
+                {
+                    <option value="@term.Key">@term.Value</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Module</label>
+            <InputSelect class="form-select"
+                         @bind-Value="model.ModuleId">
+                @foreach (var module in moduleNames)
+                {
+                    <option value="@module.Key">@module.Value</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Room</label>
+            <InputSelect class="form-select"
+                         @bind-Value="model.RoomId">
+                @foreach (var room in roomNames)
+                {
+                    <option value="@room.Key">@room.Value</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Start</label>
+            <InputDate class="form-control"
+                       Type="InputDateType.DateTimeLocal"
+                       @bind-Value="model.StartUtc" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">End</label>
+            <InputDate class="form-control"
+                       Type="InputDateType.DateTimeLocal"
+                       @bind-Value="model.EndUtc" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Status</label>
+            <InputSelect class="form-select"
+                         @bind-Value="model.EventStatusId">
+                <option value="1">Scheduled</option>
+                <option value="2">Cancelled</option>
+                <option value="3">Completed</option>
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Session Type</label>
+            <InputText class="form-control"
+                       @bind-Value="model.SessionType" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <InputTextArea class="form-control"
+                           @bind-Value="model.Notes" />
+        </div>
+
+        <button type="submit"
+                class="btn btn-primary me-2"
+                disabled="@isSaving">
+            @(isSaving ? "Saving..." : "Save")
+        </button>
+
+        <button type="button"
+                class="btn btn-secondary"
+                @onclick="Cancel">
+            Cancel
+        </button>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public long Id { get; set; }
+
+    private TimetableEventUpdateDto model = new();
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? errorMessage;
+
+    private Dictionary<int, string> moduleNames = new();
+    private Dictionary<int, string> termNames = new();
+    private Dictionary<int, string> roomNames = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var item = await TimetableEventService.GetByIdAsync(Id);
+
+            if (item is null)
+            {
+                errorMessage = "Timetable event not found.";
+                return;
+            }
+
+            model = new TimetableEventUpdateDto
+            {
+                TermId = item.TermId,
+                ModuleId = item.ModuleId,
+                RoomId = item.RoomId,
+                StartUtc = item.StartUtc.ToLocalTime(),
+                EndUtc = item.EndUtc.ToLocalTime(),
+                EventStatusId = item.EventStatusId,
+                SessionType = item.SessionType,
+                RecurrenceGroupId = item.RecurrenceGroupId,
+                Notes = item.Notes
+            };
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load timetable event: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+
+        var moduleResult = await ModuleService.GetAllAsync(
+            page: 1,
+            pageSize: 80);
+
+        if (moduleResult is not null)
+        {
+            moduleNames = moduleResult.Items.ToDictionary(
+                x => x.ModuleId,
+                x => $"{x.Code} - {x.Title}");
+        }
+
+        var academicYearResult = await AcademicYearService.GetAllAsync(
+            page: 1,
+            pageSize: 100);
+
+        if (academicYearResult is not null)
+        {
+            foreach (var academicYear in academicYearResult.Items)
+            {
+                var termResult = await TermService.GetByAcademicYearAsync(
+                    academicYear.AcademicYearId,
+                    page: 1,
+                    pageSize: 100);
+
+                if (termResult is null)
+                    continue;
+
+                foreach (var term in termResult.Items)
+                {
+                    termNames[term.TermId] =
+                        $"{academicYear.Label} - {term.Name}";
+                }
+            }
+        }
+
+        var buildingResult = await BuildingService.GetByCampusAsync(
+            1,
+            page: 1,
+            pageSize: 100);
+
+        if (buildingResult is not null)
+        {
+            foreach (var building in buildingResult.Items)
+            {
+                var roomResult = await RoomService.GetByBuildingAsync(
+                    building.BuildingId,
+                    page: 1,
+                    pageSize: 100);
+
+                if (roomResult is null)
+                    continue;
+
+                foreach (var room in roomResult.Items)
+                {
+                    roomNames[room.RoomId] =
+                        $"{room.Code} - {room.Name}";
+                }
+            }
+        }
+
+
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+
+            var dto = new TimetableEventUpdateDto
+            {
+                TermId = model.TermId,
+                ModuleId = model.ModuleId,
+                RoomId = model.RoomId,
+                StartUtc = model.StartUtc.ToUniversalTime(),
+                EndUtc = model.EndUtc.ToUniversalTime(),
+                EventStatusId = model.EventStatusId,
+                SessionType = model.SessionType,
+                RecurrenceGroupId = model.RecurrenceGroupId,
+                Notes = model.Notes
+            };
+
+            var success = await TimetableEventService.UpdateAsync(Id, dto);
+
+            if (!success)
+            {
+                errorMessage = "Unable to update timetable event.";
+                return;
+            }
+
+            Navigation.NavigateTo("/admin/timetable-events");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to update timetable event: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/admin/timetable-events");
+    }
+}

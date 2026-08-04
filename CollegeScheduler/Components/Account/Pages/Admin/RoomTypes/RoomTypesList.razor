@@ -1,0 +1,178 @@
+﻿@page "/admin/room-types"
+@rendermode InteractiveServer
+
+@inject IJSRuntime JS
+
+@using CollegeScheduler.DTOs.Facilities
+@inject CollegeScheduler.Services.Interfaces.IRoomTypeService RoomTypeService
+
+<h3>Room Types</h3>
+
+<button class="btn btn-primary mb-3" @onclick="ShowCreateForm">
+    + Create Room Type
+</button>
+
+@if (roomTypes?.Items != null)
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var rt in roomTypes.Items)
+            {
+                <tr>
+                    <td>@rt.RoomTypeId</td>
+                    <td>@rt.Name</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-2"
+                                @onclick="() => StartEdit(rt)">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-danger"
+                                @onclick="() => DeleteRoomType(rt.RoomTypeId)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showCreate)
+{
+    <EditForm Model="this" OnValidSubmit="CreateRoomType">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="createName" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Save</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelCreate">Cancel</button>
+    </EditForm>
+}
+
+@if (showEdit)
+{
+    <EditForm Model="this" OnValidSubmit="UpdateRoomType">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="editName" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Update</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+    </EditForm>
+}
+
+@code {
+    private CollegeScheduler.DTOs.Common.PagedResult<RoomTypeDto>? roomTypes;
+
+    private bool showCreate = false;
+    private string createName = string.Empty;
+
+    private bool showEdit = false;
+    private int editingRoomTypeId;
+    private string editName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        roomTypes = await RoomTypeService.GetAllAsync();
+    }
+
+    private void ShowCreateForm()
+    {
+        showCreate = true;
+    }
+
+    private void CancelCreate()
+    {
+        showCreate = false;
+        createName = string.Empty;
+    }
+
+    private async Task CreateRoomType()
+    {
+        var dto = new RoomTypeCreateDto
+        {
+            Name = createName
+        };
+
+        var success = await RoomTypeService.CreateAsync(dto);
+
+        if (success)
+        {
+            showCreate = false;
+            createName = string.Empty;
+            await LoadData();
+        }
+    }
+
+    private async Task DeleteRoomType(int id)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Delete this room type?");
+
+        if (!confirmed)
+            return;
+
+        var success = await RoomTypeService.DeleteAsync(id);
+
+        if (success)
+        {
+            await LoadData();
+        }
+    }
+
+    private void StartEdit(RoomTypeDto roomType)
+    {
+        showCreate = false;
+
+        editingRoomTypeId = roomType.RoomTypeId;
+        editName = roomType.Name;
+
+        showEdit = true;
+    }
+
+    private async Task UpdateRoomType()
+    {
+        var dto = new RoomTypeUpdateDto
+        {
+            Name = editName
+        };
+
+        var success = await RoomTypeService.UpdateAsync(editingRoomTypeId, dto);
+
+        if (success)
+        {
+            showEdit = false;
+            editingRoomTypeId = 0;
+            editName = string.Empty;
+
+            await LoadData();
+        }
+    }
+
+    private void CancelEdit()
+    {
+        showEdit = false;
+        editingRoomTypeId = 0;
+        editName = string.Empty;
+    }
+}

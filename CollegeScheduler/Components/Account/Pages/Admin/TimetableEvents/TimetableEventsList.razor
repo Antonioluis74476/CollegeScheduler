@@ -1,0 +1,624 @@
+﻿@page "/admin/timetable-events"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using CollegeScheduler.DTOs.Scheduling
+@using CollegeScheduler.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+
+@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Facilities
+
+@using System.Diagnostics
+
+@inject ITimetableEventService TimetableEventService
+@inject NavigationManager Navigation
+
+@inject IAcademicYearService AcademicYearService
+
+@inject IModuleService ModuleService
+@inject ITermService TermService
+@inject IRoomService RoomService
+
+@inject ICampusService CampusService
+
+@inject IBuildingService BuildingService
+
+<PageTitle>Timetable Events</PageTitle>
+
+<div class="timetable-header mb-3">
+    <div class="timetable-heading">
+        <h1 class="h3 mb-1">Timetable Events</h1>
+        
+    </div>
+<div class="timetable-actions">
+        <button type="button"
+                class="timetable-action"
+                @onclick="CreateEvent">
+            <span class="timetable-action-icon">✚</span>
+
+            <span class="timetable-action-content">
+                <span class="timetable-action-title">
+                    Create Event
+                </span>
+
+                <span class="timetable-action-description">
+                    Add one class
+                </span>
+            </span>
+        </button>
+
+        <button type="button"
+                class="timetable-action"
+                @onclick="CreateRecurringEvents">
+            <span class="timetable-action-icon">▦</span>
+
+            <span class="timetable-action-content">
+                <span class="timetable-action-title">
+                    Create Recurring Event
+                </span>
+
+                <span class="timetable-action-description">
+                    Recurring timetable
+                </span>
+            </span>
+        </button>
+
+        <button type="button"
+                class="timetable-action"
+                @onclick="FindAvailableRooms">
+            <span class="timetable-action-icon">🔍</span>
+
+            <span class="timetable-action-content">
+                <span class="timetable-action-title">
+                    Find Rooms
+                </span>
+
+                <span class="timetable-action-description">
+                    Check availability
+                </span>
+            </span>
+        </button>
+
+        <button type="button"
+                class="timetable-action"
+                @onclick="OpenClashChecker">
+            <span class="timetable-action-icon">⚠</span>
+
+            <span class="timetable-action-content">
+                <span class="timetable-action-title">
+                    Check Clashes
+                </span>
+
+                <span class="timetable-action-description">
+                    Validate schedule
+                </span>
+            </span>
+        </button>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <p>Loading timetable events...</p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+else if (events.Count == 0)
+{
+    <div class="alert alert-info">
+        No timetable events found.
+    </div>
+}
+else
+{
+
+    <div class="card mb-3">
+        <div class="card-header">
+            Search and Filters
+        </div>
+
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Search</label>
+                    <InputText class="form-control"
+                               @bind-Value="searchText"
+                               placeholder="Module, room, or session type" />
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Module</label>
+                    <InputSelect class="form-select"
+                                 @bind-Value="selectedModuleId">
+                        <option value="">All Modules</option>
+
+                        @foreach (var module in moduleNames)
+                        {
+                            <option value="@module.Key">@module.Value</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Term</label>
+                    <InputSelect class="form-select"
+                                 @bind-Value="selectedTermId">
+                        <option value="">All Terms</option>
+
+                        @foreach (var term in termNames)
+                        {
+                            <option value="@term.Key">@term.Value</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Room</label>
+                    <InputSelect class="form-select"
+                                 @bind-Value="selectedRoomId">
+                        <option value="">All Rooms</option>
+
+                        @foreach (var room in FilteredRoomOptions)
+                        {
+                            <option value="@room.Key">@room.Value</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <InputSelect class="form-select"
+                                 @bind-Value="selectedStatusId">
+                        <option value="">All Statuses</option>
+                        <option value="1">Scheduled</option>
+                        <option value="2">Cancelled</option>
+                        <option value="3">Completed</option>
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">From Date</label>
+                    <InputDate class="form-control"
+                               @bind-Value="fromDate" />
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">To Date</label>
+                    <InputDate class="form-control"
+                               @bind-Value="toDate" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Module</th>
+                <th>Term</th>
+                <th>Room</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Session Type</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var item in FilteredEvents)
+            {
+                <tr>
+                    <td>@item.TimetableEventId</td>
+                    <td>
+                        @(moduleNames.TryGetValue(item.ModuleId, out var moduleName)
+                                        ? moduleName
+                                        : $"Module {item.ModuleId}")
+                    </td>
+                                                                <td>
+                        @(termNames.TryGetValue(item.TermId, out var termName)
+                                        ? termName
+                                        : $"Term {item.TermId}")
+                    </td>
+                                                            <td>
+                        @(roomNames.TryGetValue(item.RoomId, out var roomName)
+                                        ? roomName
+                                        : $"Room {item.RoomId}")
+                    </td>
+                    <td>@item.StartUtc.ToLocalTime().ToString("ddd dd MMM yyyy HH:mm")</td>
+                    <td>@item.EndUtc.ToLocalTime().ToString("ddd dd MMM yyyy HH:mm")</td>
+                    <td>@item.SessionType</td>
+                                                            <td>
+                        @(item.EventStatusId switch
+                        {
+                            1 => "Scheduled",
+                            2 => "Cancelled",
+                            3 => "Completed",
+                            _ => $"Status {item.EventStatusId}"
+                        })
+                    </td>
+                    <td>
+                         <button class="btn btn-sm btn-info me-2"
+                                @onclick="() => DetailsEvent(item.TimetableEventId)">
+                            Details
+                        </button>
+
+                        <button class="btn btn-sm btn-warning me-2"
+                                @onclick="() => EditEvent(item.TimetableEventId)">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-danger"
+                                @onclick="() => DeleteEvent(item.TimetableEventId)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<TimetableEventDto> events = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private Dictionary<int, string> moduleNames = new();
+
+    private Dictionary<int, string> termNames = new();
+
+    private Dictionary<int, string> roomNames = new();
+
+
+    private string searchText = "";
+    private int? selectedModuleId;
+    private int? selectedTermId;
+    private int? selectedRoomId;
+    private int? selectedStatusId;
+    private DateTime? fromDate;
+    private DateTime? toDate;
+
+    
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            
+            var eventResult = await TimetableEventService.GetAllAsync(page: 1, pageSize: 50);
+
+            if (eventResult is not null)
+            {
+                events = eventResult.Items.ToList();
+                }
+            
+
+            var moduleResult = await ModuleService.GetAllAsync(
+                page: 1,
+                pageSize: 80);
+            if (moduleResult is not null)
+            {
+                moduleNames = moduleResult.Items.ToDictionary(
+                    x => x.ModuleId,
+                    x => $"{x.Code} - {x.Title}");
+            }
+
+                   var academicYearResult = await AcademicYearService.GetAllAsync(
+                        page: 1,
+                        pageSize: 100);
+
+            if (academicYearResult is not null)
+            {
+                var academicYears = academicYearResult.Items.ToList();
+
+                var termTasks = academicYears
+                    .Select(async academicYear =>
+                    {
+                        var result = await TermService.GetByAcademicYearAsync(
+                            academicYear.AcademicYearId,
+                            page: 1,
+                            pageSize: 100);
+
+                        return new
+                        {
+                            AcademicYear = academicYear,
+                            Result = result
+                        };
+                    })
+                    .ToList();
+
+                var termResults = await Task.WhenAll(termTasks);
+
+                foreach (var item in termResults)
+                {
+                    if (item.Result is null)
+                        continue;
+
+                    foreach (var term in item.Result.Items)
+                    {
+                        termNames[term.TermId] =
+                            $"{item.AcademicYear.Label} - {term.Name}";
+                    }
+                }
+            }
+
+           for (int campusId = 1; campusId <= 1; campusId++)
+            {
+                var campusResult = await CampusService.GetAllAsync(
+                    page: 1,
+                    pageSize: 100);
+
+                if (campusResult is not null)
+                {
+                    var buildingTasks = campusResult.Items
+                        .Select(campus => BuildingService.GetByCampusAsync(
+                            campus.CampusId,
+                            page: 1,
+                            pageSize: 100))
+                        .ToList();
+
+                    var buildingResults = await Task.WhenAll(buildingTasks);
+
+                    var buildings = buildingResults
+                        .Where(result => result is not null)
+                        .SelectMany(result => result!.Items)
+                        .ToList();
+
+                    var roomTasks = buildings
+                        .Select(building => RoomService.GetByBuildingAsync(
+                            building.BuildingId,
+                            page: 1,
+                            pageSize: 100))
+                        .ToList();
+
+                    var roomResults = await Task.WhenAll(roomTasks);
+
+                    foreach (var roomResult in roomResults)
+                    {
+                        if (roomResult is null)
+                            continue;
+
+                        foreach (var room in roomResult.Items)
+                        {
+                            roomNames[room.RoomId] =
+                                $"{room.Code} - {room.Name}";
+                        }
+                    }
+                }
+                }
+            
+              
+
+        }
+
+
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load timetable events: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    } 
+
+    private void CreateEvent()
+    {
+        Navigation.NavigateTo("/admin/timetable-events/create");
+    }
+
+    private void CreateRecurringEvents()
+    {
+        Navigation.NavigateTo("/admin/scheduling/recurring-events");
+    }
+
+    private void FindAvailableRooms()
+    {
+        Navigation.NavigateTo("/admin/scheduling/available-rooms");
+    }
+
+    private void OpenClashChecker()
+    {
+        Navigation.NavigateTo("/admin/scheduling/clash-checker");
+    }
+
+    private void EditEvent(long id)
+    {
+        Navigation.NavigateTo($"/admin/timetable-events/edit/{id}");
+    }
+
+    private void DeleteEvent(long id)
+    {
+        Navigation.NavigateTo($"/admin/timetable-events/delete/{id}");
+    }
+
+    private void DetailsEvent(long id)
+    {
+        Navigation.NavigateTo($"/admin/timetable-events/details/{id}");
+    }
+
+    private IEnumerable<TimetableEventDto> FilteredEvents =>
+    events.Where(item =>
+        (!selectedModuleId.HasValue ||
+         item.ModuleId == selectedModuleId.Value)
+
+        && (!selectedTermId.HasValue ||
+            item.TermId == selectedTermId.Value)
+
+        && (!selectedRoomId.HasValue ||
+            item.RoomId == selectedRoomId.Value)
+
+        && (!selectedStatusId.HasValue ||
+            item.EventStatusId == selectedStatusId.Value)
+
+        && (!fromDate.HasValue ||
+            item.StartUtc.ToLocalTime().Date >= fromDate.Value.Date)
+
+        && (!toDate.HasValue ||
+            item.StartUtc.ToLocalTime().Date <= toDate.Value.Date)
+
+        && (string.IsNullOrWhiteSpace(searchText)
+            || GetModuleName(item.ModuleId)
+                .Contains(searchText, StringComparison.OrdinalIgnoreCase)
+            || GetRoomName(item.RoomId)
+                .Contains(searchText, StringComparison.OrdinalIgnoreCase)
+            || item.SessionType
+                .Contains(searchText, StringComparison.OrdinalIgnoreCase)));
+
+
+    private string GetModuleName(int moduleId)
+    {
+        return moduleNames.TryGetValue(moduleId, out var name)
+            ? name
+            : $"Module {moduleId}";
+    }
+
+    private string GetRoomName(int roomId)
+    {
+        return roomNames.TryGetValue(roomId, out var name)
+            ? name
+            : $"Room {roomId}";
+    }
+
+    private IEnumerable<KeyValuePair<int, string>> FilteredRoomOptions
+    {
+        get
+        {
+            var relevantEvents = events.AsEnumerable();
+
+            if (selectedModuleId > 0)
+            {
+                relevantEvents = relevantEvents
+                    .Where(e => e.ModuleId == selectedModuleId);
+            }
+
+            if (selectedTermId > 0)
+            {
+                relevantEvents = relevantEvents
+                    .Where(e => e.TermId == selectedTermId);
+            }
+
+            var relevantRoomIds = relevantEvents
+                .Select(e => e.RoomId)
+                .Distinct()
+                .ToHashSet();
+
+            return roomNames
+                .Where(r => relevantRoomIds.Contains(r.Key))
+                .OrderBy(r => r.Value);
+        }
+    }
+
+
+    
+}
+
+<style>
+    .timetable-header {
+        display: flex;
+        align-items: stretch;
+        gap: 1.25rem;
+        width: 100%;
+    }
+
+    .timetable-heading {
+        width: 250px;
+        min-width: 250px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .timetable-actions {
+        flex: 1;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+
+    .timetable-action {
+        min-height: 78px;
+        padding: .9rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: .8rem;
+        border: 1px solid #d9dee5;
+        border-radius: .5rem;
+        background-color: #ffffff;
+        color: #212529;
+        text-align: left;
+        cursor: pointer;
+        box-shadow: 0 .125rem .3rem rgba(0, 0, 0, .06);
+        transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background-color .15s ease;
+    }
+
+        .timetable-action:hover {
+            transform: translateY(-2px);
+            border-color: #86b7fe;
+            background-color: #f8fbff;
+            box-shadow: 0 .45rem .9rem rgba(0, 0, 0, .11);
+        }
+
+        .timetable-action:focus {
+            outline: 3px solid rgba(13, 110, 253, .22);
+            outline-offset: 2px;
+        }
+
+    .timetable-action-icon {
+        width: 38px;
+        height: 38px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: .4rem;
+        background-color: #eef3f8;
+        font-size: 1.15rem;
+    }
+
+    .timetable-action-content {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .timetable-action-title {
+        font-weight: 600;
+        font-size: .95rem;
+        line-height: 1.2;
+    }
+
+    .timetable-action-description {
+        margin-top: .25rem;
+        color: #6c757d;
+        font-size: .78rem;
+        line-height: 1.2;
+    }
+
+    @@media (max-width: 1200px) {
+        .timetable-actions {
+            grid-template-columns: repeat(2, minmax(180px, 1fr));
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .timetable-header {
+            flex-direction: column;
+        }
+
+        .timetable-heading {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .timetable-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

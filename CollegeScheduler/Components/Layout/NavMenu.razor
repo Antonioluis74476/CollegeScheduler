@@ -1,4 +1,8 @@
-﻿@implements IDisposable
+﻿@using Microsoft.AspNetCore.Components.Authorization
+
+@rendermode InteractiveServer
+
+@implements IDisposable
 
 @inject NavigationManager NavigationManager
 
@@ -8,79 +12,300 @@
     </div>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<input type="checkbox"
+       title="Navigation menu"
+       class="navbar-toggler" />
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+<div class="nav-scrollable">
+
     <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
+
+        <AuthorizeView Roles="Student">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/dashboard">
+                        <span class="bi bi-house-door-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        Home
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Lecturer">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="lecturer/dashboard">
+                        <span class="bi bi-house-door-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        Home
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"href="admin/dashboard">
+                        <span class="bi bi-house-door-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        Home
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/Academic">
+                        <span class="me-2">🎓</span>
+                        Academic
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/facilities">
+                        <span class="me-2">🏢</span>
+                        Facilities
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/users">
+                        <span class="me-2">👥</span>
+                        Users
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/timetable">
+                        <span class="me-2">📅</span>
+                        Timetable
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/requests-dashboard">
+                        <span class="me-2">📝</span>
+                        Requests
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/notifications">
+                        <span class="me-2">🔔</span>
+                        Notifications
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="admin/administration">
+                        <span class="me-2">⚙️</span>
+                        Administration
+                    </NavLink>
+                </div>
+
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Student">
+            <Authorized>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/profile">
+                        <span class="me-2">👤</span>
+                        Profile
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/timetable">
+                        <span class="me-2">📅</span>
+                        My Timetable
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/notifications">
+                        <span class="me-2">🔔</span>
+                        Notifications
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/room-booking">
+                        <span class="me-2">🏢</span>
+                        Room Booking
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="student/requests">
+                        <span class="me-2">📝</span>
+                        My Requests
+                    </NavLink>
+                </div>
+
+            </Authorized>
+        </AuthorizeView>
+
+
+        <AuthorizeView Roles="Lecturer">
+            <Authorized>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="lecturer/profile">
+                        <span class="me-2">👤</span>
+                        Profile
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="lecturer/timetable">
+                        <span class="me-2">📅</span>
+                        My Timetable
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="lecturer/notifications">
+                        <span class="me-2">🔔</span>
+                        Notifications
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="lecturer/manage-class-changes">
+                        <span class="me-2">📖</span>
+                        Manage Class Changes
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="lecturer/room-booking">
+                        <span class="me-2">🏢</span>
+                        Book a Room
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link"
+                             href="lecturer/requests">
+                        <span class="me-2">📝</span>
+                        My Requests
+                    </NavLink>
+                </div>
+
+            </Authorized>
+        </AuthorizeView>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="auth">
-                <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Auth Required
+            <NavLink class="nav-link"
+                     href="auth">
+                <span class="bi bi-lock-nav-menu"
+                      aria-hidden="true"></span>
+                Auth Required
             </NavLink>
         </div>
 
         <AuthorizeView>
             <Authorized>
+
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
+                    <NavLink class="nav-link"
+                             href="Account/Manage">
+                        <span class="bi bi-person-fill-nav-menu"
+                              aria-hidden="true"></span>
+                        @context.User.Identity?.Name
                     </NavLink>
                 </div>
+
                 <div class="nav-item px-3">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
-                        </button>
-                    </form>
+                    <a class="nav-link"
+                       href="/logout"
+                       data-enhance-nav="false">
+                        <span class="bi bi-arrow-bar-left-nav-menu"
+                              aria-hidden="true"></span>
+                        Logout
+                    </a>
                 </div>
+
             </Authorized>
+
             <NotAuthorized>
+
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
+                    <NavLink class="nav-link"
+                             href="Account/Register">
+                        <span class="bi bi-person-nav-menu"
+                              aria-hidden="true"></span>
+                        Register
                     </NavLink>
                 </div>
+
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
+                    <NavLink class="nav-link"
+                             href="Account/Login">
+                        <span class="bi bi-person-badge-nav-menu"
+                              aria-hidden="true"></span>
+                        Login
                     </NavLink>
                 </div>
+
             </NotAuthorized>
         </AuthorizeView>
+
     </nav>
 </div>
 
 @code {
     private string? currentUrl;
 
+    
+    private bool academicExpanded;
+    private bool timetableExpanded;
+    private bool requestsExpanded;
+    private bool usersExpanded;
+    private bool administrationExpanded;
+
     protected override void OnInitialized()
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        currentUrl =
+            NavigationManager.ToBaseRelativePath(
+                NavigationManager.Uri);
+
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    private void OnLocationChanged(
+        object? sender,
+        LocationChangedEventArgs e)
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        currentUrl =
+            NavigationManager.ToBaseRelativePath(
+                e.Location);
+
         StateHasChanged();
     }
 
@@ -89,4 +314,3 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-

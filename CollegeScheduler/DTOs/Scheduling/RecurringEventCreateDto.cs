@@ -1,4 +1,6 @@
-﻿namespace CollegeScheduler.DTOs.Scheduling;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace CollegeScheduler.DTOs.Scheduling;
 
 public sealed class RecurringEventCreateDto
 {
@@ -13,4 +15,14 @@ public sealed class RecurringEventCreateDto
 	public List<int> CohortIds { get; set; } = new();
 	public List<int> LecturerIds { get; set; } = new();
 	public HashSet<DateOnly>? ExcludeDates { get; set; }
+
+	public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+	{
+		if (FirstOccurrenceEndUtc <= FirstOccurrenceStartUtc)
+		{
+			yield return new ValidationResult(
+				"FirstOccurrenceEndUtc must be greater than FirstOccurrenceStartUtc.",
+				new[] { nameof(FirstOccurrenceEndUtc) });
+		}
+	}
 }

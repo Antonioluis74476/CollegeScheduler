@@ -1,0 +1,110 @@
+﻿@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.DTOs.Common
+@using CollegeScheduler.Services.Interfaces
+
+@page "/admin/departments"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject IDepartmentService DepartmentService
+
+<h3>Departments</h3>
+
+<button class="btn btn-primary mb-3" @onclick="ShowCreateForm">
+    + Create Department
+</button>
+
+@if (departments == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Active</th>
+                <th>Programs</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var dept in departments.Items)
+            {
+                <tr>
+                    <td>@dept.Code</td>
+                    <td>@dept.Name</td>
+                    <td>@dept.IsActive</td>
+                    <td>
+                        <a class="btn btn-sm btn-secondary"
+                           href="/admin/programs/@dept.DepartmentId">
+                            View Programs
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showCreate)
+{
+    <EditForm Model="createModel" OnValidSubmit="CreateDepartment">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-2">
+            <label>Code</label>
+            <InputText class="form-control" @bind-Value="createModel.Code" />
+        </div>
+
+        <div class="mb-2">
+            <label>Name</label>
+            <InputText class="form-control" @bind-Value="createModel.Name" />
+        </div>
+
+        <button type="submit" class="btn btn-success">Save</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelCreate">Cancel</button>
+    </EditForm>
+}
+
+@code {
+    private CollegeScheduler.DTOs.Common.PagedResult<DepartmentDto>? departments;
+    private bool showCreate = false;
+
+    private DepartmentCreateDto createModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDepartments();
+    }
+
+    private async Task LoadDepartments()
+    {
+        departments = await DepartmentService.GetAllAsync();
+    }
+
+    private void ShowCreateForm()
+    {
+        showCreate = true;
+    }
+
+    private void CancelCreate()
+    {
+        showCreate = false;
+        createModel = new DepartmentCreateDto();
+    }
+
+    private async Task CreateDepartment()
+    {
+        var success = await DepartmentService.CreateAsync(createModel);
+
+        if (success)
+        {
+            showCreate = false;
+            createModel = new DepartmentCreateDto();
+            await LoadDepartments();
+        }
+    }
+}

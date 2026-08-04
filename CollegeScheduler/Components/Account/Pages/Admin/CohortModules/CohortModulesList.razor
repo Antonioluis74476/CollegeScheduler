@@ -1,0 +1,125 @@
+﻿@using CollegeScheduler.DTOs.Academic
+@using CollegeScheduler.Services.Interfaces
+
+@page "/admin/cohorts/{CohortId:int}/modules"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@inject ICohortModuleService CohortModuleService
+@inject ICohortService CohortService
+@inject IModuleService ModuleService
+@inject ITermService TermService
+
+<h3>Cohort Modules</h3>
+
+@if (cohort == null)
+{
+    <p>Loading cohort...</p>
+}
+else
+{
+    <p><strong>Cohort:</strong> @cohort.Name</p>
+}
+
+<a class="btn btn-primary mb-3" href="/admin/cohorts/@CohortId/modules/create">
+    + Add Module to Cohort
+</a>
+
+@if (cohortModules == null)
+{
+    <p>Loading modules...</p>
+}
+else if (!cohortModules.Items.Any())
+{
+    <p>No modules assigned to this cohort yet.</p>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Cohort Module ID</th>
+                <th>Module</th>
+                <th>Term</th>
+                <th>Required</th>
+                <th style="width: 120px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in cohortModules.Items)
+            {
+                <tr>
+                    <td>@item.CohortModuleId</td>
+                    <td>@GetModuleTitle(item.ModuleId)</td>
+                    <td>@GetTermName(item.TermId)</td>
+                    <td>
+                        @if (item.IsRequired)
+                        {
+                            <span class="badge bg-success">Required</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Optional</span>
+                        }
+                    </td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-warning"
+                           href="/admin/cohort-modules/edit/@item.CohortModuleId">
+                            Edit
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter]
+    public int CohortId { get; set; }
+
+    private CohortDto? cohort;
+    private CollegeScheduler.DTOs.Common.PagedResult<CohortModuleDto>? cohortModules;
+
+    private Dictionary<int, string> moduleTitles = new();
+
+    private Dictionary<int, string> termNames = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        cohort = await CohortService.GetByIdAsync(CohortId);
+        cohortModules = await CohortModuleService.GetByCohortAsync(CohortId);
+
+        if (cohortModules != null)
+        {
+            foreach (var item in cohortModules.Items)
+            {
+                if (!moduleTitles.ContainsKey(item.ModuleId))
+                {
+                    var module = await ModuleService.GetByIdAsync(item.ModuleId);
+                    moduleTitles[item.ModuleId] = module?.Title ?? $"Module #{item.ModuleId}";
+                }
+
+                if (!termNames.ContainsKey(item.TermId))
+                {
+                    var term = await TermService.GetByIdAsync(item.TermId);
+                    termNames[item.TermId] = term?.Name ?? $"Term #{item.TermId}";
+                }
+            }
+        }
+    }
+
+    private string GetModuleTitle(int moduleId)
+    {
+        return moduleTitles.TryGetValue(moduleId, out var title)
+            ? title
+            : $"Module #{moduleId}";
+    }
+
+    private string GetTermName(int termId)
+    {
+        return termNames.TryGetValue(termId, out var name)
+            ? name
+            : $"Term #{termId}";
+    }
+}

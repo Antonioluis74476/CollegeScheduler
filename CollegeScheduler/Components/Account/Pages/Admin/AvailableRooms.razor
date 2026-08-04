@@ -1,0 +1,305 @@
+﻿
+@page "/admin/scheduling/available-rooms"
+@rendermode InteractiveServer
+@using CollegeScheduler.DTOs.Scheduling
+@inject CollegeScheduler.Services.Interfaces.IAdminSchedulingService SchedulingService
+@inject CollegeScheduler.Services.Interfaces.ICampusService CampusService
+@inject CollegeScheduler.Services.Interfaces.IBuildingService BuildingService
+
+
+<h3 class="mb-1">Available Room Finder</h3>
+<p class="text-muted mb-4">Search for rooms that are free during a selected time range.</p>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>Filters</strong>
+            </div>
+            <div class="card-body">
+
+                <div class="mb-3">
+                    <label class="form-label">Start</label>
+                    <InputDate @bind-Value="startLocal" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">End</label>
+                    <InputDate @bind-Value="endLocal" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Minimum Capacity</label>
+                    <InputNumber @bind-Value="minCapacity" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Campus</label>
+                    <select class="form-select"
+                            value="@selectedCampusId"
+                            @onchange="OnCampusChanged">
+
+                        <option value="">All Campuses</option>
+
+                        @foreach (var campus in campuses)
+                        {
+                            <option value="@campus.CampusId">
+                                @campus.Name
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Building</label>
+                    <InputSelect @bind-Value="selectedBuildingId" class="form-select" disabled="@(selectedCampusId is null)">
+                        <option value="">@(selectedCampusId is null ? "Select a campus first" : "All Buildings")</option>
+                        @foreach (var building in buildings)
+                        {
+                            <option value="@building.BuildingId">@building.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" @onclick="Search" disabled="@isLoading">
+                        @(isLoading ? "Searching..." : "Search Rooms")
+                    </button>
+
+                    <button class="btn btn-outline-secondary" @onclick="ClearFilters" disabled="@isLoading">
+                        Clear Filters
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    <div class="alert alert-danger mt-3 mb-0" role="alert">
+                        @errorMessage
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(statusMessage))
+                {
+                    <div class="alert alert-info mt-3 mb-0" role="alert">
+                        @statusMessage
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Results</strong>
+                @if (rooms is not null && rooms.Any())
+                {
+                    <span class="badge bg-secondary">@rooms.Count result(s)</span>
+                }
+            </div>
+            <div class="card-body">
+
+                @if (isLoading)
+                {
+                    <div class="border rounded p-4 bg-light">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+                            <div>
+                                <h5 class="mb-1">Searching rooms</h5>
+                                <p class="text-muted mb-0">Please wait while available rooms are loaded.</p>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                else if (rooms is not null && rooms.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 70px;">#</th>
+                                    <th>Room</th>
+                                    <th>Building</th>
+                                    <th>Campus</th>
+                                    <th class="text-end">Capacity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < rooms.Count; i++)
+                                {
+                                    var room = rooms[i];
+
+                                    <tr class="@(i == 0 ? "table-success" : "")">
+                                        <td>@(i + 1)</td>
+                                        <td>
+                                            <div class="fw-semibold">@room.Code</div>
+                                            @if (i == 0)
+                                            {
+                                                <span class="badge bg-success">Recommended</span>
+                                            }
+                                        </td>
+                                        <td>@room.BuildingName</td>
+                                        <td>@room.CampusName</td>
+                                        <td class="text-end">@room.Capacity</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else if (rooms is not null && !rooms.Any())
+                {
+                    <div class="border rounded p-4 bg-light">
+                        <h5 class="mb-2">No rooms found</h5>
+                        <p class="text-muted mb-0">
+                            No available rooms matched your selected time range and filters.
+                            Try changing the campus, building, or minimum capacity.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="border rounded p-4 bg-light">
+                        <h5 class="mb-2">Ready to search</h5>
+                        <p class="text-muted mb-0">
+                            Choose a start time, end time, and any optional filters on the left,
+                            then click <strong>Search Rooms</strong> to load available rooms.
+                        </p>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+@code {
+    private DateTime? startLocal;
+    private DateTime? endLocal;
+    private int? minCapacity;
+
+    private int? selectedCampusId;
+    private int? selectedBuildingId;
+
+    private bool isLoading = false;
+    private string? errorMessage;
+    private string? statusMessage;
+
+    private List<AvailableRoomDto>? rooms;
+    private List<CollegeScheduler.DTOs.Facilities.CampusDto> campuses = new();
+    private List<CollegeScheduler.DTOs.Facilities.BuildingDto> buildings = new();
+
+    private async Task Search()
+    {
+        errorMessage = null;
+        statusMessage = null;
+
+        if (!startLocal.HasValue || !endLocal.HasValue)
+        {
+            errorMessage = "Please select both a start time and an end time.";
+            rooms = null;
+            return;
+        }
+
+        if (endLocal.Value <= startLocal.Value)
+        {
+            errorMessage = "End time must be later than start time.";
+            rooms = null;
+            return;
+        }
+
+        if (minCapacity.HasValue && minCapacity.Value < 0)
+        {
+            errorMessage = "Minimum capacity cannot be negative.";
+            rooms = null;
+            return;
+        }
+
+        isLoading = true;
+
+        try
+        {
+            var query = new RoomSearchQuery
+            {
+                StartUtc = DateTime.SpecifyKind(startLocal.Value, DateTimeKind.Utc),
+                EndUtc = DateTime.SpecifyKind(endLocal.Value, DateTimeKind.Utc),
+                MinCapacity = minCapacity,
+                CampusId = selectedCampusId,
+                BuildingId = selectedBuildingId
+            };
+
+            rooms = await SchedulingService.GetAvailableRoomsAsync(query);
+
+            if (rooms is null || !rooms.Any())
+            {
+                statusMessage = "No rooms were found for the selected filters.";
+            }
+            else
+            {
+                statusMessage = $"{rooms.Count} room(s) found.";
+            }
+        }
+        catch (Exception)
+        {
+            rooms = null;
+            errorMessage = "Something went wrong while searching for available rooms.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ClearFilters()
+    {
+        startLocal = null;
+        endLocal = null;
+        minCapacity = null;
+        selectedCampusId = null;
+        selectedBuildingId = null;
+
+        rooms = null;
+        buildings = new();
+
+        errorMessage = null;
+        statusMessage = null;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await CampusService.GetAllAsync();
+
+        if (result?.Items != null)
+        {
+            campuses = result.Items.ToList();
+        }
+    }
+
+    private async Task OnCampusChanged(ChangeEventArgs e)
+    {
+        selectedBuildingId = null;
+        buildings.Clear();
+
+        if (int.TryParse(e.Value?.ToString(), out var campusId))
+        {
+            selectedCampusId = campusId;
+
+            var result = await BuildingService.GetByCampusAsync(campusId);
+
+            if (result?.Items != null)
+            {
+                buildings = result.Items.ToList();
+            }
+        }
+        else
+        {
+            selectedCampusId = null;
+            buildings.Clear();
+        }
+    }
+
+}
