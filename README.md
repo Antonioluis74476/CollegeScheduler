@@ -18,7 +18,8 @@ This system improves scheduling efficiency by eliminating manual processes and r
 The project demonstrates the practical application of modern software engineering concepts such as API-driven design, role-based access control, and scalable system architecture.
 
 Key Features
-Admin
+
+Admin:
 Manage campuses, buildings, rooms, and modules
 Create and manage timetable events
 Search for available rooms using filters
@@ -26,16 +27,19 @@ Detect scheduling clashes before creating events
 Generate recurring timetable events for full academic terms
 Review and manage requests through an approval workflow
 
-Lecturer
+
+Lecturer:
 View personal timetable
 Submit schedule change requests
 Submit room booking requests
 
-Student
+
+Student:
 View personal timetable
 Submit room booking requests
 Track request status
 Receive notifications
+
 
 Core Functionality
 Room availability search
@@ -43,6 +47,7 @@ Clash detection (room, lecturer, and cohort)
 Recurring event generation
 Request and approval workflow
 Notification system (structure implemented)
+
 
 System Flow
 Admin creates timetable events or recurring schedules
