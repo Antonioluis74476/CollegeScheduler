@@ -109,7 +109,9 @@ User Roles
 
 Role	Description
 Admin:	Manages scheduling, rooms, modules, and approves or rejects requests
+
 Lecturer:	Views assigned timetable and submits schedule or booking requests
+
 Student:	Views timetable and submits room booking requests
 
 
